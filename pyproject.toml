@@ -44,7 +44,7 @@ ignore = [
 "tools/**" = ["S311"]  # синтетика и бенчмарки: детерминированный random по seed — это намеренно
 
 [tool.ruff.lint.isort]
-known-first-party = ["dutyflow_common", "org"]
+known-first-party = ["dutyflow_common", "org", "personnel"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -53,7 +53,7 @@ plugins = ["pydantic.mypy"]
 exclude = ["migrations/versions/", "frontend/"]
 namespace_packages = true
 explicit_package_bases = true
-mypy_path = ["libs/common/src", "services/org/src"]
+mypy_path = ["libs/common/src", "services/org/src", "services/personnel/src"]
 
 [[tool.mypy.overrides]]
 module = ["testcontainers.*", "asgi_lifespan.*", "asyncpg.*"]

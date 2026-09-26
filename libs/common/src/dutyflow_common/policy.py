@@ -84,8 +84,28 @@ DEFAULT_RULES: dict[RuleKey, Scope] = {
     **{
         (role, resource, "read"): Scope.ALL
         for role in (Role.UNIT_ADMIN, Role.OPERATOR, Role.VIEWER)
-        for resource in ("unit_type", "rank", "calendar")
+        for resource in (
+            "unit_type",
+            "rank",
+            "calendar",
+            "position",
+            "attribute_definition",
+            "exemption_reason",
+        )
     },
+    # Личный состав — данные, которые ведут операторы своего поддерева (open-questions №3).
+    # Перевод и архивация — отдельные действия, чтобы их можно было ограничить независимо.
+    **{
+        (role, resource, action): SUBTREE
+        for role in (Role.UNIT_ADMIN, Role.OPERATOR)
+        for resource, actions in {
+            "person": ("read", "create", "update", "archive", "transfer"),
+            "exemption": ("read", "create", "update", "delete"),
+        }.items()
+        for action in actions
+    },
+    **_rules(Role.VIEWER, "person", read=SUBTREE),
+    **_rules(Role.VIEWER, "exemption", read=SUBTREE),
     # Журнал аудита: оператор видит записи своего поддерева (ADR-0010).
     **_rules(Role.UNIT_ADMIN, "audit", read=SUBTREE),
     **_rules(Role.OPERATOR, "audit", read=SUBTREE),

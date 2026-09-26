@@ -61,7 +61,23 @@ async def _app_error_handler(_: Request, exc: Exception) -> JSONResponse:
 
 async def _validation_handler(_: Request, exc: Exception) -> JSONResponse:
     assert isinstance(exc, RequestValidationError)
-    return _problem(422, "validation_failed", "Некорректные данные запроса", exc.errors())
+    errors = [_clean(e) for e in exc.errors()]
+    # Ошибки наших валидаторов (model_validator) уже написаны по-русски для оператора —
+    # показываем первую из них как основное сообщение.
+    custom = [
+        e["msg"].removeprefix("Value error, ") for e in errors if e.get("type") == "value_error"
+    ]
+    message = custom[0] if custom else "Некорректные данные запроса"
+    return _problem(422, "validation_failed", message, errors)
+
+
+def _clean(error: Any) -> dict[str, Any]:
+    """`ctx` может содержать объект исключения — приводим к строкам для JSON."""
+    item = dict(error)
+    if "ctx" in item:
+        item["ctx"] = {k: str(v) for k, v in item["ctx"].items()}
+    item.pop("url", None)
+    return item
 
 
 async def _integrity_handler(_: Request, exc: Exception) -> JSONResponse:

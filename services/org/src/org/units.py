@@ -195,6 +195,7 @@ class UnitService:
                 assert parent is not None
                 await self._check_hierarchy(parent, new_type)
             unit.unit_type_id = new_type.id
+        await self._flush()  # version растёт при flush — событие должно нести новую версию
         entry = audit.record(
             self.session,
             action="unit.update",
@@ -280,6 +281,7 @@ class UnitService:
             raise ConflictError("Сначала расформируйте или перенесите дочерние подразделения")
         before = unit.snapshot()
         unit.is_active = False
+        await self._flush()
         audit.record(
             self.session,
             action="unit.deactivate",
@@ -314,6 +316,13 @@ class UnitService:
         if await self.session.scalar(stmt) is not None:
             raise ConflictError("Подразделение с таким названием уже есть у этого родителя")
 
+    async def _flush(self) -> None:
+        try:
+            await self.session.flush()
+        except StaleDataError as exc:
+            await self.session.rollback()
+            raise ConflictError("Подразделение уже изменено другим пользователем") from exc
+
     async def _commit(self) -> None:
         try:
             await self.session.commit()
@@ -331,4 +340,5 @@ def _event(unit: Unit) -> dict[str, object]:
         "short_name": unit.short_name,
         "path": unit.path,
         "is_active": unit.is_active,
+        "version": unit.version,
     }

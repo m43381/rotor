@@ -38,7 +38,7 @@ logs service="":
 lint:
     uv run ruff check .
     uv run ruff format --check .
-    uv run mypy libs/common/src services/org/src tools
+    uv run mypy libs/common/src services/org/src services/personnel/src tools
     cd frontend; npm run lint; npm run typecheck; npm run check:licenses
 
 # Автоисправление форматирования
@@ -46,9 +46,12 @@ fmt:
     uv run ruff check --fix .
     uv run ruff format .
 
-# Тесты (интеграционные поднимают Postgres через testcontainers — нужен запущенный Docker)
+# Тесты: по отдельному pytest на пакет (сервисы независимы, имена тестовых модулей совпадают).
+# Интеграционные поднимают Postgres и Redis через testcontainers — нужен запущенный Docker.
 test *args:
-    uv run pytest libs/common services/org {{args}}
+    uv run pytest libs/common {{args}}
+    uv run pytest services/org {{args}}
+    uv run pytest services/personnel {{args}}
     cd frontend; npm test
 
 # E2E-тесты UI против стенда (после up и seed); браузер системный, PW_CHANNEL=msedge|chrome

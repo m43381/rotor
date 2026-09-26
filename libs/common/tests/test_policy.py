@@ -26,3 +26,16 @@ def test_viewer_cannot_write() -> None:
 def test_reference_data_readonly_for_operator() -> None:
     assert default_policy.scope_for({Role.OPERATOR}, "rank", "read") is Scope.ALL
     assert default_policy.scope_for({Role.OPERATOR}, "rank", "create") is Scope.NONE
+
+
+def test_personnel_rules() -> None:
+    assert (
+        default_policy.scope_for({Role.OPERATOR}, "person", "transfer")
+        is Scope.OWN_AND_ALL_DESCENDANTS
+    )
+    assert default_policy.scope_for({Role.VIEWER}, "person", "update") is Scope.NONE
+    assert (
+        default_policy.scope_for({Role.VIEWER}, "exemption", "read")
+        is Scope.OWN_AND_ALL_DESCENDANTS
+    )
+    assert default_policy.scope_for({Role.OPERATOR}, "position", "create") is Scope.NONE

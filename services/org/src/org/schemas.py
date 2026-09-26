@@ -120,6 +120,7 @@ class UnitBrief(BaseModel):
     short_name: str | None
     path: str
     is_active: bool
+    version: int
 
 
 class AuditEntryOut(BaseModel):

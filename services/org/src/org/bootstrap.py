@@ -72,6 +72,7 @@ async def ensure_root(
                 "unit_type_id": unit_type.id,
                 "short_name": None,
                 "is_active": True,
+                "version": root.version,
             },
         )
         log.info("Создано корневое подразделение %s (%s)", root.name, root.id)

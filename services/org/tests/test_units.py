@@ -286,3 +286,30 @@ async def test_root_cannot_be_moved_or_deactivated(
     }
     r = await admin.delete(f"/units/{settings.root_unit_id}", params={"version": root["version"]})
     assert r.status_code == 422
+
+
+async def test_events_carry_new_version(admin: AsyncClient, settings: OrgSettings) -> None:
+    """Проекции в других сервисах сравнивают версии — событие обязано нести новую."""
+    tree = await build_tree(admin, settings.root_unit_id)
+    unit = await get_unit(admin, tree.course12)
+    r = await admin.patch(
+        f"/units/{tree.course12}", json={"name": "Курс 1.2 (нов.)", "version": unit["version"]}
+    )
+    engine = create_async_engine(settings.database_url)
+    async with engine.connect() as conn:
+        payload = (
+            await conn.execute(
+                text(
+                    "SELECT payload FROM outbox WHERE event_type = 'unit.updated' "
+                    "ORDER BY created_at DESC LIMIT 1"
+                )
+            )
+        ).scalar_one()
+    await engine.dispose()
+    assert payload["version"] == r.json()["version"] == int(str(unit["version"])) + 1
+
+
+async def test_internal_ranks(admin: AsyncClient, anon: AsyncClient) -> None:
+    await admin.post("/ranks", json={"name": "Рядовой", "order": 1})
+    r = await anon.post("/internal/ranks", json={}, headers={"X-Internal-Token": INTERNAL_TOKEN})
+    assert [x["name"] for x in r.json()] == ["Рядовой"]
