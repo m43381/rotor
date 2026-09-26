@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: Python — ruff, mypy, pytest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv python install 3.12
+      - run: uv sync --all-packages --frozen
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy libs/common/src services/org/src tools
+      # Интеграционные тесты поднимают PostgreSQL 16 через testcontainers (Docker есть на раннере)
+      - run: uv run pytest libs/common services/org -q
+
+  frontend:
+    name: Frontend — eslint, vue-tsc, vitest, лицензии, сборка
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run check:licenses
+      - run: npm run build
+
+  api-types:
+    name: Типы API фронтенда соответствуют OpenAPI сервисов
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: uv python install 3.12 && uv sync --all-packages --frozen
+      - run: npm ci --no-audit --no-fund
+        working-directory: frontend
+      - run: npm run gen:api
+        working-directory: frontend
+      - name: Сгенерированные файлы не должны отличаться от закоммиченных
+        run: git diff --exit-code -- frontend/src/api/generated

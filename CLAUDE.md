@@ -93,4 +93,4 @@ tools/                  # генератор синтетических данн
 | `just gen-api` | Типы API фронтенда из OpenAPI сервисов |
 | `just screenshots` | Скриншоты UI для пояснительной записки |
 
-Пароль администратора `admin` лежит в `deploy/.env` (`DUTYFLOW_ADMIN_PASSWORD`). Файл создаётся `just env` со случайными секретами.
+Пароль администратора `admin` лежит в `deploy/.env` (`DUTYFLOW_ADMIN_PASSWORD`). Файл создаётся `just env` со случайными секретами. Бенчмарк иерархии: `just bench` → `docs/benchmarks/hierarchy.md`.
