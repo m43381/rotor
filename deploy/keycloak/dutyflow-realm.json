@@ -8,7 +8,9 @@
   "loginWithEmailAllowed": false,
   "duplicateEmailsAllowed": true,
   "internationalizationEnabled": true,
-  "supportedLocales": ["ru"],
+  "supportedLocales": [
+    "ru"
+  ],
   "defaultLocale": "ru",
   "sslRequired": "external",
   "bruteForceProtected": true,
@@ -19,19 +21,79 @@
   "passwordPolicy": "length(10)",
   "roles": {
     "realm": [
-      { "name": "superadmin", "description": "Суперадминистратор: всё дерево, справочники, операторы" },
-      { "name": "unit_admin", "description": "Администратор подразделения: своё поддерево и его операторы" },
-      { "name": "operator", "description": "Оператор: планирование в пределах своего поддерева" },
-      { "name": "viewer", "description": "Только просмотр своего поддерева" }
+      {
+        "name": "superadmin",
+        "description": "Суперадминистратор: всё дерево, справочники, операторы"
+      },
+      {
+        "name": "unit_admin",
+        "description": "Администратор подразделения: своё поддерево и его операторы"
+      },
+      {
+        "name": "operator",
+        "description": "Оператор: планирование в пределах своего поддерева"
+      },
+      {
+        "name": "viewer",
+        "description": "Только просмотр своего поддерева"
+      }
     ]
   },
   "clientScopes": [
     {
       "name": "dutyflow",
-      "description": "Claims DutyFlow: подразделение оператора и аудитория API",
+      "description": "Все claims DutyFlow: sub, логин, ФИО, роли, подразделение, аудитория API. Встроенные scope Keycloak (profile/roles/basic) не используются, чтобы состав токена был явным.",
       "protocol": "openid-connect",
-      "attributes": { "include.in.token.scope": "false", "display.on.consent.screen": "false" },
+      "attributes": {
+        "include.in.token.scope": "false",
+        "display.on.consent.screen": "false"
+      },
       "protocolMappers": [
+        {
+          "name": "sub",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-sub-mapper",
+          "config": {
+            "access.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "username",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "user.attribute": "username",
+            "claim.name": "preferred_username",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "full name",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-full-name-mapper",
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "realm roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "config": {
+            "claim.name": "realm_access.roles",
+            "jsonType.label": "String",
+            "multivalued": "true",
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
         {
           "name": "unit_id",
           "protocol": "openid-connect",
@@ -66,14 +128,22 @@
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": false,
       "implicitFlowEnabled": false,
-      "redirectUris": ["${PUBLIC_URL}/*", "http://localhost:5173/*"],
-      "webOrigins": ["${PUBLIC_URL}", "http://localhost:5173"],
+      "redirectUris": [
+        "${PUBLIC_URL}/*",
+        "http://localhost:5173/*"
+      ],
+      "webOrigins": [
+        "${PUBLIC_URL}",
+        "http://localhost:5173"
+      ],
       "attributes": {
         "pkce.code.challenge.method": "S256",
         "post.logout.redirect.uris": "${PUBLIC_URL}/*##http://localhost:5173/*"
       },
       "fullScopeAllowed": true,
-      "defaultClientScopes": ["profile", "roles", "dutyflow"],
+      "defaultClientScopes": [
+        "dutyflow"
+      ],
       "optionalClientScopes": []
     },
     {
@@ -83,7 +153,9 @@
       "standardFlowEnabled": false,
       "directAccessGrantsEnabled": true,
       "fullScopeAllowed": true,
-      "defaultClientScopes": ["profile", "roles", "dutyflow"],
+      "defaultClientScopes": [
+        "dutyflow"
+      ],
       "optionalClientScopes": []
     }
   ],
@@ -93,11 +165,21 @@
       "enabled": true,
       "firstName": "Администратор",
       "lastName": "Системы",
-      "attributes": { "unit_id": ["${ROOT_UNIT_ID}"] },
+      "attributes": {
+        "unit_id": [
+          "${ROOT_UNIT_ID}"
+        ]
+      },
       "credentials": [
-        { "type": "password", "value": "${DUTYFLOW_ADMIN_PASSWORD}", "temporary": false }
+        {
+          "type": "password",
+          "value": "${DUTYFLOW_ADMIN_PASSWORD}",
+          "temporary": false
+        }
       ],
-      "realmRoles": ["superadmin"]
+      "realmRoles": [
+        "superadmin"
+      ]
     }
   ],
   "components": {

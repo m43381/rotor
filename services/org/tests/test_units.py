@@ -272,3 +272,17 @@ async def test_ancestors(admin: AsyncClient, settings: OrgSettings) -> None:
     tree = await build_tree(admin, settings.root_unit_id)
     r = await admin.get(f"/units/{tree.group111}/ancestors")
     assert [u["name"] for u in r.json()] == ["Академия", "Факультет 1", "Курс 1.1"]
+
+
+async def test_root_cannot_be_moved_or_deactivated(
+    admin: AsyncClient, settings: OrgSettings
+) -> None:
+    root = await get_unit(admin, settings.root_unit_id)
+    assert root["permissions"] == {
+        "update": True,
+        "move": False,
+        "delete": False,
+        "create_child": True,
+    }
+    r = await admin.delete(f"/units/{settings.root_unit_id}", params={"version": root["version"]})
+    assert r.status_code == 422

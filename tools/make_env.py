@@ -3,6 +3,7 @@
 Существующий deploy/.env не перезаписывается — секреты стенда не должны меняться сами.
 """
 
+import io
 import secrets
 import sys
 from pathlib import Path
@@ -13,6 +14,8 @@ TARGET = ROOT / "deploy" / ".env"
 
 
 def main() -> int:
+    if isinstance(sys.stdout, io.TextIOWrapper):
+        sys.stdout.reconfigure(encoding="utf-8")  # консоль Windows по умолчанию в cp1251
     if TARGET.exists():
         print(f"{TARGET.relative_to(ROOT)} уже есть — оставляю как есть")
         return 0

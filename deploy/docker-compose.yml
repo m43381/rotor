@@ -1,0 +1,126 @@
+# Стенд DutyFlow 2. Запуск: `just up` (создаёт deploy/.env и поднимает всё).
+# Все образы собираются или берутся заранее: во время работы стенд не обращается в интернет.
+name: dutyflow
+
+x-service-env: &service-env
+  REDIS_URL: redis://redis:6379/0
+  OIDC_ISSUER: ${PUBLIC_URL}/auth/realms/dutyflow
+  OIDC_JWKS_URL: http://keycloak:8080/auth/realms/dutyflow/protocol/openid-connect/certs
+  OIDC_AUDIENCE: dutyflow-api
+  INTERNAL_TOKEN: ${INTERNAL_TOKEN}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      ORG_DB_PASSWORD: ${ORG_DB_PASSWORD}
+      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres/init-databases.sh:/docker-entrypoint-initdb.d/10-init-databases.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.3
+    command: ["start", "--import-realm"]
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak_db
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      KC_HTTP_ENABLED: "true"
+      KC_HTTP_RELATIVE_PATH: /auth
+      KC_HOSTNAME: ${PUBLIC_URL}/auth
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_PROXY_HEADERS: xforwarded
+      KC_HEALTH_ENABLED: "true"
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      # Подставляются в realm-файл при импорте (плейсхолдеры ${...})
+      PUBLIC_URL: ${PUBLIC_URL}
+      ROOT_UNIT_ID: ${ROOT_UNIT_ID}
+      DUTYFLOW_ADMIN_PASSWORD: ${DUTYFLOW_ADMIN_PASSWORD}
+    volumes:
+      - ./keycloak/dutyflow-realm.json:/opt/keycloak/data/import/dutyflow-realm.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      # В образе нет curl — проверяем management-порт средствами bash.
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /auth/health/ready HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q UP <&3"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    restart: unless-stopped
+
+  org:
+    build:
+      context: ..
+      dockerfile: services/org/Dockerfile
+    image: dutyflow/org:dev
+    environment:
+      <<: *service-env
+      SERVICE_NAME: org
+      DATABASE_URL: postgresql+asyncpg://org:${ORG_DB_PASSWORD}@postgres:5432/org_db
+      ROOT_UNIT_ID: ${ROOT_UNIT_ID}
+      ROOT_UNIT_NAME: ${ROOT_UNIT_NAME}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  org-relay:
+    image: dutyflow/org:dev
+    command: ["python", "-m", "org.relay"]
+    healthcheck:
+      disable: true  # HTTP-порта у релея нет; проверка из Dockerfile сервиса к нему не относится
+    environment:
+      <<: *service-env
+      SERVICE_NAME: org
+      DATABASE_URL: postgresql+asyncpg://org:${ORG_DB_PASSWORD}@postgres:5432/org_db
+    depends_on:
+      org:
+        condition: service_healthy
+    restart: unless-stopped
+
+  gateway:
+    build:
+      context: ../frontend
+    image: dutyflow/gateway:dev
+    ports:
+      - "${GATEWAY_PORT:-8080}:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      org:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:

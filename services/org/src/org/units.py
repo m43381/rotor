@@ -63,10 +63,11 @@ class UnitService:
     async def permissions(self, unit: Unit) -> UnitPermissions:
         op_path = await self.operator_path()
         active = unit.is_active
+        not_root = unit.parent_id is not None
         return UnitPermissions(
             update=active and in_scope(unit.path, op_path, self._scope("update")),
-            move=active and in_scope(unit.path, op_path, self._scope("move")),
-            delete=active and in_scope(unit.path, op_path, self._scope("delete")),
+            move=active and not_root and in_scope(unit.path, op_path, self._scope("move")),
+            delete=active and not_root and in_scope(unit.path, op_path, self._scope("delete")),
             create_child=active and in_scope(unit.path, op_path, self._scope("create")),
         )
 
@@ -211,6 +212,8 @@ class UnitService:
     async def move(self, unit_id: uuid.UUID, data: UnitMove) -> Unit:
         unit = await self.get(unit_id, action="move")
         self._check_version(unit, data.version)
+        if unit.parent_id is None:
+            raise ValidationFailedError("Корневое подразделение нельзя перенести")
         new_parent = await self.get(data.new_parent_id, action="create")
         if not new_parent.is_active:
             raise ValidationFailedError("Нельзя перенести в расформированное подразделение")
@@ -268,6 +271,8 @@ class UnitService:
         """Расформирование: узел не удаляется физически (на него ссылаются люди и графики)."""
         unit = await self.get(unit_id, action="delete")
         self._check_version(unit, version)
+        if unit.parent_id is None:
+            raise ValidationFailedError("Корневое подразделение нельзя расформировать")
         has_children = await self.session.scalar(
             select(func.count()).where(Unit.parent_id == unit.id, Unit.is_active)
         )

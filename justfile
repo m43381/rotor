@@ -38,7 +38,7 @@ logs service="":
 lint:
     uv run ruff check .
     uv run ruff format --check .
-    uv run mypy libs/common/src services/org/src
+    uv run mypy libs/common/src services/org/src tools
     cd frontend; npm run lint; npm run typecheck
 
 # Автоисправление форматирования
