@@ -32,7 +32,7 @@
 
 - Backend: Python 3.12+, FastAPI, Pydantic v2, SQLAlchemy 2.0 (async) + asyncpg, Alembic (миграции в каждом сервисе свои), uv, ruff, mypy, pytest.
 - Алгоритмы: numpy (векторные фильтры и скоринг), scipy (`linear_sum_assignment`), Google OR-Tools (CP-SAT, min-cost flow).
-- Frontend: Vue 3 + TypeScript + Vite, Pinia, Vue Router, PrimeVue (таблицы с виртуальным скроллом, TreeTable), Apache ECharts (vue-echarts). API-клиент генерируется из OpenAPI.
+- Frontend: Vue 3 + TypeScript + Vite, Pinia, Vue Router, PrimeVue **4.x, MIT** (не 5.x: там коммерческая лицензия, см. ADR-0012), Apache ECharts (vue-echarts). API-клиент генерируется из OpenAPI.
 - Хранилище: PostgreSQL 16. Одна инсталляция, **отдельная БД на каждый сервис**, иерархия хранится через `ltree`.
 - Очереди и события: Redis (Streams для доменных событий, arq для фоновых задач) + transactional outbox.
 - Auth: Keycloak (OIDC, JWT), подтверждён в ADR-0002. Регистрация отключена.
@@ -80,4 +80,17 @@ tools/                  # генератор синтетических данн
 
 ## Команды
 
-Команды запускаются через [`just`](https://github.com/casey/just) (`justfile` в корне); `make` не используется. Список заполняется по мере появления: `just up`, `just test`, `just lint`, `just bench`, `just seed`.
+Команды запускаются через [`just`](https://github.com/casey/just) (`justfile` в корне), `make` не используется. Полный список: `just --list`.
+
+| Команда | Что делает |
+|---|---|
+| `just install` | Зависимости Python (uv workspace) и фронтенда |
+| `just up` / `just down` / `just reset` | Поднять стенд, остановить, остановить с удалением данных. Стенд: http://localhost:8088 |
+| `just seed` | Демо-дерево подразделений и демо-учётки (`faculty_admin`, `course_operator`, `faculty_viewer`, пароль `demo-password-1`) |
+| `just lint` | ruff, ruff format, mypy strict, eslint, vue-tsc, проверка лицензий фронтенда |
+| `just test` | pytest (интеграционные тесты на Postgres через testcontainers, нужен Docker) и vitest |
+| `just e2e` | Playwright против поднятого стенда, системный Edge/Chrome |
+| `just gen-api` | Типы API фронтенда из OpenAPI сервисов |
+| `just screenshots` | Скриншоты UI для пояснительной записки |
+
+Пароль администратора `admin` лежит в `deploy/.env` (`DUTYFLOW_ADMIN_PASSWORD`). Файл создаётся `just env` со случайными секретами.

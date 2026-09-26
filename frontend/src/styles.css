@@ -1,0 +1,22 @@
+/* Шрифты только системные: стенд работает без интернета, внешние шрифты запрещены. */
+:root {
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    'Noto Sans',
+    'Liberation Sans',
+    Arial,
+    sans-serif;
+  font-size: 14px;
+  color: var(--p-text-color);
+  background: var(--p-surface-50);
+}
+
+html,
+body,
+#app {
+  margin: 0;
+  height: 100%;
+}

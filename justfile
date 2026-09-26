@@ -1,6 +1,6 @@
 # DutyFlow 2 — команды разработки. Запуск: `just <команда>`, список: `just --list`.
 
-set windows-shell := ["powershell.exe", "-NoLogo", "-NoProfile", "-Command"]
+set windows-shell := ["powershell.exe", "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command"]
 set dotenv-load := false
 
 compose := "docker compose -f deploy/docker-compose.yml --env-file deploy/.env"
@@ -39,7 +39,7 @@ lint:
     uv run ruff check .
     uv run ruff format --check .
     uv run mypy libs/common/src services/org/src tools
-    cd frontend; npm run lint; npm run typecheck
+    cd frontend; npm run lint; npm run typecheck; npm run check:licenses
 
 # Автоисправление форматирования
 fmt:
@@ -49,6 +49,23 @@ fmt:
 # Тесты (интеграционные поднимают Postgres через testcontainers — нужен запущенный Docker)
 test *args:
     uv run pytest libs/common services/org {{args}}
+    cd frontend; npm test
+
+# E2E-тесты UI против стенда (после up и seed); браузер системный, PW_CHANNEL=msedge|chrome
+e2e:
+    cd frontend; $env:PW_CHANNEL = if ($env:PW_CHANNEL) { $env:PW_CHANNEL } else { "msedge" }; npx playwright test
+
+# Скриншоты интерфейса для пояснительной записки → frontend/screenshots/
+screenshots:
+    cd frontend; npm run screenshots
+
+# Перегенерировать типы API фронтенда из OpenAPI сервисов
+gen-api:
+    cd frontend; npm run gen:api
+
+# Запустить фронтенд в режиме разработки (API и вход — через стенд на :8088)
+dev-frontend:
+    cd frontend; npm run dev
 
 # Применить миграции org к БД из DATABASE_URL
 migrate-org:
