@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+build/
+
+# Node
+node_modules/
+frontend/dist/
+frontend/src/api/generated/
+
+# Секреты и локальные настройки (в репозитории только .env.example)
+.env
+deploy/.env
+*.pem
+*.key
+deploy/certs/
+
+# Артефакты
+*.log
+*.sqlite3
+tools/bench/results/
+offline-bundle/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
