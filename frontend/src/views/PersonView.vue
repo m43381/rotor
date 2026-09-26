@@ -3,6 +3,7 @@
 import Button from 'primevue/button'
 import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
+import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import Message from 'primevue/message'
 import Select from 'primevue/select'
@@ -28,6 +29,7 @@ import {
 } from '@/api/client'
 import AttributeFields from '@/components/AttributeFields.vue'
 import ExemptionDialog from '@/components/ExemptionDialog.vue'
+import UnitTreeSelect from '@/components/UnitTreeSelect.vue'
 import { useRefsStore } from '@/stores/refs'
 import { useUnitsStore } from '@/stores/units'
 import { formatDate, formatDateTime } from '@/utils/dates'
@@ -38,7 +40,7 @@ const toast = useToast()
 const confirm = useConfirm()
 const refs = useRefsStore()
 const units = useUnitsStore()
-// Вернуть из архива может тот, кто вообще может менять данные (не наблюдатель);
+// Восстановить в списках может тот, кто вообще может менять данные (не наблюдатель);
 // окончательно права проверяет сервер.
 const canWrite = computed(() => (units.me?.roles ?? []).some((r) => r !== 'viewer'))
 
@@ -188,35 +190,85 @@ function save() {
   )
 }
 
-function toggleArchive() {
+// --- исключение из списков / восстановление (open-questions №34) -------------------------------
+// «Исключить из списков» — человек выбыл (уволен, выпущен, переведён в другую организацию):
+// пропадает из списков и нарядов, но остаётся в прошлых графиках и истории.
+const EXCLUDE_REASONS = [
+  'Увольнение',
+  'Выпуск',
+  'Перевод в другую организацию',
+  'Внесён ошибочно',
+  'Прочее',
+]
+const excludeVisible = ref(false)
+const excludeReason = ref(EXCLUDE_REASONS[0] ?? '')
+const excludeComment = ref('')
+
+function openExclude() {
+  excludeReason.value = EXCLUDE_REASONS[0] ?? ''
+  excludeComment.value = ''
+  excludeVisible.value = true
+}
+
+async function exclude() {
   const p = person.value
   if (!p) return
-  const archiving = p.is_active
+  const comment = [excludeReason.value, excludeComment.value.trim()].filter(Boolean).join(': ')
+  await run(
+    () =>
+      unwrap(
+        personnel.POST('/people/{person_id}/archive', {
+          params: { path: { person_id: p.id } },
+          body: { version: p.version, comment },
+        }),
+      ),
+    'Исключён из списков личного состава',
+  )
+  excludeVisible.value = false
+}
+
+function restore() {
+  const p = person.value
+  if (!p) return
   confirm.require({
-    header: archiving ? 'Перевести в архив?' : 'Вернуть из архива?',
-    message: archiving
-      ? 'Человек пропадёт из списков и не будет назначаться в наряды. Данные и история сохранятся.'
-      : 'Человек снова появится в списках личного состава.',
-    icon: 'pi pi-inbox',
-    acceptProps: { label: archiving ? 'В архив' : 'Вернуть', severity: archiving ? 'warn' : 'primary' },
+    header: 'Восстановить в списках?',
+    message: 'Человек снова появится в списках личного состава и сможет назначаться в наряды.',
+    icon: 'pi pi-replay',
+    acceptProps: { label: 'Восстановить' },
     rejectProps: { label: 'Отмена', severity: 'secondary', text: true },
     accept: () =>
       run(
         () =>
           unwrap(
-            archiving
-              ? personnel.POST('/people/{person_id}/archive', {
-                  params: { path: { person_id: p.id } },
-                  body: { version: p.version },
-                })
-              : personnel.POST('/people/{person_id}/restore', {
-                  params: { path: { person_id: p.id } },
-                  body: { version: p.version },
-                }),
+            personnel.POST('/people/{person_id}/restore', {
+              params: { path: { person_id: p.id } },
+              body: { version: p.version },
+            }),
           ),
-        archiving ? 'Переведён в архив' : 'Возвращён из архива',
+        'Восстановлен в списках',
       ),
   })
+}
+
+/** Причина исключения — из последней записи истории об исключении. */
+const exclusion = computed(() => {
+  const entry = history.value.find((h) => h.action === 'person.archive')
+  return entry ? { at: entry.occurred_at, reason: entry.comment } : null
+})
+
+// --- перевод в другое подразделение (редкая операция, поэтому здесь, а не в списке) -------------
+const transferVisible = ref(false)
+const transferTarget = ref<string | null>(null)
+
+async function transfer() {
+  const p = person.value
+  const target = transferTarget.value
+  if (!p || !target) return
+  await run(async () => {
+    await unwrap(personnel.POST('/people/transfer', { body: { person_ids: [p.id], unit_id: target } }))
+    return unwrap(personnel.GET('/people/{person_id}', { params: { path: { person_id: p.id } } }))
+  }, 'Переведён в другое подразделение')
+  transferVisible.value = false
 }
 
 // --- освобождения ------------------------------------------------------------------------------
@@ -273,8 +325,8 @@ function deleteExemption(e: Exemption) {
 const ACTIONS: Record<string, string> = {
   'person.create': 'Добавлен',
   'person.update': 'Изменён',
-  'person.archive': 'В архив',
-  'person.restore': 'Из архива',
+  'person.archive': 'Исключён из списков',
+  'person.restore': 'Восстановлен в списках',
   'person.transfer': 'Перевод',
   'exemption.create': 'Освобождение',
 }
@@ -290,17 +342,33 @@ function describe(entry: AuditEntry): string {
       <div>
         <Button icon="pi pi-arrow-left" text rounded aria-label="Назад" @click="router.push('/people')" />
         <h1>{{ title }}</h1>
-        <Tag v-if="!person.is_active" value="Архив" severity="secondary" />
+        <Tag v-if="!person.is_active" value="Исключён из списков" severity="secondary" />
         <p class="muted">{{ person.rank_name ?? 'Звание не указано' }} · {{ person.unit_name }}</p>
       </div>
       <div class="actions">
+        <template v-if="person.is_active && editable">
+          <Button
+            label="Перевести"
+            icon="pi pi-arrow-right-arrow-left"
+            severity="secondary"
+            text
+            @click="((transferTarget = null), (transferVisible = true))"
+          />
+          <Button
+            label="Исключить из списков"
+            icon="pi pi-user-minus"
+            severity="secondary"
+            text
+            @click="openExclude"
+          />
+        </template>
         <Button
-          v-if="person.can_edit || (!person.is_active && canWrite)"
-          :label="person.is_active ? 'В архив' : 'Вернуть из архива'"
-          :icon="person.is_active ? 'pi pi-inbox' : 'pi pi-replay'"
+          v-if="!person.is_active && canWrite"
+          label="Восстановить в списках"
+          icon="pi pi-replay"
           severity="secondary"
           :loading="busy"
-          @click="toggleArchive"
+          @click="restore"
         />
         <Button
           v-if="editable"
@@ -313,7 +381,14 @@ function describe(entry: AuditEntry): string {
       </div>
     </header>
 
-    <Message v-if="!editable && person.is_active" severity="secondary" :closable="false">
+    <Message v-if="!person.is_active" severity="warn" :closable="false">
+      Исключён из списков личного состава
+      <template v-if="exclusion">
+        {{ formatDateTime(exclusion.at) }}<template v-if="exclusion.reason"> — {{ exclusion.reason }}</template>
+      </template>.
+      В списки и наряды не попадает; в прошлых графиках и истории сохраняется.
+    </Message>
+    <Message v-else-if="!editable" severity="secondary" :closable="false">
       Только просмотр: изменение недоступно для вашей роли.
     </Message>
 
@@ -429,6 +504,41 @@ function describe(entry: AuditEntry): string {
       </TabPanels>
     </Tabs>
 
+    <Dialog
+      v-model:visible="excludeVisible"
+      header="Исключить из списков личного состава"
+      modal
+      :style="{ width: '32rem' }"
+    >
+      <div class="dialog">
+        <p class="muted-block">
+          Человек пропадёт из списков и не будет назначаться в наряды. Данные не удаляются: он
+          останется в прошлых графиках и истории, его можно восстановить.
+        </p>
+        <label for="ex-why">Причина</label>
+        <Select id="ex-why" v-model="excludeReason" :options="EXCLUDE_REASONS" />
+        <label for="ex-note">Комментарий (приказ, дата)</label>
+        <Textarea id="ex-note" v-model="excludeComment" rows="2" maxlength="500" auto-resize />
+        <div class="dialog-actions">
+          <Button label="Отмена" severity="secondary" text @click="excludeVisible = false" />
+          <Button label="Исключить" severity="warn" :loading="busy" @click="exclude" />
+        </div>
+      </div>
+    </Dialog>
+    <Dialog
+      v-model:visible="transferVisible"
+      header="Перевод в другое подразделение"
+      modal
+      :style="{ width: '30rem' }"
+    >
+      <div class="dialog">
+        <UnitTreeSelect v-model="transferTarget" placeholder="Куда перевести" />
+        <div class="dialog-actions">
+          <Button label="Отмена" severity="secondary" text @click="transferVisible = false" />
+          <Button label="Перевести" :disabled="!transferTarget" :loading="busy" @click="transfer" />
+        </div>
+      </div>
+    </Dialog>
     <ExemptionDialog
       v-model:visible="exemptionVisible"
       :title="editingExemption ? 'Изменить освобождение' : 'Новое освобождение'"
@@ -494,5 +604,23 @@ h3 {
 }
 .toolbar {
   margin-bottom: 0.75rem;
+}
+.dialog {
+  display: grid;
+  gap: 0.5rem;
+}
+.dialog label {
+  font-weight: 600;
+  margin-top: 0.4rem;
+}
+.muted-block {
+  color: var(--p-text-muted-color);
+  margin: 0;
+}
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
 }
 </style>

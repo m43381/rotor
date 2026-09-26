@@ -45,7 +45,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** В архив */
+        /** Исключить из списков */
         post: operations["archive_person_people__person_id__archive_post"];
         delete?: never;
         options?: never;
@@ -62,7 +62,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Из архива */
+        /** Восстановить в списках */
         post: operations["restore_person_people__person_id__restore_post"];
         delete?: never;
         options?: never;

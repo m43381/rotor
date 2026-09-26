@@ -14,7 +14,7 @@ async function login(page: Page, username: string) {
 }
 
 async function total(page: Page): Promise<number> {
-  const text = await page.getByText(/^Найдено: \d+/).innerText()
+  const text = await page.getByText(/Найдено: \d+/).innerText()
   return Number(/Найдено: (\d+)/.exec(text)?.[1])
 }
 
@@ -88,4 +88,39 @@ test('наблюдатель видит карточку только для ч�
   await expect(page.getByText('Только просмотр')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Сохранить' })).toHaveCount(0)
   await expect(page.getByLabel('Фамилия')).toBeDisabled()
+})
+
+test('список разбит на страницы', async ({ page }) => {
+  await login(page, 'faculty_admin')
+  await expect(page.locator('.p-datatable-tbody tr')).toHaveCount(50)
+  await expect(page.getByText(/^1–50 из \d+/)).toBeVisible()
+  const firstOnPage1 = await page.locator('.p-datatable-tbody tr .fio').first().innerText()
+  await page.locator('.p-paginator-next').click()
+  await expect(page.getByText(/^51–100 из \d+/)).toBeVisible()
+  await expect(page.locator('.p-datatable-tbody tr .fio').first()).not.toHaveText(firstOnPage1)
+})
+
+test('исключение из списков с причиной и восстановление', async ({ page }) => {
+  await login(page, 'faculty_admin')
+  const row = page.locator('.p-datatable-tbody tr').nth(7)
+  const name = await row.locator('.fio').innerText()
+  await row.locator('.fio').click()
+
+  await page.getByRole('button', { name: 'Исключить из списков' }).click()
+  await page.getByLabel('Комментарий (приказ, дата)').fill('Приказ № 1 (e2e)')
+  await page.getByRole('dialog').getByRole('button', { name: 'Исключить' }).click()
+  await expect(page.locator('.p-toast-message', { hasText: 'Исключён из списков личного состава' })).toBeVisible()
+  await expect(page.getByText("Увольнение: Приказ № 1 (e2e)").first()).toBeVisible()
+
+  // В общем списке его нет, с флажком «исключённые» — есть
+  await page.getByRole('button', { name: 'Назад' }).click()
+  await page.getByLabel('Поиск').fill(name.split(' ')[0] ?? name)
+  await expect(page.locator('.p-datatable-tbody tr', { hasText: name })).toHaveCount(0)
+  await page.getByText('Показывать исключённых из списков').click()
+  await page.locator('.p-datatable-tbody tr', { hasText: name }).locator('.fio').click()
+
+  await page.getByRole('button', { name: 'Восстановить в списках' }).click()
+  await page.getByRole('button', { name: 'Восстановить' }).last().click()
+  await expect(page.locator('.p-toast-message', { hasText: 'Восстановлен в списках' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Исключить из списков' })).toBeVisible()
 })

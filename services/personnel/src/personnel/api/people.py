@@ -66,13 +66,17 @@ async def update_person(
     return await svc.card(person_id)
 
 
-@router.post("/people/{person_id}/archive", response_model=PersonOut, summary="В архив")
+@router.post(
+    "/people/{person_id}/archive", response_model=PersonOut, summary="Исключить из списков"
+)
 async def archive_person(person_id: uuid.UUID, data: ArchiveIn, svc: PeopleServiceDep) -> PersonOut:
     await svc.set_archived(person_id, data.version, archived=True, comment=data.comment)
     return await svc.card(person_id)
 
 
-@router.post("/people/{person_id}/restore", response_model=PersonOut, summary="Из архива")
+@router.post(
+    "/people/{person_id}/restore", response_model=PersonOut, summary="Восстановить в списках"
+)
 async def restore_person(person_id: uuid.UUID, data: ArchiveIn, svc: PeopleServiceDep) -> PersonOut:
     await svc.set_archived(person_id, data.version, archived=False, comment=data.comment)
     return await svc.card(person_id)

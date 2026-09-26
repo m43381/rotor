@@ -307,7 +307,7 @@
         "tags": [
           "people"
         ],
-        "summary": "В архив",
+        "summary": "Исключить из списков",
         "operationId": "archive_person_people__person_id__archive_post",
         "security": [
           {
@@ -365,7 +365,7 @@
         "tags": [
           "people"
         ],
-        "summary": "Из архива",
+        "summary": "Восстановить в списках",
         "operationId": "restore_person_people__person_id__restore_post",
         "security": [
           {

@@ -16,8 +16,12 @@ import httpx
 ROOT = Path(__file__).resolve().parents[2]
 DEMO_PASSWORD = "demo-password-1"  # noqa: S105 — только демо-учётки локального стенда
 
+# Уровень задаёт допустимую вложенность: дочерний тип ниже родителя. «Кафедра» (2) встаёт
+# и под факультет (1), и прямо под академию (0) — кафедры бывают вне факультетов (№31).
 UNIT_TYPES = [
     ("faculty", "Факультет", 1),
+    ("management", "Управление", 2),
+    ("department", "Кафедра", 2),
     ("course", "Курс", 2),
     ("group", "Учебная группа", 3),
 ]
@@ -35,6 +39,13 @@ RANKS = [
     ("Полковник", "п-к", 120),
 ]
 FACULTIES = ["Факультет управления", "Инженерный факультет", "Факультет связи"]
+# Кафедры факультетов (по две на факультет) и кафедры академии вне факультетов.
+FACULTY_DEPARTMENTS = [
+    ["Кафедра организации управления", "Кафедра тактики"],
+    ["Кафедра эксплуатации техники", "Кафедра инженерного обеспечения"],
+    ["Кафедра радиосвязи", "Кафедра автоматизированных систем"],
+]
+ACADEMY_DEPARTMENTS = ["Кафедра физической подготовки", "Кафедра иностранных языков"]
 COURSES_PER_FACULTY = 4
 GROUPS_PER_COURSE = 3
 
@@ -135,12 +146,18 @@ def ensure_tree(api: OrgApi, types: dict[str, str]) -> dict[str, str]:
     ids: dict[str, str] = {}
     for fi, faculty in enumerate(FACULTIES, start=1):
         f_id = ids[faculty] = ensure(root, "faculty", faculty, fi)
+        management = f"Управление факультета {fi}"
+        ids[management] = ensure(f_id, "management", management, 0)
+        for di, department in enumerate(FACULTY_DEPARTMENTS[fi - 1], start=1):
+            ids[department] = ensure(f_id, "department", department, 10 + di)
         for c in range(1, COURSES_PER_FACULTY + 1):
             course = f"{c} курс, факультет {fi}"
             c_id = ids[course] = ensure(f_id, "course", course, c)
             for g in range(1, GROUPS_PER_COURSE + 1):
                 group = f"Группа {fi}{c}{g}"
                 ids[group] = ensure(c_id, "group", group, g)
+    for di, department in enumerate(ACADEMY_DEPARTMENTS, start=1):
+        ids[department] = ensure(root, "department", department, 100 + di)
     return ids
 
 
@@ -153,6 +170,7 @@ def ensure_demo_users(http: httpx.Client, env: Env, units: dict[str, str]) -> li
         ("faculty_admin", "Иванов", "Пётр", "unit_admin", FACULTIES[0]),
         ("course_operator", "Петров", "Сергей", "operator", "1 курс, факультет 1"),
         ("faculty_viewer", "Сидорова", "Анна", "viewer", FACULTIES[1]),
+        ("department_operator", "Кузнецов", "Андрей", "operator", ACADEMY_DEPARTMENTS[0]),
     ]
     created = []
     for username, last, first, role, unit_name in demo:
@@ -183,7 +201,7 @@ def ensure_demo_users(http: httpx.Client, env: Env, units: dict[str, str]) -> li
         check(
             http.post(f"{base}/users/{user_id}/role-mappings/realm", headers=h, json=[roles[role]])
         )
-        created.append(f"{username:16} {role:11} {unit_name}")
+        created.append(f"{username:20} {role:11} {unit_name}")
     return created
 
 

@@ -86,7 +86,7 @@ tools/                  # генератор синтетических данн
 |---|---|
 | `just install` | Зависимости Python (uv workspace) и фронтенда |
 | `just up` / `just down` / `just reset` | Поднять стенд, остановить, остановить с удалением данных. Стенд: http://localhost:8088 |
-| `just seed` | Демо-дерево подразделений, демо-учётки (`faculty_admin`, `course_operator`, `faculty_viewer`, пароль `demo-password-1`) и ~840 человек личного состава; идемпотентен |
+| `just seed` | Демо-дерево подразделений, демо-учётки (`faculty_admin`, `course_operator`, `faculty_viewer`, `department_operator`, пароль `demo-password-1`) и ~900 человек личного состава (курсанты и постоянный состав: управления факультетов, кафедры); идемпотентен |
 | `just lint` | ruff, ruff format, mypy strict, eslint, vue-tsc, проверка лицензий фронтенда |
 | `just test` | pytest (интеграционные тесты на Postgres через testcontainers, нужен Docker) и vitest |
 | `just e2e` | Playwright против поднятого стенда, системный Edge/Chrome |

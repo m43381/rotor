@@ -20,14 +20,22 @@ from tools.gen.names import fio
 from tools.gen.seed_org import check, read_env, token
 
 SEED = 20260926
+OFFICER = "Постоянный состав"
 POSITIONS = [
     "Курсант",
     "Командир отделения",
     "Заместитель командира взвода",
     "Старшина курса",
     "Начальник курса",
+    "Начальник факультета",
+    "Заместитель начальника факультета",
+    "Офицер управления",
+    "Начальник кафедры",
+    "Старший преподаватель",
     "Преподаватель",
 ]
+# Офицеры — постоянный состав (open-questions №31): управление факультета, кафедры, курсы.
+OFFICER_RANKS = ["Лейтенант", "Старший лейтенант", "Капитан", "Майор", "Подполковник"]
 
 
 def main() -> int:
@@ -120,20 +128,33 @@ def main() -> int:
                     rank = "Младший сержант" if i == 0 else "Ефрейтор" if i < 4 else "Рядовой"
                     person(rng, u, f"{key}-{i:02d}", rank, position, "Курсант")
             elif code == "course":
-                person(rng, u, f"{key}-nk", "Майор", "Начальник курса", "Постоянный состав")
+                person(rng, u, f"{key}-nk", "Майор", "Начальник курса", OFFICER)
+                # Старшина курса — из курсантов (сержант), не офицер
+                person(rng, u, f"{key}-st", "Старший сержант", "Старшина курса", "Курсант")
+            elif code == "management":
+                person(rng, u, f"{key}-nf", "Полковник", "Начальник факультета", OFFICER)
                 person(
-                    rng, u, f"{key}-st", "Старший сержант", "Старшина курса", "Постоянный состав"
+                    rng,
+                    u,
+                    f"{key}-zn",
+                    "Подполковник",
+                    "Заместитель начальника факультета",
+                    OFFICER,
                 )
-            elif code == "faculty":
-                for i in range(4):
+                for i in range(3):
                     person(
                         rng,
                         u,
-                        f"{key}-t{i}",
-                        rng.choice(["Капитан", "Майор", "Подполковник"]),
-                        "Преподаватель",
-                        "Постоянный состав",
+                        f"{key}-o{i}",
+                        rng.choice(OFFICER_RANKS),
+                        "Офицер управления",
+                        OFFICER,
                     )
+            elif code == "department":
+                person(rng, u, f"{key}-nk", "Полковник", "Начальник кафедры", OFFICER)
+                for i in range(rng.randint(4, 7)):
+                    position = "Старший преподаватель" if i < 2 else "Преподаватель"
+                    person(rng, u, f"{key}-t{i}", rng.choice(OFFICER_RANKS), position, OFFICER)
     print(f"Добавлено людей: {created}")
     return 0
 

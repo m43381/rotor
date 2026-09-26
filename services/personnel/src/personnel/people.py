@@ -1,5 +1,6 @@
 """Логика личного состава: scope по проекции дерева, список, карточка, изменения, перевод,
-архивация, освобождения. Все изменения — с аудитом (ADR-0010) и событиями (ADR-0004)."""
+исключение из списков и восстановление, освобождения. Все изменения — с аудитом (ADR-0010)
+и событиями (ADR-0004)."""
 
 import uuid
 from collections.abc import Sequence
@@ -289,7 +290,7 @@ class PeopleService:
     async def update(self, person_id: uuid.UUID, data: PersonUpdate) -> Person:
         person = await self._person(person_id, "person", "update")
         if not person.is_active:
-            raise ValidationFailedError("Человек в архиве — сначала восстановите его")
+            raise ValidationFailedError("Человек исключён из списков — сначала восстановите его")
         _check_version(person.version, data.version)
         fields = data.model_fields_set - {"version", "attributes"}
         if {"last_name", "first_name"} & fields and not all(
@@ -341,7 +342,7 @@ class PeopleService:
         _check_version(person.version, version)
         if person.is_active != archived:
             raise ValidationFailedError(
-                "Человек уже в архиве" if archived else "Человек не в архиве"
+                "Человек уже исключён из списков" if archived else "Человек не исключён из списков"
             )
         before = person.snapshot()
         person.is_active = not archived
@@ -392,7 +393,7 @@ class PeopleService:
             if not in_scope(paths.get(p.unit_id, ""), op_path, scope):
                 raise ForbiddenError(f"{p.last_name} {p.first_name}: вне зоны ответственности")
             if not p.is_active:
-                raise ValidationFailedError(f"{p.last_name} {p.first_name}: в архиве")
+                raise ValidationFailedError(f"{p.last_name} {p.first_name}: исключён из списков")
         moved = 0
         for p in people:
             if p.unit_id == unit_id:
