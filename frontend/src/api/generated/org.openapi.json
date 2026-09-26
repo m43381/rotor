@@ -1055,6 +1055,32 @@
           }
         }
       }
+    },
+    "/internal/ranks": {
+      "post": {
+        "tags": [
+          "internal"
+        ],
+        "summary": "Ranks",
+        "description": "Все звания, включая неактивные: у людей может остаться снятое с учёта звание.",
+        "operationId": "ranks_internal_ranks_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RankOut"
+                  },
+                  "type": "array",
+                  "title": "Response Ranks Internal Ranks Post"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1383,6 +1409,10 @@
           "is_active": {
             "type": "boolean",
             "title": "Is Active"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
           }
         },
         "type": "object",
@@ -1393,7 +1423,8 @@
           "name",
           "short_name",
           "path",
-          "is_active"
+          "is_active",
+          "version"
         ],
         "title": "UnitBrief"
       },

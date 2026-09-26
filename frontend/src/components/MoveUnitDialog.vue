@@ -83,14 +83,6 @@ function submit() {
   </Dialog>
 </template>
 
-<style>
-/* TreeSelect рисует список в оверлее вне компонента, поэтому стиль не scoped. */
-.move-target-disabled > .p-tree-node-content {
-  opacity: 0.45;
-  cursor: default;
-}
-</style>
-
 <style scoped>
 .body {
   display: grid;

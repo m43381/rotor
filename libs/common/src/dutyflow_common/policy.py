@@ -109,6 +109,7 @@ DEFAULT_RULES: dict[RuleKey, Scope] = {
     # Журнал аудита: оператор видит записи своего поддерева (ADR-0010).
     **_rules(Role.UNIT_ADMIN, "audit", read=SUBTREE),
     **_rules(Role.OPERATOR, "audit", read=SUBTREE),
+    **_rules(Role.VIEWER, "audit", read=SUBTREE),
 }
 
 default_policy = Policy(DEFAULT_RULES)

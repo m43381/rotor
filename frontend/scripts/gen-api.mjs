@@ -7,7 +7,7 @@ import openapiTS, { astToString } from 'openapi-typescript'
 const root = new URL('../../', import.meta.url)
 execFileSync('uv', ['run', 'python', 'tools/export_openapi.py'], { cwd: root, stdio: 'inherit' })
 
-for (const service of ['org']) {
+for (const service of ['org', 'personnel']) {
   const schemaUrl = new URL(`../src/api/generated/${service}.openapi.json`, import.meta.url)
   const schema = JSON.parse(readFileSync(schemaUrl, 'utf-8'))
   const ast = await openapiTS(schema)

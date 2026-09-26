@@ -13,6 +13,9 @@ import { createRouter, createWebHistory } from 'vue-router'
 import App from './App.vue'
 import { ensureSignedIn } from './auth'
 import { ru } from './locale/ru'
+import PeopleView from './views/PeopleView.vue'
+import PersonView from './views/PersonView.vue'
+import ReferencesView from './views/ReferencesView.vue'
 import UnitsView from './views/UnitsView.vue'
 
 async function bootstrap() {
@@ -25,6 +28,9 @@ async function bootstrap() {
     routes: [
       { path: '/', redirect: '/units' },
       { path: '/units', component: UnitsView },
+      { path: '/people', component: PeopleView },
+      { path: '/people/:id', component: PersonView },
+      { path: '/references', component: ReferencesView },
       { path: '/:pathMatch(.*)*', redirect: '/units' },
     ],
   })

@@ -2,12 +2,19 @@
 import Button from 'primevue/button'
 import ConfirmDialog from 'primevue/confirmdialog'
 import Toast from 'primevue/toast'
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
+
+import { useRoute } from 'vue-router'
 
 import { signOut } from '@/auth'
 import { useUnitsStore } from '@/stores/units'
 
 const store = useUnitsStore()
+const route = useRoute()
+// Оператор и дерево нужны всем экранам (шапка, фильтры по подразделению).
+onMounted(() => {
+  if (!store.me) store.load().catch(() => undefined)
+})
 
 const ROLE_NAMES: Record<string, string> = {
   superadmin: 'Суперадминистратор',
@@ -15,6 +22,7 @@ const ROLE_NAMES: Record<string, string> = {
   operator: 'Оператор',
   viewer: 'Просмотр',
 }
+const isSuperadmin = computed(() => store.me?.roles.includes('superadmin') === true)
 const roleLabel = computed(() =>
   (store.me?.roles ?? []).map((r) => ROLE_NAMES[r] ?? r).join(', '),
 )
@@ -29,6 +37,10 @@ const roleLabel = computed(() =>
       </div>
       <nav class="nav">
         <RouterLink to="/units">Подразделения</RouterLink>
+        <RouterLink to="/people" :class="{ 'router-link-active': route.path.startsWith('/people') }">
+          Личный состав
+        </RouterLink>
+        <RouterLink v-if="isSuperadmin" to="/references">Справочники</RouterLink>
       </nav>
       <div v-if="store.me" class="user">
         <div class="user-text">

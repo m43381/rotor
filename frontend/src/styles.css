@@ -20,3 +20,9 @@ body,
   margin: 0;
   height: 100%;
 }
+
+/* Недоступные для выбора узлы в TreeSelect (оверлей рисуется вне компонентов, поэтому стиль глобальный). */
+.move-target-disabled > .p-tree-node-content {
+  opacity: 0.45;
+  cursor: default;
+}

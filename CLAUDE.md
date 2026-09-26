@@ -86,11 +86,11 @@ tools/                  # генератор синтетических данн
 |---|---|
 | `just install` | Зависимости Python (uv workspace) и фронтенда |
 | `just up` / `just down` / `just reset` | Поднять стенд, остановить, остановить с удалением данных. Стенд: http://localhost:8088 |
-| `just seed` | Демо-дерево подразделений и демо-учётки (`faculty_admin`, `course_operator`, `faculty_viewer`, пароль `demo-password-1`) |
+| `just seed` | Демо-дерево подразделений, демо-учётки (`faculty_admin`, `course_operator`, `faculty_viewer`, пароль `demo-password-1`) и ~840 человек личного состава; идемпотентен |
 | `just lint` | ruff, ruff format, mypy strict, eslint, vue-tsc, проверка лицензий фронтенда |
 | `just test` | pytest (интеграционные тесты на Postgres через testcontainers, нужен Docker) и vitest |
 | `just e2e` | Playwright против поднятого стенда, системный Edge/Chrome |
 | `just gen-api` | Типы API фронтенда из OpenAPI сервисов |
 | `just screenshots` | Скриншоты UI для пояснительной записки |
 
-Пароль администратора `admin` лежит в `deploy/.env` (`DUTYFLOW_ADMIN_PASSWORD`). Файл создаётся `just env` со случайными секретами. Бенчмарк иерархии: `just bench` → `docs/benchmarks/hierarchy.md`.
+Пароль администратора `admin` лежит в `deploy/.env` (`DUTYFLOW_ADMIN_PASSWORD`). Файл создаётся `just env` со случайными секретами. Бенчмарки: `just bench` (иерархия) и `just bench-people` (снимок личного состава) → `docs/benchmarks/`.

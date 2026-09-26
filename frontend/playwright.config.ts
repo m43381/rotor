@@ -6,6 +6,9 @@ export default defineConfig({
   testDir: './e2e',
   timeout: 60_000,
   fullyParallel: false,
+  // Один браузер: тесты входят под одними и теми же демо-учётками, а параллельные входы
+  // срабатывают на защиту Keycloak от перебора паролей (brute force detection).
+  workers: 1,
   retries: 0,
   reporter: [['list']],
   use: {

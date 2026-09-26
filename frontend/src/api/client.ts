@@ -3,11 +3,24 @@ import createClient, { type Middleware } from 'openapi-fetch'
 
 import { accessToken, signIn } from '@/auth'
 import type { components, paths as OrgPaths } from './generated/org'
+import type { components as PC, paths as PersonnelPaths } from './generated/personnel'
 
 export type Unit = components['schemas']['UnitOut']
 export type UnitType = components['schemas']['UnitTypeOut']
 export type Me = components['schemas']['MeOut']
 export type UnitCreate = components['schemas']['UnitCreate']
+export type Rank = components['schemas']['RankOut']
+
+export type PersonListItem = PC['schemas']['PersonListItem']
+export type Person = PC['schemas']['PersonOut']
+export type PersonCreate = PC['schemas']['PersonCreate']
+export type PersonUpdate = PC['schemas']['PersonUpdate']
+export type Exemption = PC['schemas']['ExemptionOut']
+export type Position = PC['schemas']['PositionOut']
+export type AttributeDefinition = PC['schemas']['AttributeDefinitionOut']
+export type ExemptionReason = PC['schemas']['ExemptionReasonOut']
+export type BulkResult = PC['schemas']['BulkResult']
+export type AuditEntry = PC['schemas']['AuditEntryOut']
 
 /** Ошибка API в формате сервисов: `{code, message, details?}`. */
 export class ApiError extends Error {
@@ -37,6 +50,9 @@ const auth: Middleware = {
 
 export const org = createClient<OrgPaths>({ baseUrl: '/api/org' })
 org.use(auth)
+
+export const personnel = createClient<PersonnelPaths>({ baseUrl: '/api/personnel' })
+personnel.use(auth)
 
 interface Result<T> {
   data?: T
