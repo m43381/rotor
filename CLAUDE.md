@@ -80,4 +80,4 @@ tools/                  # генератор синтетических данн
 
 ## Команды
 
-(заполнить по мере появления: `make up`, `make test`, `make lint`, `make bench`, `make seed`)
+Команды запускаются через [`just`](https://github.com/casey/just) (`justfile` в корне); `make` не используется. Список заполняется по мере появления: `just up`, `just test`, `just lint`, `just bench`, `just seed`.
