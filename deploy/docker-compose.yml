@@ -17,6 +17,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       ORG_DB_PASSWORD: ${ORG_DB_PASSWORD}
+      PERSONNEL_DB_PASSWORD: ${PERSONNEL_DB_PASSWORD}
       KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -77,7 +78,9 @@ services:
   org:
     build:
       context: ..
-      dockerfile: services/org/Dockerfile
+      dockerfile: services/Dockerfile
+      args:
+        SERVICE: org
     image: dutyflow/org:dev
     environment:
       <<: *service-env
@@ -106,6 +109,50 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  personnel:
+    build:
+      context: ..
+      dockerfile: services/Dockerfile
+      args:
+        SERVICE: personnel
+    image: dutyflow/personnel:dev
+    environment: &personnel-env
+      <<: *service-env
+      SERVICE_NAME: personnel
+      DATABASE_URL: postgresql+asyncpg://personnel:${PERSONNEL_DB_PASSWORD}@postgres:5432/personnel_db
+      ORG_URL: http://org:8000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  personnel-relay:
+    image: dutyflow/personnel:dev
+    command: ["python", "-m", "personnel.relay"]
+    healthcheck:
+      disable: true
+    environment: *personnel-env
+    depends_on:
+      personnel:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Один экземпляр: проекции чувствительны к порядку событий (ADR-0011).
+  personnel-consumer:
+    image: dutyflow/personnel:dev
+    command: ["python", "-m", "personnel.consumer"]
+    healthcheck:
+      disable: true
+    environment: *personnel-env
+    depends_on:
+      personnel:
+        condition: service_healthy
+      org:
+        condition: service_healthy
+    restart: unless-stopped
+
   gateway:
     build:
       context: ../frontend
@@ -116,6 +163,8 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       org:
+        condition: service_healthy
+      personnel:
         condition: service_healthy
       keycloak:
         condition: service_healthy

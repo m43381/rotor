@@ -18,4 +18,5 @@ SQL
 }
 
 create_db org_db org "$ORG_DB_PASSWORD"
+create_db personnel_db personnel "$PERSONNEL_DB_PASSWORD"
 create_db keycloak_db keycloak "$KEYCLOAK_DB_PASSWORD"

@@ -74,10 +74,15 @@ dev-frontend:
 migrate-org:
     cd services/org; uv run alembic upgrade head
 
-# Бенчмарк иерархии (ADR-0003)
+# Бенчмарк иерархии (ADR-0003) → docs/benchmarks/hierarchy.md
 bench:
     uv run python tools/bench/hierarchy.py
 
-# Синтетические данные для стенда
+# Бенчмарк снимка личного состава (фаза 2) → docs/benchmarks/people-snapshot.md
+bench-people:
+    uv run python tools/bench/people_snapshot.py
+
+# Демо-данные стенда: дерево, учётки операторов, личный состав (~1000 человек)
 seed:
     uv run python tools/gen/seed_org.py
+    uv run python tools/gen/seed_people.py
