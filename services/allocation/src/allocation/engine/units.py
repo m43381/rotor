@@ -53,6 +53,72 @@ def _hamilton(total: int, weights: np.ndarray, tiebreak: np.ndarray) -> np.ndarr
     return result
 
 
+def _sainte_lague(total: int, weights: np.ndarray, tiebreak: np.ndarray) -> np.ndarray:
+    """Метод Сент-Лагю (наибольшее частное с делителями 1, 3, 5, …): без «парадокса
+    Алабамы» и без систематического перекоса в пользу крупных — поэтому предсказуем."""
+    seats = np.zeros(len(weights), dtype=np.int64)
+    if total == 0 or weights.sum() <= 0:
+        return seats
+    for _ in range(total):
+        quotient = weights / (2 * seats + 1)
+        seats[np.lexsort((tiebreak, -quotient))[0]] += 1
+    return seats
+
+
+def _place_by_flow(
+    problem: Problem,
+    targets: list[Cell],
+    quota: dict[int, np.ndarray],
+    capacity: dict[int, np.ndarray],
+    taken: np.ndarray,
+    w: Any,
+    place: Any,
+    g: int,
+) -> dict[str, Any]:
+    """Расстановка по дням min-cost flow (OR-Tools): исток → подразделение (квота роли) →
+    ячейка (есть ёмкость) → сток. Точный оптимум транспортной задачи по стоимости: занятость
+    подразделения в эти сутки и запас людей. Роли решаются по очереди, чтобы учитывать, кого
+    подразделение уже отдало в эти сутки. Недопустимое после применения и то, что не влезло
+    в квоты, добирает жадный проход."""
+    from ortools.graph.python import min_cost_flow
+
+    leftovers: list[Cell] = []
+    flows = 0
+    for r in sorted(quota):
+        cells_r = sorted((c for c in targets if c.role == r), key=lambda c: (c.day, c.index))
+        head = problem.roles[r].headcount
+        net = min_cost_flow.SimpleMinCostFlow()
+        sink = 1 + g + len(cells_r)
+        for k in range(g):
+            if quota[r][k] > 0:
+                net.add_arc_with_capacity_and_unit_cost(0, 1 + k, int(quota[r][k]), 0)
+        for n, c in enumerate(cells_r):
+            node = 1 + g + n
+            free = capacity[c.index] - taken[:, c.day : c.last_day + 1].max(axis=1)
+            top = max(1, int(free.max(initial=0)))
+            for k in range(g):
+                if free[k] >= head:
+                    cost = w.same_day * taken[k, c.day] - w.capacity * free[k] / top
+                    net.add_arc_with_capacity_and_unit_cost(
+                        1 + k, node, 1, round(100 * (cost + 10))
+                    )
+            net.add_arc_with_capacity_and_unit_cost(node, sink, 1, 0)
+        chosen: dict[int, int] = {}
+        if net.num_arcs() and net.solve_max_flow_with_min_cost() == net.OPTIMAL:
+            flows += 1
+            for arc in range(net.num_arcs()):
+                tail, head_node = net.tail(arc), net.head(arc)
+                if net.flow(arc) > 0 and 1 <= tail <= g and head_node > g:
+                    chosen[head_node - 1 - g] = tail - 1
+        for n, c in enumerate(cells_r):
+            if n in chosen and place(c, chosen[n]):
+                continue
+            leftovers.append(c)
+    for c in sorted(leftovers, key=lambda c: (c.day, c.index)):
+        place(c)
+    return {"optimal": False, "flow_roles": flows, "greedy_leftovers": len(leftovers)}
+
+
 def solve_units(problem: Problem, config: EngineConfig, seed: int) -> dict[str, Any]:
     timer = Timer()
     rng = np.random.default_rng(seed)
@@ -136,84 +202,111 @@ def solve_units(problem: Problem, config: EngineConfig, seed: int) -> dict[str, 
         cells_r = [c for c in targets if c.role == r]
         # «Масса» ёмкости: сколько людей подразделения могут закрыть роль, по всем ячейкам
         mass = sum(capacity[c.index].astype(np.float64) for c in cells_r)
-        quota[r] = _hamilton(len(cells_r), np.asarray(mass) * debt, tiebreak[:g])
+        weights = np.asarray(mass) * debt
+        quota[r] = (
+            _sainte_lague(len(cells_r), weights, tiebreak[:g])
+            if config.apportionment == "sainte_lague"
+            else _hamilton(len(cells_r), weights, tiebreak[:g])
+        )
     timer.lap("level2")
 
-    # --- уровень 3–4: жадная расстановка в порядке MRV ----------------------------------
+    # --- уровень 3–4: расстановка ячеек по дням -----------------------------------------
     w = config.unit_weights
     width = problem.width
     taken = np.zeros((g, width), dtype=np.int64)  # людей, отданных подразделению в эти сутки
     given = {r: np.zeros(g, dtype=np.int64) for r in quota}
-    order = sorted(
-        targets,
-        key=lambda c: (
-            int((capacity[c.index] >= problem.roles[c.role].headcount).sum()) if g else 0,
-            c.day,
-            c.role,
-            c.index,
-        ),
-    )
     delegations: list[dict[str, Any]] = []
     unfilled: list[dict[str, Any]] = []
-    for c in order:
+
+    def options(c: Cell) -> tuple[np.ndarray, dict[str, np.ndarray], np.ndarray]:
+        """Кому можно отдать ячейку сейчас, признаки и стоимость (уровень 3)."""
         role = problem.roles[c.role]
-        if not g:
-            break
         days = slice(c.day, min(width, c.last_day + 1))
         free_cap = capacity[c.index] - taken[:, days].max(axis=1)
-        ok = free_cap >= role.headcount
-        if not ok.any():
-            unfilled.append(
-                {
-                    "cell": c.id,
-                    "missing": 1,
-                    "message": f"{_date(problem, c.day)}: роль «{role.name}» — некому передать",
-                }
-            )
-            continue
-        cand = np.flatnonzero(ok)
-        # Квота соблюдается, пока есть подразделения, не выбравшие её; иначе — сверх квоты
-        under = cand[given[c.role][cand] < quota[c.role][cand]]
-        if len(under):
-            cand = under
+        cand = np.flatnonzero(free_cap >= role.headcount)
         q = quota[c.role][cand]
         feats = {
             "quota": (given[c.role][cand] + 1) / np.maximum(q, 0.5),
             "same_day": taken[cand, c.day].astype(np.float64),
-            "capacity": free_cap[cand] / max(1, int(free_cap.max())),
+            "capacity": free_cap[cand] / max(1, int(free_cap.max(initial=0))),
         }
         cost = (
             w.quota * feats["quota"]
             + w.same_day * feats["same_day"]
             - w.capacity * feats["capacity"]
         )
-        ranked = np.lexsort((tiebreak[cand], cost))[: config.alternatives + 1]
+        return cand, feats, cost
 
-        def describe(
-            i: int, cand: Any = cand, cost: Any = cost, feats: Any = feats
-        ) -> dict[str, Any]:
+    def place(c: Cell, chosen: int | None = None) -> bool:
+        """Отдаёт ячейку: выбранному заранее (min-cost flow) или лучшему сейчас (жадно).
+        Квота соблюдается, пока есть подразделения, не выбравшие её."""
+        role = problem.roles[c.role]
+        cand, feats, cost = options(c)
+        if not len(cand):
+            if chosen is None:
+                unfilled.append(
+                    {
+                        "cell": c.id,
+                        "missing": 1,
+                        "message": f"{_date(problem, c.day)}: роль «{role.name}» — некому передать",
+                    }
+                )
+            return False
+        ranked = np.lexsort((tiebreak[cand], cost))
+        if chosen is None:
+            under = [i for i in ranked if given[c.role][cand[i]] < quota[c.role][cand[i]]]
+            pick = int(under[0]) if under else int(ranked[0])
+        else:
+            hit = np.flatnonzero(cand == chosen)
+            if not len(hit):
+                return False  # решение потока уже недопустимо — ячейку добирает жадный проход
+            pick = int(hit[0])
+
+        def describe(i: int) -> dict[str, Any]:
             return {
                 "unit": problem.unit_ids[groups[int(cand[i])]],
                 "cost": round(float(cost[i]), 6),
                 "features": {k: round(float(v[i]), 6) for k, v in feats.items()},
             }
 
-        best = int(cand[ranked[0]])
+        best = int(cand[pick])
         delegations.append(
             {
                 "cell": c.id,
-                **describe(int(ranked[0])),
+                **describe(pick),
                 "keep": groups[best] == u,
-                "rank": 1,
+                "rank": int(np.flatnonzero(ranked == pick)[0]) + 1,
                 "candidates": len(cand),
-                "alternatives": [describe(int(i)) for i in ranked[1:]],
+                "alternatives": [
+                    describe(int(i)) for i in ranked[: config.alternatives + 1] if int(i) != pick
+                ][: config.alternatives],
                 "capacity": {
                     problem.unit_ids[groups[k]]: int(capacity[c.index][k]) for k in range(g)
                 },
             }
         )
+        days = slice(c.day, min(width, c.last_day + 1))
         taken[best, days] += role.headcount
         given[c.role][best] += 1
+        return True
+
+    method = "flow" if config.units_method in ("auto", "flow") else "greedy"
+    info: dict[str, Any] = {}
+    if g and method == "flow":
+        info = _place_by_flow(problem, targets, quota, capacity, taken, w, place, g)
+    elif g:
+        order = sorted(
+            targets,
+            key=lambda c: (
+                int((capacity[c.index] >= problem.roles[c.role].headcount).sum()),
+                c.day,
+                c.role,
+                c.index,
+            ),
+        )
+        for c in order:
+            place(c)
+        info = {"optimal": False}
     timer.lap("level4")
 
     # Справедливость между подразделениями: доля отданных ячеек к их ёмкости
@@ -226,6 +319,8 @@ def solve_units(problem: Problem, config: EngineConfig, seed: int) -> dict[str, 
     )
     return {
         "kind": "units",
+        "method": method,
+        "method_info": {**info, "apportionment": config.apportionment},
         "assignments": [],
         "removed": [],
         "delegations": delegations,

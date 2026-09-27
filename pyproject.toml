@@ -63,7 +63,7 @@ mypy_path = [
 ]
 
 [[tool.mypy.overrides]]
-module = ["testcontainers.*", "asgi_lifespan.*", "asyncpg.*", "scipy.*", "yaml.*"]
+module = ["testcontainers.*", "asgi_lifespan.*", "asyncpg.*", "scipy.*", "yaml.*", "ortools.graph.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

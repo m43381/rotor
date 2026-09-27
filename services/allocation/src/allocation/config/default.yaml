@@ -20,3 +20,20 @@ unit_weights:
 alternatives: 5
 strict_feasibility: true
 strict_feasibility_max_edges: 5000000
+
+# Уровень 4 (фаза 5): метод выбирается по размеру задачи (open-questions №46)
+method: auto
+auto_cpsat_max_pairs: 60000
+auto_local_search_max_pairs: 2000000
+ls_iterations: 20000
+ls_temperature: 0.5
+cpsat_deterministic_time: 20.0   # детерминированное время решателя — одинаковый результат
+cpsat_time_limit_s: 10.0         # настенный предел — страховка (open-questions №47)
+cpsat_workers: 1
+cpsat_hint: local_search         # старт и подсказка решателю
+cpsat_candidates_per_place: 20   # сужение модели: лучшие кандидаты на место
+cpsat_window_pairs: 30000        # больше — скользящий горизонт окнами по window_days
+window_days: 7
+
+apportionment: sainte_lague      # квоты подразделений
+units_method: auto               # auto → min-cost flow

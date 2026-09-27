@@ -3,7 +3,8 @@
 
 from typing import Any
 
-from helpers import M, cell, existing, person, role, snapshot
+import numpy as np
+from helpers import FAST, M, cell, existing, person, role, snapshot
 
 from allocation.engine.config import make_config
 from allocation.engine.solve import solve
@@ -11,7 +12,7 @@ from allocation.engine.verify import verify, verify_units
 
 
 def run(snap: dict[str, Any], **config: Any) -> dict[str, Any]:
-    solution = solve(snap, make_config(config, defaults={}), seed=1)
+    solution = solve(snap, make_config(config, defaults=FAST), seed=1)
     check = (
         verify_units(snap, solution) if config.get("kind") == "units" else verify(snap, solution)
     )
@@ -161,7 +162,7 @@ def test_determinism_and_seed() -> None:
         people=[person(p, [0]) for p in "abcdef"],
         cells=[cell("c", M + 2)],
     )
-    config = make_config({}, defaults={})
+    config = make_config({}, defaults=FAST)
     first = solve(snap, config, seed=1)
     assert solve(snap, config, seed=1)["solution_hash"] == first["solution_hash"]
     # Все равны — выбор решает жребий по seed
@@ -207,3 +208,14 @@ def test_units_skip_occupied_and_pinned_cells() -> None:
     assert "c0" not in cells
     assert "c1" not in cells
     assert len(cells) == 26
+
+
+def test_sainte_lague_vs_hamilton_quotas() -> None:
+    from allocation.engine.units import _hamilton, _sainte_lague
+
+    tie = np.arange(3)
+    # Классический пример: голоса 53 / 24 / 23 на 7 мест
+    weights = np.array([53.0, 24.0, 23.0])
+    assert list(_sainte_lague(7, weights, tie)) == [3, 2, 2]
+    assert list(_hamilton(7, weights, tie)) == [4, 2, 1]
+    assert _sainte_lague(0, weights, tie).sum() == 0

@@ -22,7 +22,7 @@ async def client() -> AsyncIterator[AsyncClient]:
 async def test_solve(client: AsyncClient) -> None:
     body = {
         "snapshot": generate_snapshot(people=50, seed=4),
-        "config": {"kind": "people"},
+        "config": {"kind": "people", "method": "local_search", "ls_iterations": 1000},
         "seed": 3,
     }
     assert (await client.post("/internal/solve", json=body)).status_code == 401

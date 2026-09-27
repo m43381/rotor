@@ -36,6 +36,27 @@ class PeopleState:
         self.mid = (problem.month_start + problem.month_end) / 2
         self._kernels: dict[int, FloatArray] = {}
 
+    def copy(self) -> "PeopleState":
+        """Независимая копия массивов — методы экспериментируют, не портя исходное состояние."""
+        other = PeopleState.__new__(PeopleState)
+        other.problem = self.problem
+        other.holiday_weight = self.holiday_weight
+        other.decay = self.decay
+        other.mid = self.mid
+        other._kernels = self._kernels
+        for name in (
+            "busy",
+            "rest_until",
+            "starts",
+            "load",
+            "type_load",
+            "holiday_load",
+            "month_total",
+            "month_holiday",
+        ):
+            setattr(other, name, getattr(self, name).copy())
+        return other
+
     def kernel(self, day: int) -> FloatArray:
         """Веса затухания по дням относительно дня ячейки: decay^|day − i|."""
         k = self._kernels.get(day)

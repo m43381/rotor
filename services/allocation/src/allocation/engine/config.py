@@ -50,6 +50,31 @@ class EngineConfig(BaseModel):
     strict_feasibility_max_edges: int = 5_000_000
     alternatives: int = Field(default=5, ge=0, le=20)
 
+    # --- уровень 4 (фаза 5): метод и его пределы -------------------------------------------
+    # auto — по размеру задачи (open-questions №46); остальные — принудительно
+    method: Literal["auto", "greedy", "hungarian", "local_search", "cpsat"] = "auto"
+    # Пороги auto по числу допустимых пар «человек × место» (уточняются бенчмарком)
+    auto_cpsat_max_pairs: int = 60_000
+    auto_local_search_max_pairs: int = 2_000_000
+    ls_iterations: int = Field(default=20_000, ge=0)
+    ls_temperature: float = Field(default=0.5, ge=0)
+    # CP-SAT: детерминированное время (одинаковый результат) и настенный предел (страховка,
+    # open-questions №47); число потоков решателя
+    cpsat_deterministic_time: float = Field(default=20.0, gt=0)
+    cpsat_time_limit_s: float = Field(default=10.0, gt=0)
+    cpsat_workers: int = Field(default=1, ge=1, le=32)
+    # Стартовое решение и подсказка CP-SAT
+    cpsat_hint: Literal["local_search", "greedy"] = "local_search"
+    # Сужение модели: столько лучших кандидатов на место (0 — все допустимые)
+    cpsat_candidates_per_place: int = Field(default=20, ge=0)
+    # Скользящий горизонт: больше стольких пар — месяц решается окнами по window_days дней
+    cpsat_window_pairs: int = 30_000
+    window_days: int = Field(default=7, ge=0)
+
+    # --- распределение по подразделениям ---------------------------------------------------
+    apportionment: Literal["sainte_lague", "hamilton"] = "sainte_lague"
+    units_method: Literal["auto", "greedy", "flow"] = "auto"
+
 
 def load_defaults(path: Path = DEFAULT_FILE) -> dict[str, Any]:
     if not path.exists():
