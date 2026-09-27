@@ -92,6 +92,11 @@ bench-schedule:
 bench-allocation:
     uv run python tools/bench/engine.py
 
+# Экспериментальный стенд (фаза 5): legacy и методы движка на оргструктурах 1k–50k,
+# затухание, пороги auto → docs/experiments.md (десятки минут; `--report` — только отчёт)
+experiment *args:
+    uv run --group experiment python -m tools.experiment.run {{args}}
+
 # Демо-данные стенда: дерево, учётки операторов, личный состав (~1000 человек), наряды, допуски и графики на следующий месяц
 seed:
     uv run python tools/gen/seed_org.py

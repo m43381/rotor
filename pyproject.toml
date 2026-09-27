@@ -16,6 +16,8 @@ dev = [
     "testcontainers[postgres]>=4.8",
     "asgi-lifespan>=2.1",
 ]
+# Экспериментальный стенд (`just experiment`): графики — только здесь, не в образах сервисов
+experiment = ["matplotlib>=3.9"]
 
 [tool.uv]
 package = false
