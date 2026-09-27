@@ -1,0 +1,2462 @@
+[
+ {
+  "seed": 1,
+  "half_life": 14,
+  "months": [
+   {
+    "month": "2026-11-01",
+    "filled": 2940,
+    "places": 2940,
+    "month_load": {
+     "people": 1000,
+     "mean": 8.16,
+     "std": 3.0011,
+     "gini": 0.1976,
+     "jain": 0.8809,
+     "range": 18.0,
+     "min": 0.0,
+     "max": 18.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 2.94,
+     "std": 1.3336,
+     "gini": 0.2512,
+     "jain": 0.8294,
+     "range": 7.0,
+     "min": 0.0,
+     "max": 7.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 8.16,
+     "std": 3.0011,
+     "gini": 0.1976,
+     "jain": 0.8809,
+     "range": 18.0,
+     "min": 0.0,
+     "max": 18.0
+    }
+   },
+   {
+    "month": "2026-12-01",
+    "filled": 3038,
+    "places": 3038,
+    "month_load": {
+     "people": 1000,
+     "mean": 8.432,
+     "std": 2.8095,
+     "gini": 0.1744,
+     "jain": 0.9001,
+     "range": 18.0,
+     "min": 0.0,
+     "max": 18.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.038,
+     "std": 1.294,
+     "gini": 0.2329,
+     "jain": 0.8464,
+     "range": 8.0,
+     "min": 0.0,
+     "max": 8.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 16.592,
+     "std": 4.0597,
+     "gini": 0.135,
+     "jain": 0.9435,
+     "range": 32.0,
+     "min": 0.0,
+     "max": 32.0
+    }
+   },
+   {
+    "month": "2027-01-01",
+    "filled": 3038,
+    "places": 3038,
+    "month_load": {
+     "people": 1000,
+     "mean": 8.432,
+     "std": 2.6828,
+     "gini": 0.1629,
+     "jain": 0.9081,
+     "range": 18.0,
+     "min": 0.0,
+     "max": 18.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.038,
+     "std": 1.2363,
+     "gini": 0.2215,
+     "jain": 0.8579,
+     "range": 6.0,
+     "min": 0.0,
+     "max": 6.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 25.024,
+     "std": 5.4051,
+     "gini": 0.12,
+     "jain": 0.9554,
+     "range": 38.0,
+     "min": 8.0,
+     "max": 46.0
+    }
+   },
+   {
+    "month": "2027-02-01",
+    "filled": 2744,
+    "places": 2744,
+    "month_load": {
+     "people": 1000,
+     "mean": 7.616,
+     "std": 2.7123,
+     "gini": 0.185,
+     "jain": 0.8874,
+     "range": 16.0,
+     "min": 0.0,
+     "max": 16.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 2.744,
+     "std": 1.211,
+     "gini": 0.2403,
+     "jain": 0.837,
+     "range": 7.0,
+     "min": 0.0,
+     "max": 7.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 32.64,
+     "std": 6.5853,
+     "gini": 0.1128,
+     "jain": 0.9609,
+     "range": 44.0,
+     "min": 12.0,
+     "max": 56.0
+    }
+   },
+   {
+    "month": "2027-03-01",
+    "filled": 3038,
+    "places": 3038,
+    "month_load": {
+     "people": 1000,
+     "mean": 8.432,
+     "std": 2.8547,
+     "gini": 0.1786,
+     "jain": 0.8972,
+     "range": 18.0,
+     "min": 0.0,
+     "max": 18.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.038,
+     "std": 1.2925,
+     "gini": 0.2337,
+     "jain": 0.8467,
+     "range": 6.0,
+     "min": 0.0,
+     "max": 6.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 41.072,
+     "std": 8.0197,
+     "gini": 0.1095,
+     "jain": 0.9633,
+     "range": 50.0,
+     "min": 20.0,
+     "max": 70.0
+    }
+   },
+   {
+    "month": "2027-04-01",
+    "filled": 2940,
+    "places": 2940,
+    "month_load": {
+     "people": 1000,
+     "mean": 8.16,
+     "std": 2.7638,
+     "gini": 0.1792,
+     "jain": 0.8971,
+     "range": 16.0,
+     "min": 0.0,
+     "max": 16.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 2.94,
+     "std": 1.254,
+     "gini": 0.2332,
+     "jain": 0.8461,
+     "range": 6.0,
+     "min": 0.0,
+     "max": 6.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 49.232,
+     "std": 9.3142,
+     "gini": 0.1064,
+     "jain": 0.9654,
+     "range": 62.0,
+     "min": 22.0,
+     "max": 84.0
+    }
+   }
+  ],
+  "cumulative": {
+   "people": 1000,
+   "mean": 49.232,
+   "std": 9.3142,
+   "gini": 0.1064,
+   "jain": 0.9654,
+   "range": 62.0,
+   "min": 22.0,
+   "max": 84.0
+  },
+  "cumulative_count": {
+   "people": 1000,
+   "mean": 17.738,
+   "std": 3.9582,
+   "gini": 0.1257,
+   "jain": 0.9526,
+   "range": 27.0,
+   "min": 5.0,
+   "max": 32.0
+  },
+  "cumulative_holiday": {
+   "people": 1000,
+   "mean": 5.88,
+   "std": 2.1456,
+   "gini": 0.2041,
+   "jain": 0.8825,
+   "range": 15.0,
+   "min": 0.0,
+   "max": 15.0
+  }
+ },
+ {
+  "seed": 1,
+  "half_life": 30,
+  "months": [
+   {
+    "month": "2026-11-01",
+    "filled": 2940,
+    "places": 2940,
+    "month_load": {
+     "people": 1000,
+     "mean": 8.16,
+     "std": 3.7903,
+     "gini": 0.257,
+     "jain": 0.8225,
+     "range": 20.0,
+     "min": 0.0,
+     "max": 20.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 2.94,
+     "std": 1.5134,
+     "gini": 0.2868,
+     "jain": 0.7905,
+     "range": 8.0,
+     "min": 0.0,
+     "max": 8.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 8.16,
+     "std": 3.7903,
+     "gini": 0.257,
+     "jain": 0.8225,
+     "range": 20.0,
+     "min": 0.0,
+     "max": 20.0
+    }
+   },
+   {
+    "month": "2026-12-01",
+    "filled": 3038,
+    "places": 3038,
+    "month_load": {
+     "people": 1000,
+     "mean": 8.432,
+     "std": 2.8533,
+     "gini": 0.1739,
+     "jain": 0.8973,
+     "range": 20.0,
+     "min": 0.0,
+     "max": 20.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.038,
+     "std": 1.2508,
+     "gini": 0.2219,
+     "jain": 0.8551,
+     "range": 8.0,
+     "min": 0.0,
+     "max": 8.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 16.592,
+     "std": 4.4553,
+     "gini": 0.1484,
+     "jain": 0.9327,
+     "range": 30.0,
+     "min": 0.0,
+     "max": 30.0
+    }
+   },
+   {
+    "month": "2027-01-01",
+    "filled": 3038,
+    "places": 3038,
+    "month_load": {
+     "people": 1000,
+     "mean": 8.432,
+     "std": 2.7301,
+     "gini": 0.1665,
+     "jain": 0.9051,
+     "range": 18.0,
+     "min": 0.0,
+     "max": 18.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.038,
+     "std": 1.273,
+     "gini": 0.2293,
+     "jain": 0.8506,
+     "range": 7.0,
+     "min": 0.0,
+     "max": 7.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 25.024,
+     "std": 5.4794,
+     "gini": 0.1228,
+     "jain": 0.9542,
+     "range": 34.0,
+     "min": 8.0,
+     "max": 42.0
+    }
+   },
+   {
+    "month": "2027-02-01",
+    "filled": 2744,
+    "places": 2744,
+    "month_load": {
+     "people": 1000,
+     "mean": 7.616,
+     "std": 2.7576,
+     "gini": 0.1844,
+     "jain": 0.8841,
+     "range": 20.0,
+     "min": 0.0,
+     "max": 20.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 2.744,
+     "std": 1.2412,
+     "gini": 0.2456,
+     "jain": 0.8302,
+     "range": 8.0,
+     "min": 0.0,
+     "max": 8.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 32.64,
+     "std": 6.4615,
+     "gini": 0.1113,
+     "jain": 0.9623,
+     "range": 44.0,
+     "min": 12.0,
+     "max": 56.0
+    }
+   },
+   {
+    "month": "2027-03-01",
+    "filled": 3038,
+    "places": 3038,
+    "month_load": {
+     "people": 1000,
+     "mean": 8.432,
+     "std": 2.8166,
+     "gini": 0.1723,
+     "jain": 0.8996,
+     "range": 18.0,
+     "min": 0.0,
+     "max": 18.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.038,
+     "std": 1.2902,
+     "gini": 0.2325,
+     "jain": 0.8472,
+     "range": 7.0,
+     "min": 0.0,
+     "max": 7.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 41.072,
+     "std": 7.8145,
+     "gini": 0.1074,
+     "jain": 0.9651,
+     "range": 48.0,
+     "min": 18.0,
+     "max": 66.0
+    }
+   },
+   {
+    "month": "2027-04-01",
+    "filled": 2940,
+    "places": 2940,
+    "month_load": {
+     "people": 1000,
+     "mean": 8.16,
+     "std": 2.7724,
+     "gini": 0.1766,
+     "jain": 0.8965,
+     "range": 20.0,
+     "min": 0.0,
+     "max": 20.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 2.94,
+     "std": 1.2571,
+     "gini": 0.2313,
+     "jain": 0.8454,
+     "range": 9.0,
+     "min": 0.0,
+     "max": 9.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 49.232,
+     "std": 9.118,
+     "gini": 0.1048,
+     "jain": 0.9668,
+     "range": 52.0,
+     "min": 26.0,
+     "max": 78.0
+    }
+   }
+  ],
+  "cumulative": {
+   "people": 1000,
+   "mean": 49.232,
+   "std": 9.118,
+   "gini": 0.1048,
+   "jain": 0.9668,
+   "range": 52.0,
+   "min": 26.0,
+   "max": 78.0
+  },
+  "cumulative_count": {
+   "people": 1000,
+   "mean": 17.738,
+   "std": 4.0029,
+   "gini": 0.1273,
+   "jain": 0.9515,
+   "range": 27.0,
+   "min": 6.0,
+   "max": 33.0
+  },
+  "cumulative_holiday": {
+   "people": 1000,
+   "mean": 5.88,
+   "std": 2.1451,
+   "gini": 0.2027,
+   "jain": 0.8825,
+   "range": 12.0,
+   "min": 1.0,
+   "max": 13.0
+  }
+ },
+ {
+  "seed": 1,
+  "half_life": 60,
+  "months": [
+   {
+    "month": "2026-11-01",
+    "filled": 2940,
+    "places": 2940,
+    "month_load": {
+     "people": 1000,
+     "mean": 8.16,
+     "std": 4.6783,
+     "gini": 0.3238,
+     "jain": 0.7526,
+     "range": 20.0,
+     "min": 0.0,
+     "max": 20.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 2.94,
+     "std": 1.785,
+     "gini": 0.3396,
+     "jain": 0.7307,
+     "range": 9.0,
+     "min": 0.0,
+     "max": 9.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 8.16,
+     "std": 4.6783,
+     "gini": 0.3238,
+     "jain": 0.7526,
+     "range": 20.0,
+     "min": 0.0,
+     "max": 20.0
+    }
+   },
+   {
+    "month": "2026-12-01",
+    "filled": 3038,
+    "places": 3038,
+    "month_load": {
+     "people": 1000,
+     "mean": 8.432,
+     "std": 3.2046,
+     "gini": 0.196,
+     "jain": 0.8738,
+     "range": 22.0,
+     "min": 0.0,
+     "max": 22.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.038,
+     "std": 1.3404,
+     "gini": 0.2363,
+     "jain": 0.8371,
+     "range": 10.0,
+     "min": 0.0,
+     "max": 10.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 16.592,
+     "std": 5.2864,
+     "gini": 0.1773,
+     "jain": 0.9078,
+     "range": 36.0,
+     "min": 0.0,
+     "max": 36.0
+    }
+   },
+   {
+    "month": "2027-01-01",
+    "filled": 3038,
+    "places": 3038,
+    "month_load": {
+     "people": 1000,
+     "mean": 8.432,
+     "std": 2.9239,
+     "gini": 0.1804,
+     "jain": 0.8927,
+     "range": 18.0,
+     "min": 0.0,
+     "max": 18.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.038,
+     "std": 1.294,
+     "gini": 0.2326,
+     "jain": 0.8464,
+     "range": 7.0,
+     "min": 0.0,
+     "max": 7.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 25.024,
+     "std": 5.9423,
+     "gini": 0.1333,
+     "jain": 0.9466,
+     "range": 42.0,
+     "min": 6.0,
+     "max": 48.0
+    }
+   },
+   {
+    "month": "2027-02-01",
+    "filled": 2744,
+    "places": 2744,
+    "month_load": {
+     "people": 1000,
+     "mean": 7.616,
+     "std": 2.9279,
+     "gini": 0.1954,
+     "jain": 0.8712,
+     "range": 22.0,
+     "min": 0.0,
+     "max": 22.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 2.744,
+     "std": 1.2532,
+     "gini": 0.2478,
+     "jain": 0.8274,
+     "range": 8.0,
+     "min": 0.0,
+     "max": 8.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 32.64,
+     "std": 6.6078,
+     "gini": 0.1137,
+     "jain": 0.9606,
+     "range": 44.0,
+     "min": 12.0,
+     "max": 56.0
+    }
+   },
+   {
+    "month": "2027-03-01",
+    "filled": 3038,
+    "places": 3038,
+    "month_load": {
+     "people": 1000,
+     "mean": 8.432,
+     "std": 3.1121,
+     "gini": 0.1897,
+     "jain": 0.8801,
+     "range": 24.0,
+     "min": 0.0,
+     "max": 24.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.038,
+     "std": 1.3381,
+     "gini": 0.2407,
+     "jain": 0.8375,
+     "range": 8.0,
+     "min": 0.0,
+     "max": 8.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 41.072,
+     "std": 8.1424,
+     "gini": 0.1119,
+     "jain": 0.9622,
+     "range": 62.0,
+     "min": 12.0,
+     "max": 74.0
+    }
+   },
+   {
+    "month": "2027-04-01",
+    "filled": 2940,
+    "places": 2940,
+    "month_load": {
+     "people": 1000,
+     "mean": 8.16,
+     "std": 2.8703,
+     "gini": 0.1827,
+     "jain": 0.8899,
+     "range": 20.0,
+     "min": 0.0,
+     "max": 20.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 2.94,
+     "std": 1.2769,
+     "gini": 0.2338,
+     "jain": 0.8413,
+     "range": 8.0,
+     "min": 0.0,
+     "max": 8.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 49.232,
+     "std": 9.3438,
+     "gini": 0.1074,
+     "jain": 0.9652,
+     "range": 60.0,
+     "min": 24.0,
+     "max": 84.0
+    }
+   }
+  ],
+  "cumulative": {
+   "people": 1000,
+   "mean": 49.232,
+   "std": 9.3438,
+   "gini": 0.1074,
+   "jain": 0.9652,
+   "range": 60.0,
+   "min": 24.0,
+   "max": 84.0
+  },
+  "cumulative_count": {
+   "people": 1000,
+   "mean": 17.738,
+   "std": 4.1446,
+   "gini": 0.1315,
+   "jain": 0.9482,
+   "range": 26.0,
+   "min": 6.0,
+   "max": 32.0
+  },
+  "cumulative_holiday": {
+   "people": 1000,
+   "mean": 5.88,
+   "std": 2.1734,
+   "gini": 0.2042,
+   "jain": 0.8798,
+   "range": 14.0,
+   "min": 0.0,
+   "max": 14.0
+  }
+ },
+ {
+  "seed": 1,
+  "half_life": 90,
+  "months": [
+   {
+    "month": "2026-11-01",
+    "filled": 2940,
+    "places": 2940,
+    "month_load": {
+     "people": 1000,
+     "mean": 8.16,
+     "std": 5.0879,
+     "gini": 0.352,
+     "jain": 0.7201,
+     "range": 24.0,
+     "min": 0.0,
+     "max": 24.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 2.94,
+     "std": 1.9428,
+     "gini": 0.371,
+     "jain": 0.6961,
+     "range": 9.0,
+     "min": 0.0,
+     "max": 9.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 8.16,
+     "std": 5.0879,
+     "gini": 0.352,
+     "jain": 0.7201,
+     "range": 24.0,
+     "min": 0.0,
+     "max": 24.0
+    }
+   },
+   {
+    "month": "2026-12-01",
+    "filled": 3038,
+    "places": 3038,
+    "month_load": {
+     "people": 1000,
+     "mean": 8.432,
+     "std": 3.4614,
+     "gini": 0.2133,
+     "jain": 0.8558,
+     "range": 24.0,
+     "min": 0.0,
+     "max": 24.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.038,
+     "std": 1.3988,
+     "gini": 0.2461,
+     "jain": 0.8251,
+     "range": 11.0,
+     "min": 0.0,
+     "max": 11.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 16.592,
+     "std": 5.6612,
+     "gini": 0.19,
+     "jain": 0.8957,
+     "range": 36.0,
+     "min": 0.0,
+     "max": 36.0
+    }
+   },
+   {
+    "month": "2027-01-01",
+    "filled": 3038,
+    "places": 3038,
+    "month_load": {
+     "people": 1000,
+     "mean": 8.432,
+     "std": 3.1682,
+     "gini": 0.1985,
+     "jain": 0.8763,
+     "range": 20.0,
+     "min": 0.0,
+     "max": 20.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.038,
+     "std": 1.3094,
+     "gini": 0.2343,
+     "jain": 0.8433,
+     "range": 7.0,
+     "min": 0.0,
+     "max": 7.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 25.024,
+     "std": 5.9578,
+     "gini": 0.1338,
+     "jain": 0.9464,
+     "range": 38.0,
+     "min": 6.0,
+     "max": 44.0
+    }
+   },
+   {
+    "month": "2027-02-01",
+    "filled": 2744,
+    "places": 2744,
+    "month_load": {
+     "people": 1000,
+     "mean": 7.616,
+     "std": 3.2405,
+     "gini": 0.2199,
+     "jain": 0.8467,
+     "range": 20.0,
+     "min": 0.0,
+     "max": 20.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 2.744,
+     "std": 1.3162,
+     "gini": 0.2598,
+     "jain": 0.8129,
+     "range": 8.0,
+     "min": 0.0,
+     "max": 8.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 32.64,
+     "std": 6.501,
+     "gini": 0.1116,
+     "jain": 0.9618,
+     "range": 46.0,
+     "min": 12.0,
+     "max": 58.0
+    }
+   },
+   {
+    "month": "2027-03-01",
+    "filled": 3038,
+    "places": 3038,
+    "month_load": {
+     "people": 1000,
+     "mean": 8.432,
+     "std": 3.376,
+     "gini": 0.2148,
+     "jain": 0.8618,
+     "range": 26.0,
+     "min": 0.0,
+     "max": 26.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.038,
+     "std": 1.425,
+     "gini": 0.2565,
+     "jain": 0.8197,
+     "range": 9.0,
+     "min": 0.0,
+     "max": 9.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 41.072,
+     "std": 8.2972,
+     "gini": 0.1141,
+     "jain": 0.9608,
+     "range": 54.0,
+     "min": 16.0,
+     "max": 70.0
+    }
+   },
+   {
+    "month": "2027-04-01",
+    "filled": 2940,
+    "places": 2940,
+    "month_load": {
+     "people": 1000,
+     "mean": 8.16,
+     "std": 3.0722,
+     "gini": 0.1955,
+     "jain": 0.8758,
+     "range": 24.0,
+     "min": 0.0,
+     "max": 24.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 2.94,
+     "std": 1.323,
+     "gini": 0.2404,
+     "jain": 0.8316,
+     "range": 9.0,
+     "min": 0.0,
+     "max": 9.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 49.232,
+     "std": 9.4388,
+     "gini": 0.1085,
+     "jain": 0.9645,
+     "range": 56.0,
+     "min": 24.0,
+     "max": 80.0
+    }
+   }
+  ],
+  "cumulative": {
+   "people": 1000,
+   "mean": 49.232,
+   "std": 9.4388,
+   "gini": 0.1085,
+   "jain": 0.9645,
+   "range": 56.0,
+   "min": 24.0,
+   "max": 80.0
+  },
+  "cumulative_count": {
+   "people": 1000,
+   "mean": 17.738,
+   "std": 4.2241,
+   "gini": 0.1344,
+   "jain": 0.9463,
+   "range": 25.0,
+   "min": 7.0,
+   "max": 32.0
+  },
+  "cumulative_holiday": {
+   "people": 1000,
+   "mean": 5.88,
+   "std": 2.2022,
+   "gini": 0.2077,
+   "jain": 0.877,
+   "range": 13.0,
+   "min": 1.0,
+   "max": 14.0
+  }
+ },
+ {
+  "seed": 1,
+  "half_life": null,
+  "months": [
+   {
+    "month": "2026-11-01",
+    "filled": 2940,
+    "places": 2940,
+    "month_load": {
+     "people": 1000,
+     "mean": 8.16,
+     "std": 6.1714,
+     "gini": 0.428,
+     "jain": 0.6361,
+     "range": 30.0,
+     "min": 0.0,
+     "max": 30.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 2.94,
+     "std": 2.3504,
+     "gini": 0.4467,
+     "jain": 0.6101,
+     "range": 11.0,
+     "min": 0.0,
+     "max": 11.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 8.16,
+     "std": 6.1714,
+     "gini": 0.428,
+     "jain": 0.6361,
+     "range": 30.0,
+     "min": 0.0,
+     "max": 30.0
+    }
+   },
+   {
+    "month": "2026-12-01",
+    "filled": 3038,
+    "places": 3038,
+    "month_load": {
+     "people": 1000,
+     "mean": 8.432,
+     "std": 4.6032,
+     "gini": 0.2946,
+     "jain": 0.7704,
+     "range": 30.0,
+     "min": 0.0,
+     "max": 30.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.038,
+     "std": 1.6836,
+     "gini": 0.2961,
+     "jain": 0.765,
+     "range": 12.0,
+     "min": 0.0,
+     "max": 12.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 16.592,
+     "std": 6.9588,
+     "gini": 0.234,
+     "jain": 0.8504,
+     "range": 42.0,
+     "min": 0.0,
+     "max": 42.0
+    }
+   },
+   {
+    "month": "2027-01-01",
+    "filled": 3038,
+    "places": 3038,
+    "month_load": {
+     "people": 1000,
+     "mean": 8.432,
+     "std": 4.5243,
+     "gini": 0.2914,
+     "jain": 0.7765,
+     "range": 26.0,
+     "min": 0.0,
+     "max": 26.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.038,
+     "std": 1.6231,
+     "gini": 0.2888,
+     "jain": 0.7779,
+     "range": 11.0,
+     "min": 0.0,
+     "max": 11.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 25.024,
+     "std": 6.4683,
+     "gini": 0.1444,
+     "jain": 0.9374,
+     "range": 46.0,
+     "min": 2.0,
+     "max": 48.0
+    }
+   },
+   {
+    "month": "2027-02-01",
+    "filled": 2744,
+    "places": 2744,
+    "month_load": {
+     "people": 1000,
+     "mean": 7.616,
+     "std": 4.6986,
+     "gini": 0.3313,
+     "jain": 0.7243,
+     "range": 26.0,
+     "min": 0.0,
+     "max": 26.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 2.744,
+     "std": 1.6145,
+     "gini": 0.3183,
+     "jain": 0.7429,
+     "range": 11.0,
+     "min": 0.0,
+     "max": 11.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 32.64,
+     "std": 6.2269,
+     "gini": 0.1071,
+     "jain": 0.9649,
+     "range": 44.0,
+     "min": 12.0,
+     "max": 56.0
+    }
+   },
+   {
+    "month": "2027-03-01",
+    "filled": 3038,
+    "places": 3038,
+    "month_load": {
+     "people": 1000,
+     "mean": 8.432,
+     "std": 5.8184,
+     "gini": 0.3911,
+     "jain": 0.6774,
+     "range": 30.0,
+     "min": 0.0,
+     "max": 30.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.038,
+     "std": 2.1662,
+     "gini": 0.3997,
+     "jain": 0.6629,
+     "range": 10.0,
+     "min": 0.0,
+     "max": 10.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 41.072,
+     "std": 9.378,
+     "gini": 0.1284,
+     "jain": 0.9504,
+     "range": 60.0,
+     "min": 14.0,
+     "max": 74.0
+    }
+   },
+   {
+    "month": "2027-04-01",
+    "filled": 2940,
+    "places": 2940,
+    "month_load": {
+     "people": 1000,
+     "mean": 8.16,
+     "std": 4.8767,
+     "gini": 0.3281,
+     "jain": 0.7368,
+     "range": 28.0,
+     "min": 0.0,
+     "max": 28.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 2.94,
+     "std": 1.7912,
+     "gini": 0.3281,
+     "jain": 0.7293,
+     "range": 12.0,
+     "min": 0.0,
+     "max": 12.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 49.232,
+     "std": 10.7138,
+     "gini": 0.1229,
+     "jain": 0.9548,
+     "range": 66.0,
+     "min": 22.0,
+     "max": 88.0
+    }
+   }
+  ],
+  "cumulative": {
+   "people": 1000,
+   "mean": 49.232,
+   "std": 10.7138,
+   "gini": 0.1229,
+   "jain": 0.9548,
+   "range": 66.0,
+   "min": 22.0,
+   "max": 88.0
+  },
+  "cumulative_count": {
+   "people": 1000,
+   "mean": 17.738,
+   "std": 4.6634,
+   "gini": 0.1475,
+   "jain": 0.9353,
+   "range": 27.0,
+   "min": 6.0,
+   "max": 33.0
+  },
+  "cumulative_holiday": {
+   "people": 1000,
+   "mean": 5.88,
+   "std": 2.1784,
+   "gini": 0.2064,
+   "jain": 0.8793,
+   "range": 13.0,
+   "min": 1.0,
+   "max": 14.0
+  }
+ },
+ {
+  "seed": 2,
+  "half_life": 14,
+  "months": [
+   {
+    "month": "2026-11-01",
+    "filled": 3330,
+    "places": 3330,
+    "month_load": {
+     "people": 1000,
+     "mean": 9.3,
+     "std": 3.721,
+     "gini": 0.2093,
+     "jain": 0.862,
+     "range": 32.0,
+     "min": 0.0,
+     "max": 32.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.33,
+     "std": 1.495,
+     "gini": 0.2492,
+     "jain": 0.8323,
+     "range": 7.0,
+     "min": 0.0,
+     "max": 7.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 9.3,
+     "std": 3.721,
+     "gini": 0.2093,
+     "jain": 0.862,
+     "range": 32.0,
+     "min": 0.0,
+     "max": 32.0
+    }
+   },
+   {
+    "month": "2026-12-01",
+    "filled": 3441,
+    "places": 3441,
+    "month_load": {
+     "people": 1000,
+     "mean": 9.61,
+     "std": 3.6238,
+     "gini": 0.1894,
+     "jain": 0.8755,
+     "range": 30.0,
+     "min": 0.0,
+     "max": 30.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.441,
+     "std": 1.4583,
+     "gini": 0.2335,
+     "jain": 0.8477,
+     "range": 8.0,
+     "min": 0.0,
+     "max": 8.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 18.91,
+     "std": 5.7208,
+     "gini": 0.1535,
+     "jain": 0.9162,
+     "range": 62.0,
+     "min": 0.0,
+     "max": 62.0
+    }
+   },
+   {
+    "month": "2027-01-01",
+    "filled": 3434,
+    "places": 3441,
+    "month_load": {
+     "people": 1000,
+     "mean": 9.568,
+     "std": 3.3546,
+     "gini": 0.1782,
+     "jain": 0.8905,
+     "range": 30.0,
+     "min": 0.0,
+     "max": 30.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.434,
+     "std": 1.4268,
+     "gini": 0.2285,
+     "jain": 0.8528,
+     "range": 7.0,
+     "min": 0.0,
+     "max": 7.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 28.478,
+     "std": 7.4409,
+     "gini": 0.1337,
+     "jain": 0.9361,
+     "range": 90.0,
+     "min": 0.0,
+     "max": 90.0
+    }
+   },
+   {
+    "month": "2027-02-01",
+    "filled": 3103,
+    "places": 3108,
+    "month_load": {
+     "people": 1000,
+     "mean": 8.65,
+     "std": 3.1505,
+     "gini": 0.1836,
+     "jain": 0.8829,
+     "range": 30.0,
+     "min": 0.0,
+     "max": 30.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.103,
+     "std": 1.2955,
+     "gini": 0.2286,
+     "jain": 0.8516,
+     "range": 7.0,
+     "min": 0.0,
+     "max": 7.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 37.128,
+     "std": 9.1847,
+     "gini": 0.1257,
+     "jain": 0.9423,
+     "range": 114.0,
+     "min": 0.0,
+     "max": 114.0
+    }
+   },
+   {
+    "month": "2027-03-01",
+    "filled": 3440,
+    "places": 3441,
+    "month_load": {
+     "people": 1000,
+     "mean": 9.604,
+     "std": 3.4414,
+     "gini": 0.1799,
+     "jain": 0.8862,
+     "range": 32.0,
+     "min": 0.0,
+     "max": 32.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.44,
+     "std": 1.3951,
+     "gini": 0.2226,
+     "jain": 0.8588,
+     "range": 7.0,
+     "min": 0.0,
+     "max": 7.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 46.732,
+     "std": 11.2071,
+     "gini": 0.1203,
+     "jain": 0.9456,
+     "range": 138.0,
+     "min": 0.0,
+     "max": 138.0
+    }
+   },
+   {
+    "month": "2027-04-01",
+    "filled": 3326,
+    "places": 3330,
+    "month_load": {
+     "people": 1000,
+     "mean": 9.276,
+     "std": 3.46,
+     "gini": 0.1901,
+     "jain": 0.8779,
+     "range": 30.0,
+     "min": 0.0,
+     "max": 30.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.326,
+     "std": 1.4191,
+     "gini": 0.2356,
+     "jain": 0.846,
+     "range": 7.0,
+     "min": 0.0,
+     "max": 7.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 56.008,
+     "std": 13.1742,
+     "gini": 0.1179,
+     "jain": 0.9476,
+     "range": 168.0,
+     "min": 0.0,
+     "max": 168.0
+    }
+   }
+  ],
+  "cumulative": {
+   "people": 1000,
+   "mean": 56.008,
+   "std": 13.1742,
+   "gini": 0.1179,
+   "jain": 0.9476,
+   "range": 168.0,
+   "min": 0.0,
+   "max": 168.0
+  },
+  "cumulative_count": {
+   "people": 1000,
+   "mean": 20.074,
+   "std": 5.3688,
+   "gini": 0.1516,
+   "jain": 0.9332,
+   "range": 36.0,
+   "min": 0.0,
+   "max": 36.0
+  },
+  "cumulative_holiday": {
+   "people": 1000,
+   "mean": 6.648,
+   "std": 2.7107,
+   "gini": 0.2261,
+   "jain": 0.8574,
+   "range": 16.0,
+   "min": 0.0,
+   "max": 16.0
+  }
+ },
+ {
+  "seed": 2,
+  "half_life": 30,
+  "months": [
+   {
+    "month": "2026-11-01",
+    "filled": 3330,
+    "places": 3330,
+    "month_load": {
+     "people": 1000,
+     "mean": 9.3,
+     "std": 4.504,
+     "gini": 0.2644,
+     "jain": 0.81,
+     "range": 32.0,
+     "min": 0.0,
+     "max": 32.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.33,
+     "std": 1.7644,
+     "gini": 0.2961,
+     "jain": 0.7808,
+     "range": 10.0,
+     "min": 0.0,
+     "max": 10.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 9.3,
+     "std": 4.504,
+     "gini": 0.2644,
+     "jain": 0.81,
+     "range": 32.0,
+     "min": 0.0,
+     "max": 32.0
+    }
+   },
+   {
+    "month": "2026-12-01",
+    "filled": 3441,
+    "places": 3441,
+    "month_load": {
+     "people": 1000,
+     "mean": 9.61,
+     "std": 3.6873,
+     "gini": 0.1908,
+     "jain": 0.8717,
+     "range": 30.0,
+     "min": 0.0,
+     "max": 30.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.441,
+     "std": 1.4787,
+     "gini": 0.2339,
+     "jain": 0.8441,
+     "range": 11.0,
+     "min": 0.0,
+     "max": 11.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 18.91,
+     "std": 6.022,
+     "gini": 0.1641,
+     "jain": 0.9079,
+     "range": 62.0,
+     "min": 0.0,
+     "max": 62.0
+    }
+   },
+   {
+    "month": "2027-01-01",
+    "filled": 3434,
+    "places": 3441,
+    "month_load": {
+     "people": 1000,
+     "mean": 9.568,
+     "std": 3.4219,
+     "gini": 0.1806,
+     "jain": 0.8866,
+     "range": 30.0,
+     "min": 0.0,
+     "max": 30.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.434,
+     "std": 1.4162,
+     "gini": 0.2255,
+     "jain": 0.8546,
+     "range": 9.0,
+     "min": 0.0,
+     "max": 9.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 28.478,
+     "std": 7.5158,
+     "gini": 0.1357,
+     "jain": 0.9349,
+     "range": 90.0,
+     "min": 0.0,
+     "max": 90.0
+    }
+   },
+   {
+    "month": "2027-02-01",
+    "filled": 3103,
+    "places": 3108,
+    "month_load": {
+     "people": 1000,
+     "mean": 8.65,
+     "std": 3.2108,
+     "gini": 0.1857,
+     "jain": 0.8789,
+     "range": 30.0,
+     "min": 0.0,
+     "max": 30.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.103,
+     "std": 1.3215,
+     "gini": 0.2293,
+     "jain": 0.8465,
+     "range": 10.0,
+     "min": 0.0,
+     "max": 10.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 37.128,
+     "std": 9.0937,
+     "gini": 0.1242,
+     "jain": 0.9434,
+     "range": 114.0,
+     "min": 0.0,
+     "max": 114.0
+    }
+   },
+   {
+    "month": "2027-03-01",
+    "filled": 3440,
+    "places": 3441,
+    "month_load": {
+     "people": 1000,
+     "mean": 9.604,
+     "std": 3.4146,
+     "gini": 0.1776,
+     "jain": 0.8878,
+     "range": 32.0,
+     "min": 0.0,
+     "max": 32.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.44,
+     "std": 1.4058,
+     "gini": 0.2231,
+     "jain": 0.8569,
+     "range": 9.0,
+     "min": 0.0,
+     "max": 9.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 46.732,
+     "std": 11.1506,
+     "gini": 0.12,
+     "jain": 0.9461,
+     "range": 144.0,
+     "min": 0.0,
+     "max": 144.0
+    }
+   },
+   {
+    "month": "2027-04-01",
+    "filled": 3327,
+    "places": 3330,
+    "month_load": {
+     "people": 1000,
+     "mean": 9.282,
+     "std": 3.4699,
+     "gini": 0.1872,
+     "jain": 0.8774,
+     "range": 30.0,
+     "min": 0.0,
+     "max": 30.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.327,
+     "std": 1.4395,
+     "gini": 0.2377,
+     "jain": 0.8423,
+     "range": 9.0,
+     "min": 0.0,
+     "max": 9.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 56.014,
+     "std": 13.1229,
+     "gini": 0.1169,
+     "jain": 0.948,
+     "range": 168.0,
+     "min": 0.0,
+     "max": 168.0
+    }
+   }
+  ],
+  "cumulative": {
+   "people": 1000,
+   "mean": 56.014,
+   "std": 13.1229,
+   "gini": 0.1169,
+   "jain": 0.948,
+   "range": 168.0,
+   "min": 0.0,
+   "max": 168.0
+  },
+  "cumulative_count": {
+   "people": 1000,
+   "mean": 20.075,
+   "std": 5.4739,
+   "gini": 0.1544,
+   "jain": 0.9308,
+   "range": 37.0,
+   "min": 0.0,
+   "max": 37.0
+  },
+  "cumulative_holiday": {
+   "people": 1000,
+   "mean": 6.649,
+   "std": 2.7147,
+   "gini": 0.2264,
+   "jain": 0.8571,
+   "range": 17.0,
+   "min": 0.0,
+   "max": 17.0
+  }
+ },
+ {
+  "seed": 2,
+  "half_life": 60,
+  "months": [
+   {
+    "month": "2026-11-01",
+    "filled": 3330,
+    "places": 3330,
+    "month_load": {
+     "people": 1000,
+     "mean": 9.3,
+     "std": 5.45,
+     "gini": 0.3293,
+     "jain": 0.7444,
+     "range": 32.0,
+     "min": 0.0,
+     "max": 32.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.33,
+     "std": 2.1022,
+     "gini": 0.355,
+     "jain": 0.715,
+     "range": 10.0,
+     "min": 0.0,
+     "max": 10.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 9.3,
+     "std": 5.45,
+     "gini": 0.3293,
+     "jain": 0.7444,
+     "range": 32.0,
+     "min": 0.0,
+     "max": 32.0
+    }
+   },
+   {
+    "month": "2026-12-01",
+    "filled": 3441,
+    "places": 3441,
+    "month_load": {
+     "people": 1000,
+     "mean": 9.61,
+     "std": 3.9492,
+     "gini": 0.2057,
+     "jain": 0.8555,
+     "range": 30.0,
+     "min": 0.0,
+     "max": 30.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.441,
+     "std": 1.5266,
+     "gini": 0.2394,
+     "jain": 0.8355,
+     "range": 13.0,
+     "min": 0.0,
+     "max": 13.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 18.91,
+     "std": 6.6351,
+     "gini": 0.1866,
+     "jain": 0.8904,
+     "range": 62.0,
+     "min": 0.0,
+     "max": 62.0
+    }
+   },
+   {
+    "month": "2027-01-01",
+    "filled": 3434,
+    "places": 3441,
+    "month_load": {
+     "people": 1000,
+     "mean": 9.568,
+     "std": 3.6471,
+     "gini": 0.1936,
+     "jain": 0.8731,
+     "range": 30.0,
+     "min": 0.0,
+     "max": 30.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.434,
+     "std": 1.4696,
+     "gini": 0.2327,
+     "jain": 0.8452,
+     "range": 10.0,
+     "min": 0.0,
+     "max": 10.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 28.478,
+     "std": 7.7594,
+     "gini": 0.1413,
+     "jain": 0.9309,
+     "range": 90.0,
+     "min": 0.0,
+     "max": 90.0
+    }
+   },
+   {
+    "month": "2027-02-01",
+    "filled": 3103,
+    "places": 3108,
+    "month_load": {
+     "people": 1000,
+     "mean": 8.65,
+     "std": 3.451,
+     "gini": 0.1999,
+     "jain": 0.8627,
+     "range": 30.0,
+     "min": 0.0,
+     "max": 30.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.103,
+     "std": 1.3306,
+     "gini": 0.2283,
+     "jain": 0.8447,
+     "range": 10.0,
+     "min": 0.0,
+     "max": 10.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 37.128,
+     "std": 8.9751,
+     "gini": 0.1222,
+     "jain": 0.9448,
+     "range": 114.0,
+     "min": 0.0,
+     "max": 114.0
+    }
+   },
+   {
+    "month": "2027-03-01",
+    "filled": 3440,
+    "places": 3441,
+    "month_load": {
+     "people": 1000,
+     "mean": 9.604,
+     "std": 3.6523,
+     "gini": 0.1949,
+     "jain": 0.8737,
+     "range": 32.0,
+     "min": 0.0,
+     "max": 32.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.44,
+     "std": 1.4914,
+     "gini": 0.2365,
+     "jain": 0.8418,
+     "range": 9.0,
+     "min": 0.0,
+     "max": 9.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 46.732,
+     "std": 11.3275,
+     "gini": 0.1227,
+     "jain": 0.9445,
+     "range": 144.0,
+     "min": 0.0,
+     "max": 144.0
+    }
+   },
+   {
+    "month": "2027-04-01",
+    "filled": 3327,
+    "places": 3330,
+    "month_load": {
+     "people": 1000,
+     "mean": 9.282,
+     "std": 3.5542,
+     "gini": 0.1902,
+     "jain": 0.8721,
+     "range": 30.0,
+     "min": 0.0,
+     "max": 30.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.327,
+     "std": 1.4492,
+     "gini": 0.2372,
+     "jain": 0.8405,
+     "range": 9.0,
+     "min": 0.0,
+     "max": 9.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 56.014,
+     "std": 13.2328,
+     "gini": 0.1184,
+     "jain": 0.9471,
+     "range": 168.0,
+     "min": 0.0,
+     "max": 168.0
+    }
+   }
+  ],
+  "cumulative": {
+   "people": 1000,
+   "mean": 56.014,
+   "std": 13.2328,
+   "gini": 0.1184,
+   "jain": 0.9471,
+   "range": 168.0,
+   "min": 0.0,
+   "max": 168.0
+  },
+  "cumulative_count": {
+   "people": 1000,
+   "mean": 20.075,
+   "std": 5.5767,
+   "gini": 0.1566,
+   "jain": 0.9284,
+   "range": 38.0,
+   "min": 0.0,
+   "max": 38.0
+  },
+  "cumulative_holiday": {
+   "people": 1000,
+   "mean": 6.649,
+   "std": 2.7173,
+   "gini": 0.2273,
+   "jain": 0.8569,
+   "range": 17.0,
+   "min": 0.0,
+   "max": 17.0
+  }
+ },
+ {
+  "seed": 2,
+  "half_life": 90,
+  "months": [
+   {
+    "month": "2026-11-01",
+    "filled": 3330,
+    "places": 3330,
+    "month_load": {
+     "people": 1000,
+     "mean": 9.3,
+     "std": 5.8861,
+     "gini": 0.3573,
+     "jain": 0.714,
+     "range": 32.0,
+     "min": 0.0,
+     "max": 32.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.33,
+     "std": 2.251,
+     "gini": 0.3803,
+     "jain": 0.6864,
+     "range": 10.0,
+     "min": 0.0,
+     "max": 10.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 9.3,
+     "std": 5.8861,
+     "gini": 0.3573,
+     "jain": 0.714,
+     "range": 32.0,
+     "min": 0.0,
+     "max": 32.0
+    }
+   },
+   {
+    "month": "2026-12-01",
+    "filled": 3441,
+    "places": 3441,
+    "month_load": {
+     "people": 1000,
+     "mean": 9.61,
+     "std": 4.1391,
+     "gini": 0.2194,
+     "jain": 0.8435,
+     "range": 30.0,
+     "min": 0.0,
+     "max": 30.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.441,
+     "std": 1.5743,
+     "gini": 0.2453,
+     "jain": 0.8269,
+     "range": 14.0,
+     "min": 0.0,
+     "max": 14.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 18.91,
+     "std": 7.0597,
+     "gini": 0.2003,
+     "jain": 0.8777,
+     "range": 62.0,
+     "min": 0.0,
+     "max": 62.0
+    }
+   },
+   {
+    "month": "2027-01-01",
+    "filled": 3434,
+    "places": 3441,
+    "month_load": {
+     "people": 1000,
+     "mean": 9.568,
+     "std": 3.9514,
+     "gini": 0.2114,
+     "jain": 0.8543,
+     "range": 30.0,
+     "min": 0.0,
+     "max": 30.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.434,
+     "std": 1.4851,
+     "gini": 0.2357,
+     "jain": 0.8424,
+     "range": 10.0,
+     "min": 0.0,
+     "max": 10.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 28.478,
+     "std": 7.8337,
+     "gini": 0.1429,
+     "jain": 0.9297,
+     "range": 90.0,
+     "min": 0.0,
+     "max": 90.0
+    }
+   },
+   {
+    "month": "2027-02-01",
+    "filled": 3103,
+    "places": 3108,
+    "month_load": {
+     "people": 1000,
+     "mean": 8.65,
+     "std": 3.7722,
+     "gini": 0.2207,
+     "jain": 0.8402,
+     "range": 32.0,
+     "min": 0.0,
+     "max": 32.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.103,
+     "std": 1.4136,
+     "gini": 0.2437,
+     "jain": 0.8281,
+     "range": 10.0,
+     "min": 0.0,
+     "max": 10.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 37.128,
+     "std": 8.8674,
+     "gini": 0.1199,
+     "jain": 0.946,
+     "range": 114.0,
+     "min": 0.0,
+     "max": 114.0
+    }
+   },
+   {
+    "month": "2027-03-01",
+    "filled": 3440,
+    "places": 3441,
+    "month_load": {
+     "people": 1000,
+     "mean": 9.604,
+     "std": 4.0144,
+     "gini": 0.221,
+     "jain": 0.8513,
+     "range": 32.0,
+     "min": 0.0,
+     "max": 32.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.44,
+     "std": 1.6032,
+     "gini": 0.2563,
+     "jain": 0.8215,
+     "range": 9.0,
+     "min": 0.0,
+     "max": 9.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 46.732,
+     "std": 11.3825,
+     "gini": 0.1232,
+     "jain": 0.944,
+     "range": 138.0,
+     "min": 0.0,
+     "max": 138.0
+    }
+   },
+   {
+    "month": "2027-04-01",
+    "filled": 3327,
+    "places": 3330,
+    "month_load": {
+     "people": 1000,
+     "mean": 9.282,
+     "std": 3.7428,
+     "gini": 0.2054,
+     "jain": 0.8601,
+     "range": 30.0,
+     "min": 0.0,
+     "max": 30.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.327,
+     "std": 1.5166,
+     "gini": 0.2477,
+     "jain": 0.828,
+     "range": 11.0,
+     "min": 0.0,
+     "max": 11.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 56.014,
+     "std": 13.2965,
+     "gini": 0.1192,
+     "jain": 0.9467,
+     "range": 168.0,
+     "min": 0.0,
+     "max": 168.0
+    }
+   }
+  ],
+  "cumulative": {
+   "people": 1000,
+   "mean": 56.014,
+   "std": 13.2965,
+   "gini": 0.1192,
+   "jain": 0.9467,
+   "range": 168.0,
+   "min": 0.0,
+   "max": 168.0
+  },
+  "cumulative_count": {
+   "people": 1000,
+   "mean": 20.075,
+   "std": 5.6495,
+   "gini": 0.1583,
+   "jain": 0.9266,
+   "range": 38.0,
+   "min": 0.0,
+   "max": 38.0
+  },
+  "cumulative_holiday": {
+   "people": 1000,
+   "mean": 6.647,
+   "std": 2.7612,
+   "gini": 0.2308,
+   "jain": 0.8528,
+   "range": 16.0,
+   "min": 0.0,
+   "max": 16.0
+  }
+ },
+ {
+  "seed": 2,
+  "half_life": null,
+  "months": [
+   {
+    "month": "2026-11-01",
+    "filled": 3330,
+    "places": 3330,
+    "month_load": {
+     "people": 1000,
+     "mean": 9.3,
+     "std": 6.8613,
+     "gini": 0.4191,
+     "jain": 0.6475,
+     "range": 32.0,
+     "min": 0.0,
+     "max": 32.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.33,
+     "std": 2.5828,
+     "gini": 0.4376,
+     "jain": 0.6244,
+     "range": 12.0,
+     "min": 0.0,
+     "max": 12.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 9.3,
+     "std": 6.8613,
+     "gini": 0.4191,
+     "jain": 0.6475,
+     "range": 32.0,
+     "min": 0.0,
+     "max": 32.0
+    }
+   },
+   {
+    "month": "2026-12-01",
+    "filled": 3441,
+    "places": 3441,
+    "month_load": {
+     "people": 1000,
+     "mean": 9.61,
+     "std": 5.2843,
+     "gini": 0.2959,
+     "jain": 0.7678,
+     "range": 34.0,
+     "min": 0.0,
+     "max": 34.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.441,
+     "std": 1.8806,
+     "gini": 0.297,
+     "jain": 0.77,
+     "range": 15.0,
+     "min": 0.0,
+     "max": 15.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 18.91,
+     "std": 8.3551,
+     "gini": 0.2436,
+     "jain": 0.8367,
+     "range": 62.0,
+     "min": 0.0,
+     "max": 62.0
+    }
+   },
+   {
+    "month": "2027-01-01",
+    "filled": 3434,
+    "places": 3441,
+    "month_load": {
+     "people": 1000,
+     "mean": 9.568,
+     "std": 5.2708,
+     "gini": 0.2958,
+     "jain": 0.7672,
+     "range": 36.0,
+     "min": 0.0,
+     "max": 36.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.434,
+     "std": 1.8198,
+     "gini": 0.2883,
+     "jain": 0.7807,
+     "range": 11.0,
+     "min": 0.0,
+     "max": 11.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 28.478,
+     "std": 8.267,
+     "gini": 0.1527,
+     "jain": 0.9223,
+     "range": 90.0,
+     "min": 0.0,
+     "max": 90.0
+    }
+   },
+   {
+    "month": "2027-02-01",
+    "filled": 3103,
+    "places": 3108,
+    "month_load": {
+     "people": 1000,
+     "mean": 8.65,
+     "std": 5.1332,
+     "gini": 0.3217,
+     "jain": 0.7396,
+     "range": 30.0,
+     "min": 0.0,
+     "max": 30.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.103,
+     "std": 1.7597,
+     "gini": 0.3044,
+     "jain": 0.7567,
+     "range": 14.0,
+     "min": 0.0,
+     "max": 14.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 37.128,
+     "std": 8.6985,
+     "gini": 0.1165,
+     "jain": 0.948,
+     "range": 114.0,
+     "min": 0.0,
+     "max": 114.0
+    }
+   },
+   {
+    "month": "2027-03-01",
+    "filled": 3441,
+    "places": 3441,
+    "month_load": {
+     "people": 1000,
+     "mean": 9.61,
+     "std": 6.5339,
+     "gini": 0.3843,
+     "jain": 0.6839,
+     "range": 32.0,
+     "min": 0.0,
+     "max": 32.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.441,
+     "std": 2.4233,
+     "gini": 0.3938,
+     "jain": 0.6685,
+     "range": 12.0,
+     "min": 0.0,
+     "max": 12.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 46.738,
+     "std": 12.3387,
+     "gini": 0.1362,
+     "jain": 0.9348,
+     "range": 144.0,
+     "min": 0.0,
+     "max": 144.0
+    }
+   },
+   {
+    "month": "2027-04-01",
+    "filled": 3327,
+    "places": 3330,
+    "month_load": {
+     "people": 1000,
+     "mean": 9.282,
+     "std": 5.5412,
+     "gini": 0.3239,
+     "jain": 0.7373,
+     "range": 32.0,
+     "min": 0.0,
+     "max": 32.0
+    },
+    "month_count": {
+     "people": 1000,
+     "mean": 3.327,
+     "std": 2.0145,
+     "gini": 0.3302,
+     "jain": 0.7317,
+     "range": 14.0,
+     "min": 0.0,
+     "max": 14.0
+    },
+    "cumulative": {
+     "people": 1000,
+     "mean": 56.02,
+     "std": 14.5316,
+     "gini": 0.1337,
+     "jain": 0.937,
+     "range": 174.0,
+     "min": 0.0,
+     "max": 174.0
+    }
+   }
+  ],
+  "cumulative": {
+   "people": 1000,
+   "mean": 56.02,
+   "std": 14.5316,
+   "gini": 0.1337,
+   "jain": 0.937,
+   "range": 174.0,
+   "min": 0.0,
+   "max": 174.0
+  },
+  "cumulative_count": {
+   "people": 1000,
+   "mean": 20.076,
+   "std": 6.1092,
+   "gini": 0.1707,
+   "jain": 0.9152,
+   "range": 39.0,
+   "min": 0.0,
+   "max": 39.0
+  },
+  "cumulative_holiday": {
+   "people": 1000,
+   "mean": 6.647,
+   "std": 2.7292,
+   "gini": 0.2289,
+   "jain": 0.8557,
+   "range": 17.0,
+   "min": 0.0,
+   "max": 17.0
+  }
+ }
+]
