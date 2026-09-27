@@ -249,7 +249,7 @@ UNIQUE(`owner_unit_id`, `name`) WHERE `is_active`. `assigned_unit_id` — вну
 > Отдельная сущность `Pin` из `architecture.md` заменена флагами `is_pinned` на `day_plan` (закреплён исполнитель) и `assignment` (закреплён человек).
 
 ### `allocation_run` — прогон движка (preview → apply)
-`id`, `schedule_id`, `kind` (`units` — между подразделениями / `people` — по людям), `mode` (`fill`/`rebuild`), `config jsonb`, `seed`, `snapshot_hash`, `snapshot bytea` (zlib-JSON), `solution_hash`, `status` (`preview_ready`/`applied`/`discarded`/`stale`/`failed`; `queued`/`running` появятся с очередью в фазе 5), `metrics jsonb` (недокомплект, граница, справедливость, время, дефициты, незакрытые места, снимаемые назначения), `created_by`, `created_by_name`, `created_at`, `applied_at`, `applied_by_name`.
+`id`, `schedule_id`, `kind` (`units` — между подразделениями / `people` — по людям), `mode` (`fill`/`rebuild`), `config jsonb`, `seed`, `snapshot_hash`, `snapshot bytea` (zlib-JSON), `solution_hash`, `status` (`preview_ready`/`applied`/`discarded`/`stale`/`failed`; `queued`/`running` — фоновый расчёт в очереди arq, фаза 5b), `job_id` (задача в очереди), `metrics jsonb` (недокомплект, граница, справедливость, время, дефициты, незакрытые места, снимаемые назначения), `created_by`, `created_by_name`, `created_at`, `applied_at`, `applied_by_name`.
 `stale` — применение отклонено: hash свежего снимка отличается от сохранённого (open-questions №45).
 Снимок хранится (сжатый JSON в `bytea` или файл в томе) ограниченное время — для воспроизведения «почему так распределено».
 
