@@ -38,6 +38,7 @@ services:
       PERSONNEL_DB_PASSWORD: ${PERSONNEL_DB_PASSWORD}
       SCHEDULING_DB_PASSWORD: ${SCHEDULING_DB_PASSWORD}
       DOCUMENTS_DB_PASSWORD: ${DOCUMENTS_DB_PASSWORD}
+      ANALYTICS_DB_PASSWORD: ${ANALYTICS_DB_PASSWORD}
       KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
     volumes:
       - ./postgres/ensure-databases.sh:/ensure-databases.sh:ro
@@ -265,6 +266,7 @@ services:
       PERSONNEL_URL: http://personnel:8000
       SCHEDULING_URL: http://scheduling:8000
       ORG_URL: http://org:8000
+      ANALYTICS_URL: http://analytics:8000
     depends_on:
       db-init:
         condition: service_completed_successfully
@@ -285,6 +287,43 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # Read-model нагрузки по событиям scheduling (фаза 6c): не в критическом пути — если
+  # analytics недоступен, распределение и графики работают
+  analytics:
+    build:
+      context: ..
+      dockerfile: services/Dockerfile
+      args:
+        SERVICE: analytics
+    image: dutyflow/analytics:dev
+    environment: &analytics-env
+      <<: *service-env
+      SERVICE_NAME: analytics
+      DATABASE_URL: postgresql+asyncpg://analytics:${ANALYTICS_DB_PASSWORD}@postgres:5432/analytics_db
+      ORG_URL: http://org:8000
+      SCHEDULING_URL: http://scheduling:8000
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  # Один экземпляр: факты и проекции чувствительны к порядку событий. При пустой read-model
+  # заполняет её выгрузкой из scheduling (`just analytics-rebuild` — вручную).
+  analytics-consumer:
+    image: dutyflow/analytics:dev
+    command: ["python", "-m", "analytics.consumer"]
+    healthcheck:
+      disable: true
+    environment: *analytics-env
+    depends_on:
+      analytics:
+        condition: service_healthy
+      org:
+        condition: service_healthy
+      scheduling:
+        condition: service_healthy
+    restart: unless-stopped
+
   gateway:
     build:
       context: ../frontend
@@ -301,6 +340,8 @@ services:
       scheduling:
         condition: service_healthy
       documents:
+        condition: service_healthy
+      analytics:
         condition: service_healthy
       keycloak:
         condition: service_healthy

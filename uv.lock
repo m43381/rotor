@@ -11,6 +11,7 @@ resolution-markers = [
 members = [
     "dutyflow",
     "dutyflow-allocation",
+    "dutyflow-analytics",
     "dutyflow-common",
     "dutyflow-documents",
     "dutyflow-org",
@@ -432,6 +433,23 @@ requires-dist = [
     { name = "ortools", specifier = ">=9.10" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "scipy", specifier = ">=1.14" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.32" },
+]
+
+[[package]]
+name = "dutyflow-analytics"
+version = "0.1.0"
+source = { editable = "services/analytics" }
+dependencies = [
+    { name = "alembic" },
+    { name = "dutyflow-common" },
+    { name = "uvicorn", extra = ["standard"] },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "alembic", specifier = ">=1.14" },
+    { name = "dutyflow-common", editable = "libs/common" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.32" },
 ]
 

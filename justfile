@@ -38,7 +38,7 @@ logs service="":
 lint:
     uv run ruff check .
     uv run ruff format --check .
-    uv run mypy libs/common/src services/org/src services/personnel/src services/scheduling/src services/allocation/src services/documents/src tools
+    uv run mypy libs/common/src services/org/src services/personnel/src services/scheduling/src services/allocation/src services/documents/src services/analytics/src tools
     cd frontend; npm run lint; npm run typecheck; npm run check:licenses
 
 # Автоисправление форматирования
@@ -55,6 +55,7 @@ test *args:
     uv run pytest services/scheduling {{args}}
     uv run pytest services/allocation {{args}}
     uv run pytest services/documents {{args}}
+    uv run pytest services/analytics {{args}}
     cd frontend; npm test
 
 # E2E-тесты UI против стенда (после up и seed); браузер системный, PW_CHANNEL=msedge|chrome
@@ -101,6 +102,10 @@ bench-import:
 # затухание, пороги auto → docs/experiments.md (десятки минут; `--report` — только отчёт)
 experiment *args:
     uv run --group experiment python -m tools.experiment.run {{args}}
+
+# Перестроить read-model analytics из фактов scheduling (после восстановления БД и т. п.)
+analytics-rebuild:
+    {{compose}} exec analytics python -m analytics.rebuild
 
 # Демо-данные стенда: дерево, учётки операторов, личный состав (~1000 человек), наряды, допуски и графики на следующий месяц
 seed:

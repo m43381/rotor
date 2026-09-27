@@ -9,6 +9,7 @@ OUT = ROOT / "frontend" / "src" / "api" / "generated"
 
 
 def main() -> int:
+    from analytics.main import create_app as analytics_app
     from documents.main import create_app as documents_app
     from org.main import create_app as org_app
     from personnel.main import create_app as personnel_app
@@ -20,6 +21,7 @@ def main() -> int:
         ("personnel", personnel_app),
         ("scheduling", scheduling_app),
         ("documents", documents_app),
+        ("analytics", analytics_app),
     ):
         schema = factory().openapi()
         text = json.dumps(schema, ensure_ascii=False, indent=2) + "\n"

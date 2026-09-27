@@ -47,7 +47,7 @@ ignore = [
 "services/allocation/src/allocation/synthetic.py" = ["S311"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["allocation", "documents", "dutyflow_common", "org", "personnel", "scheduling"]
+known-first-party = ["allocation", "analytics", "documents", "dutyflow_common", "org", "personnel", "scheduling"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -63,6 +63,7 @@ mypy_path = [
     "services/scheduling/src",
     "services/allocation/src",
     "services/documents/src",
+    "services/analytics/src",
 ]
 
 [[tool.mypy.overrides]]

@@ -143,6 +143,10 @@ DEFAULT_RULES: dict[RuleKey, Scope] = {
     **_rules(Role.UNIT_ADMIN, "document_settings", read=SUBTREE, update=SUBTREE),
     **_rules(Role.OPERATOR, "document_settings", read=SUBTREE),
     **_rules(Role.VIEWER, "document_settings", read=SUBTREE),
+    # Аналитика нагрузки видна в своём поддереве всем ролям (open-questions №56)
+    **_rules(Role.UNIT_ADMIN, "analytics", read=SUBTREE),
+    **_rules(Role.OPERATOR, "analytics", read=SUBTREE),
+    **_rules(Role.VIEWER, "analytics", read=SUBTREE),
     # Журнал аудита: оператор видит записи своего поддерева (ADR-0010).
     **_rules(Role.UNIT_ADMIN, "audit", read=SUBTREE),
     **_rules(Role.OPERATOR, "audit", read=SUBTREE),
