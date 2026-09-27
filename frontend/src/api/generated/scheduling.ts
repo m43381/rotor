@@ -70,6 +70,143 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/schedules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Графики месяца в scope */
+        get: operations["list_schedules_schedules_get"];
+        put?: never;
+        /** Create Schedule */
+        post: operations["create_schedule_schedules_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/schedules/{schedule_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Schedule */
+        get: operations["get_schedule_schedules__schedule_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/schedules/{schedule_id}/table": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Таблица месяца: строки — роли нарядов, столбцы — дни */
+        get: operations["schedule_table_schedules__schedule_id__table_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/schedules/{schedule_id}/delegate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Делегировать ячейки прямому дочернему подразделению или вернуть себе */
+        post: operations["delegate_schedules__schedule_id__delegate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/schedules/{schedule_id}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Accept */
+        post: operations["accept_schedules__schedule_id__accept_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/schedules/{schedule_id}/pin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Pin */
+        post: operations["pin_schedules__schedule_id__pin_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/schedules/{schedule_id}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Опубликовать (непринятые ячейки поддерева — предупреждение, не запрет) */
+        post: operations["publish_schedules__schedule_id__publish_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/schedules/{schedule_id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Archive */
+        post: operations["archive_schedules__schedule_id__archive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/audit": {
         parameters: {
             query?: never;
@@ -108,6 +245,11 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AcceptIn */
+        AcceptIn: {
+            /** Cell Ids */
+            cell_ids?: string[] | null;
+        };
         /** AttributeRequirement */
         AttributeRequirement: {
             /** Code */
@@ -151,6 +293,41 @@ export interface components {
             } | null;
             /** Comment */
             comment: string | null;
+        };
+        /** CellOut */
+        CellOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "own" | "delegated_pending" | "delegated_accepted" | "incoming_pending" | "incoming_active" | "incoming_delegated_pending" | "incoming_delegated_accepted" | "inactive";
+            /**
+             * Executor Unit Id
+             * Format: uuid
+             */
+            executor_unit_id: string;
+            /** Is Pinned */
+            is_pinned: boolean;
+        };
+        /** ChangedOut */
+        ChangedOut: {
+            /** Changed */
+            changed: number;
+        };
+        /** DelegateIn */
+        DelegateIn: {
+            /** Cell Ids */
+            cell_ids: string[];
+            /**
+             * Executor Unit Id
+             * Format: uuid
+             */
+            executor_unit_id: string;
         };
         /** DutyRoleBatchItem */
         DutyRoleBatchItem: {
@@ -435,6 +612,159 @@ export interface components {
             /** Offset */
             offset: number;
         };
+        /** PendingWarning */
+        PendingWarning: {
+            /**
+             * Unit Id
+             * Format: uuid
+             */
+            unit_id: string;
+            /** Unit Name */
+            unit_name: string | null;
+            /** Count */
+            count: number;
+        };
+        /** PinIn */
+        PinIn: {
+            /** Cell Ids */
+            cell_ids: string[];
+            /** Pinned */
+            pinned: boolean;
+        };
+        /** PublishOut */
+        PublishOut: {
+            schedule: components["schemas"]["ScheduleOut"];
+            /** Warnings */
+            warnings: components["schemas"]["PendingWarning"][];
+        };
+        /** ScheduleCreate */
+        ScheduleCreate: {
+            /**
+             * Unit Id
+             * Format: uuid
+             */
+            unit_id: string;
+            /**
+             * Month
+             * Format: date
+             */
+            month: string;
+        };
+        /** ScheduleOut */
+        ScheduleOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Unit Id
+             * Format: uuid
+             */
+            unit_id: string;
+            /** Unit Name */
+            unit_name: string | null;
+            /**
+             * Month
+             * Format: date
+             */
+            month: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "draft" | "published" | "archived";
+            /** Published At */
+            published_at: string | null;
+            /** Published By */
+            published_by: string | null;
+            /** Version */
+            version: number;
+            /** Can Edit */
+            can_edit: boolean;
+            /** Pending Incoming */
+            pending_incoming: number;
+        };
+        /** TableDay */
+        TableDay: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "workday" | "weekend" | "holiday" | "preholiday";
+            /** Name */
+            name: string | null;
+        };
+        /** TableOut */
+        TableOut: {
+            schedule: components["schemas"]["ScheduleOut"];
+            /** Days */
+            days: components["schemas"]["TableDay"][];
+            /** Rows */
+            rows: components["schemas"]["TableRow"][];
+            /** Children */
+            children: components["schemas"]["UnitRef"][];
+            /** Units */
+            units: {
+                [key: string]: components["schemas"]["UnitRef"];
+            };
+        };
+        /** TableRow */
+        TableRow: {
+            /**
+             * Duty Type Id
+             * Format: uuid
+             */
+            duty_type_id: string;
+            /** Duty Type Name */
+            duty_type_name: string;
+            /** Duty Type Short Name */
+            duty_type_short_name: string | null;
+            /**
+             * Owner Unit Id
+             * Format: uuid
+             */
+            owner_unit_id: string;
+            /** Owner Unit Name */
+            owner_unit_name: string | null;
+            /**
+             * Start Time
+             * Format: time
+             */
+            start_time: string;
+            /** Duration Minutes */
+            duration_minutes: number;
+            /**
+             * Duty Role Id
+             * Format: uuid
+             */
+            duty_role_id: string;
+            /** Role Name */
+            role_name: string;
+            /** Headcount */
+            headcount: number;
+            /** Is Active */
+            is_active: boolean;
+            /** Cells */
+            cells: (components["schemas"]["CellOut"] | null)[];
+        };
+        /** UnitRef */
+        UnitRef: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Short Name */
+            short_name: string | null;
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -447,6 +777,11 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /** VersionIn */
+        VersionIn: {
+            /** Version */
+            version: number;
         };
     };
     responses: never;
@@ -646,6 +981,309 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DutyTypeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_schedules_schedules_get: {
+        parameters: {
+            query: {
+                /** @description Любой день месяца */
+                month: string;
+                unit_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_schedule_schedules_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScheduleCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_schedule_schedules__schedule_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                schedule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    schedule_table_schedules__schedule_id__table_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                schedule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TableOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delegate_schedules__schedule_id__delegate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                schedule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DelegateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChangedOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    accept_schedules__schedule_id__accept_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                schedule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AcceptIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChangedOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pin_schedules__schedule_id__pin_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                schedule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PinIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChangedOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    publish_schedules__schedule_id__publish_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                schedule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VersionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublishOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    archive_schedules__schedule_id__archive_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                schedule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VersionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleOut"];
                 };
             };
             /** @description Validation Error */

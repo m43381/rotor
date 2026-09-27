@@ -1081,6 +1081,32 @@
           }
         }
       }
+    },
+    "/internal/calendar": {
+      "post": {
+        "tags": [
+          "internal"
+        ],
+        "summary": "Calendar",
+        "description": "Все исключения производственного календаря — для пересинхронизации проекций.",
+        "operationId": "calendar_internal_calendar_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CalendarDayModel"
+                  },
+                  "type": "array",
+                  "title": "Response Calendar Internal Calendar Post"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {

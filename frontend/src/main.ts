@@ -18,6 +18,7 @@ import DutyTypesView from './views/DutyTypesView.vue'
 import PeopleView from './views/PeopleView.vue'
 import PersonView from './views/PersonView.vue'
 import ReferencesView from './views/ReferencesView.vue'
+import SchedulesView from './views/SchedulesView.vue'
 import UnitsView from './views/UnitsView.vue'
 
 async function bootstrap() {
@@ -32,6 +33,7 @@ async function bootstrap() {
       { path: '/units', component: UnitsView },
       { path: '/people', component: PeopleView },
       { path: '/people/:id', component: PersonView },
+      { path: '/schedules', component: SchedulesView },
       { path: '/duty-types', component: DutyTypesView },
       { path: '/reports/clearance-mismatches', component: ClearanceMismatchesView },
       { path: '/references', component: ReferencesView },

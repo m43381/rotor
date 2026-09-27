@@ -340,6 +340,507 @@
         }
       }
     },
+    "/schedules": {
+      "get": {
+        "tags": [
+          "schedules"
+        ],
+        "summary": "Графики месяца в scope",
+        "operationId": "list_schedules_schedules_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Любой день месяца",
+              "title": "Month"
+            },
+            "description": "Любой день месяца"
+          },
+          {
+            "name": "unit_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Unit Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ScheduleOut"
+                  },
+                  "title": "Response List Schedules Schedules Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "schedules"
+        ],
+        "summary": "Create Schedule",
+        "operationId": "create_schedule_schedules_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScheduleCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/schedules/{schedule_id}": {
+      "get": {
+        "tags": [
+          "schedules"
+        ],
+        "summary": "Get Schedule",
+        "operationId": "get_schedule_schedules__schedule_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "schedule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Schedule Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/schedules/{schedule_id}/table": {
+      "get": {
+        "tags": [
+          "schedules"
+        ],
+        "summary": "Таблица месяца: строки — роли нарядов, столбцы — дни",
+        "operationId": "schedule_table_schedules__schedule_id__table_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "schedule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Schedule Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TableOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/schedules/{schedule_id}/delegate": {
+      "post": {
+        "tags": [
+          "schedules"
+        ],
+        "summary": "Делегировать ячейки прямому дочернему подразделению или вернуть себе",
+        "operationId": "delegate_schedules__schedule_id__delegate_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "schedule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Schedule Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DelegateIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangedOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/schedules/{schedule_id}/accept": {
+      "post": {
+        "tags": [
+          "schedules"
+        ],
+        "summary": "Accept",
+        "operationId": "accept_schedules__schedule_id__accept_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "schedule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Schedule Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangedOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/schedules/{schedule_id}/pin": {
+      "post": {
+        "tags": [
+          "schedules"
+        ],
+        "summary": "Pin",
+        "operationId": "pin_schedules__schedule_id__pin_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "schedule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Schedule Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PinIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangedOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/schedules/{schedule_id}/publish": {
+      "post": {
+        "tags": [
+          "schedules"
+        ],
+        "summary": "Опубликовать (непринятые ячейки поддерева — предупреждение, не запрет)",
+        "operationId": "publish_schedules__schedule_id__publish_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "schedule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Schedule Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublishOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/schedules/{schedule_id}/archive": {
+      "post": {
+        "tags": [
+          "schedules"
+        ],
+        "summary": "Archive",
+        "operationId": "archive_schedules__schedule_id__archive_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "schedule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Schedule Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/audit": {
       "get": {
         "tags": [
@@ -482,6 +983,28 @@
   },
   "components": {
     "schemas": {
+      "AcceptIn": {
+        "properties": {
+          "cell_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "type": "array",
+                "maxItems": 10000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cell Ids"
+          }
+        },
+        "type": "object",
+        "title": "AcceptIn"
+      },
       "AttributeRequirement": {
         "properties": {
           "code": {
@@ -588,6 +1111,84 @@
           "comment"
         ],
         "title": "AuditEntryOut"
+      },
+      "CellOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "own",
+              "delegated_pending",
+              "delegated_accepted",
+              "incoming_pending",
+              "incoming_active",
+              "incoming_delegated_pending",
+              "incoming_delegated_accepted",
+              "inactive"
+            ],
+            "title": "State"
+          },
+          "executor_unit_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Executor Unit Id"
+          },
+          "is_pinned": {
+            "type": "boolean",
+            "title": "Is Pinned"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "state",
+          "executor_unit_id",
+          "is_pinned"
+        ],
+        "title": "CellOut"
+      },
+      "ChangedOut": {
+        "properties": {
+          "changed": {
+            "type": "integer",
+            "title": "Changed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "changed"
+        ],
+        "title": "ChangedOut"
+      },
+      "DelegateIn": {
+        "properties": {
+          "cell_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 10000,
+            "minItems": 1,
+            "title": "Cell Ids"
+          },
+          "executor_unit_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Executor Unit Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cell_ids",
+          "executor_unit_id"
+        ],
+        "title": "DelegateIn"
       },
       "DutyRoleBatchItem": {
         "properties": {
@@ -1336,6 +1937,400 @@
         ],
         "title": "Page[AuditEntryOut]"
       },
+      "PendingWarning": {
+        "properties": {
+          "unit_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Unit Id"
+          },
+          "unit_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Name"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "unit_id",
+          "unit_name",
+          "count"
+        ],
+        "title": "PendingWarning"
+      },
+      "PinIn": {
+        "properties": {
+          "cell_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 10000,
+            "minItems": 1,
+            "title": "Cell Ids"
+          },
+          "pinned": {
+            "type": "boolean",
+            "title": "Pinned"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cell_ids",
+          "pinned"
+        ],
+        "title": "PinIn"
+      },
+      "PublishOut": {
+        "properties": {
+          "schedule": {
+            "$ref": "#/components/schemas/ScheduleOut"
+          },
+          "warnings": {
+            "items": {
+              "$ref": "#/components/schemas/PendingWarning"
+            },
+            "type": "array",
+            "title": "Warnings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "schedule",
+          "warnings"
+        ],
+        "title": "PublishOut"
+      },
+      "ScheduleCreate": {
+        "properties": {
+          "unit_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Unit Id"
+          },
+          "month": {
+            "type": "string",
+            "format": "date",
+            "title": "Month"
+          }
+        },
+        "type": "object",
+        "required": [
+          "unit_id",
+          "month"
+        ],
+        "title": "ScheduleCreate"
+      },
+      "ScheduleOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "unit_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Unit Id"
+          },
+          "unit_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Name"
+          },
+          "month": {
+            "type": "string",
+            "format": "date",
+            "title": "Month"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "published",
+              "archived"
+            ],
+            "title": "Status"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "published_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published By"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "can_edit": {
+            "type": "boolean",
+            "title": "Can Edit"
+          },
+          "pending_incoming": {
+            "type": "integer",
+            "title": "Pending Incoming"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "unit_id",
+          "unit_name",
+          "month",
+          "status",
+          "published_at",
+          "published_by",
+          "version",
+          "can_edit",
+          "pending_incoming"
+        ],
+        "title": "ScheduleOut"
+      },
+      "TableDay": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "workday",
+              "weekend",
+              "holiday",
+              "preholiday"
+            ],
+            "title": "Kind"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "date",
+          "kind",
+          "name"
+        ],
+        "title": "TableDay"
+      },
+      "TableOut": {
+        "properties": {
+          "schedule": {
+            "$ref": "#/components/schemas/ScheduleOut"
+          },
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/TableDay"
+            },
+            "type": "array",
+            "title": "Days"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/TableRow"
+            },
+            "type": "array",
+            "title": "Rows"
+          },
+          "children": {
+            "items": {
+              "$ref": "#/components/schemas/UnitRef"
+            },
+            "type": "array",
+            "title": "Children"
+          },
+          "units": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/UnitRef"
+            },
+            "propertyNames": {
+              "format": "uuid"
+            },
+            "type": "object",
+            "title": "Units"
+          }
+        },
+        "type": "object",
+        "required": [
+          "schedule",
+          "days",
+          "rows",
+          "children",
+          "units"
+        ],
+        "title": "TableOut"
+      },
+      "TableRow": {
+        "properties": {
+          "duty_type_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Duty Type Id"
+          },
+          "duty_type_name": {
+            "type": "string",
+            "title": "Duty Type Name"
+          },
+          "duty_type_short_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duty Type Short Name"
+          },
+          "owner_unit_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Owner Unit Id"
+          },
+          "owner_unit_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Unit Name"
+          },
+          "start_time": {
+            "type": "string",
+            "format": "time",
+            "title": "Start Time"
+          },
+          "duration_minutes": {
+            "type": "integer",
+            "title": "Duration Minutes"
+          },
+          "duty_role_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Duty Role Id"
+          },
+          "role_name": {
+            "type": "string",
+            "title": "Role Name"
+          },
+          "headcount": {
+            "type": "integer",
+            "title": "Headcount"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          },
+          "cells": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/CellOut"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Cells"
+          }
+        },
+        "type": "object",
+        "required": [
+          "duty_type_id",
+          "duty_type_name",
+          "duty_type_short_name",
+          "owner_unit_id",
+          "owner_unit_name",
+          "start_time",
+          "duration_minutes",
+          "duty_role_id",
+          "role_name",
+          "headcount",
+          "is_active",
+          "cells"
+        ],
+        "title": "TableRow"
+      },
+      "UnitRef": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "short_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Short Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "short_name"
+        ],
+        "title": "UnitRef"
+      },
       "ValidationError": {
         "properties": {
           "loc": {
@@ -1375,6 +2370,19 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "VersionIn": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version"
+        ],
+        "title": "VersionIn"
       }
     },
     "securitySchemes": {

@@ -35,6 +35,11 @@ export type DutyRoleIn = SC['schemas']['DutyRoleIn']
 export type DutyTypeCreate = SC['schemas']['DutyTypeCreate']
 export type DutyTypeUpdate = SC['schemas']['DutyTypeUpdate']
 export type AttributeRequirement = SC['schemas']['AttributeRequirement']
+export type Schedule = SC['schemas']['ScheduleOut']
+export type ScheduleTable = SC['schemas']['TableOut']
+export type TableRow = SC['schemas']['TableRow']
+export type Cell = SC['schemas']['CellOut']
+export type PendingWarning = SC['schemas']['PendingWarning']
 
 /** Ошибка API в формате сервисов: `{code, message, details?}`. */
 export class ApiError extends Error {

@@ -72,5 +72,16 @@ await page.waitForSelector('.p-datatable-tbody tr')
 await page.waitForTimeout(400)
 await shot('11-clearance-mismatches')
 
+// Фаза 3a: график факультета на следующий месяц с делегированием курсам
+const next = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1)
+const nextMonth = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-01`
+await page.goto(`${base}/schedules?month=${nextMonth}`)
+await page.waitForSelector('.grid td.cell')
+const dutyCells = page.locator('tr', { hasText: 'Дежурный по факультету' }).locator('td.cell')
+await dutyCells.nth(2).click()
+await dutyCells.nth(6).click({ modifiers: ['Shift'] })
+await page.waitForTimeout(400)
+await shot('12-schedule')
+
 await browser.close()
 console.log(`Скриншоты: ${out.pathname}`)
