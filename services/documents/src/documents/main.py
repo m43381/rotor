@@ -19,6 +19,7 @@ def create_app(
     personnel_transport: httpx.AsyncBaseTransport | None = None,
     scheduling_transport: httpx.AsyncBaseTransport | None = None,
     org_transport: httpx.AsyncBaseTransport | None = None,
+    analytics_transport: httpx.AsyncBaseTransport | None = None,
 ) -> FastAPI:
     settings = settings or DocumentsSettings()
     app = create_service_app(settings, title="DutyFlow documents", token_verifier=token_verifier)
@@ -27,6 +28,7 @@ def create_app(
     app.state.personnel = UpstreamClient(settings.personnel_url, transport=personnel_transport)
     app.state.scheduling = UpstreamClient(settings.scheduling_url, transport=scheduling_transport)
     app.state.org = UpstreamClient(settings.org_url, transport=org_transport)
+    app.state.analytics = UpstreamClient(settings.analytics_url, transport=analytics_transport)
 
     base_lifespan = app.router.lifespan_context
 
@@ -34,7 +36,8 @@ def create_app(
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         async with base_lifespan(app):
             yield
-        for client in (app.state.personnel, app.state.scheduling, app.state.org):
+        clients = (app.state.personnel, app.state.scheduling, app.state.org, app.state.analytics)
+        for client in clients:
             await client.aclose()
 
     app.router.lifespan_context = lifespan

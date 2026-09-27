@@ -117,13 +117,40 @@ async def test_daily_forms(client_for: ClientFactory) -> None:
     assert (await admin.get("/print/daily", params={**params, "format": "xlsx"})).status_code == 422
 
 
+async def test_load_report(client_for: ClientFactory, upstreams: FakeUpstreams) -> None:
+    admin = client_for("unit_admin", unit_id=FACULTY)
+    await admin.put(f"/document-settings/{FACULTY}", json={**REQ, "compiler_name": "П. П. Петров"})
+    params = {"unit_id": str(COURSE), "date_from": "2026-11-01", "date_to": "2026-11-30"}
+    r = await admin.get("/print/load-report", params={**params, "format": "xlsx"})
+    assert r.status_code == 200, r.text
+    wb = load_workbook(io.BytesIO(r.content))
+    people = wb["Люди"]
+    rows = [[c.value for c in row] for row in people.iter_rows(min_row=4)]
+    assert rows[0][:5] == [1, "Алексеев И. П.", 3, 4, 4.0]
+    summary = "\n".join(str(c.value) for row in wb["Сводка"].iter_rows() for c in row if c.value)
+    assert "Нагрузка на человека" in summary
+    assert "0,96" in summary  # индекс Джайна
+    # Запросы к analytics — от имени оператора, с теми же параметрами
+    assert any(c.startswith("analytics /metrics/people") for c in upstreams.calls)
+
+    html = (await admin.get("/print/html/load_report", params=params)).text
+    assert "01.11.2026 — 30.11.2026" in html
+    assert "Составил" in html
+    assert "П. П. Петров" in html
+
+
 async def test_templates_sandbox_and_audit(
     client_for: ClientFactory, app: object, sessionmaker: async_sessionmaker[AsyncSession]
 ) -> None:
     admin = client_for("unit_admin", unit_id=FACULTY)
     root = client_for("superadmin", username="root")
     listed = (await admin.get("/templates")).json()
-    assert [t["form"] for t in listed] == ["schedule_month", "daily_roster", "daily_order"]
+    assert [t["form"] for t in listed] == [
+        "schedule_month",
+        "daily_roster",
+        "daily_order",
+        "load_report",
+    ]
     assert not any(t["custom"] for t in listed)
 
     body = "<h1>Свой шаблон {{ unit.name }}</h1>{% for d in duties %}{{ d.name }}{% endfor %}"

@@ -245,6 +245,58 @@ class FakeUpstreams:
             )
         return httpx.Response(404, json={"code": "not_found", "message": "Нет такого"})
 
+    def analytics(self, request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        self.calls.append(f"analytics {path}?{request.url.query.decode()}")
+        stats = {"people": 2, "mean": 2.5, "std": 0.5, "gini": 0.1, "jain": 0.96,
+                 "range": 1.0, "min": 2.0, "max": 3.0}  # fmt: skip
+        if path == "/metrics/overview":
+            return httpx.Response(
+                200,
+                json={
+                    "unit_id": request.url.params["unit_id"],
+                    "unit_name": "1 курс",
+                    "date_from": request.url.params["date_from"],
+                    "date_to": request.url.params["date_to"],
+                    "drafts": request.url.params.get("drafts") == "true",
+                    "totals": {
+                        "people": 2,
+                        "duties": 5,
+                        "duty_days": 6,
+                        "load": 6.5,
+                        "holidays": 1,
+                    },
+                    "fairness": {"load": stats, "count": stats, "holiday": stats},
+                    "histogram": [],
+                    "units": [
+                        {
+                            "unit_id": str(COURSE),
+                            "unit_name": "1 курс",
+                            "own": True,
+                            "people": 2,
+                            "duties": 5,
+                            "load": 6.5,
+                            "load_per_person": 3.25,
+                        },
+                    ],
+                    "trend": [],
+                    "top": [],
+                    "bottom": [],
+                },
+            )
+        if path == "/metrics/people":
+            offset = int(request.url.params["offset"])
+            people = [
+                {"person_id": str(uuid.uuid4()), "person_name": "Алексеев И. П.", "duties": 3,
+                 "duty_days": 4, "load": 4.0, "holidays": 1, "last_date": "2026-11-20"},
+                {"person_id": str(uuid.uuid4()), "person_name": "Борисов И. П.", "duties": 2,
+                 "duty_days": 2, "load": 2.5, "holidays": 0, "last_date": "2026-11-15"},
+            ]  # fmt: skip
+            return httpx.Response(
+                200, json={"items": people[offset:], "total": 2, "limit": 5000, "offset": offset}
+            )
+        return httpx.Response(404, json={"code": "not_found", "message": "Нет такого"})
+
 
 @pytest.fixture(scope="session")
 def database_url() -> Iterator[str]:
@@ -299,6 +351,7 @@ async def app(
         personnel_transport=httpx.MockTransport(personnel.handler),
         scheduling_transport=httpx.MockTransport(upstreams.scheduling),
         org_transport=httpx.MockTransport(upstreams.org),
+        analytics_transport=httpx.MockTransport(upstreams.analytics),
     )
     async with LifespanManager(application):
         yield application

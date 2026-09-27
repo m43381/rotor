@@ -5,7 +5,8 @@
 Формы (open-questions №15, №53):
 - `schedule_month` — график нарядов на месяц;
 - `daily_roster` — ведомость суточного наряда на дату;
-- `daily_order` — приказ о назначении суточного наряда (данные — как у ведомости).
+- `daily_order` — приказ о назначении суточного наряда (данные — как у ведомости);
+- `load_report` — отчёт по нагрузке за период (данные — у `analytics`, шаг 6c).
 """
 
 import datetime as dt
@@ -67,6 +68,15 @@ FORMS = {
         "Приказ о назначении суточного наряда",
         ("pdf", "docx"),
         "те же данные, что у ведомости суточного наряда",
+    ),
+    "load_report": Form(
+        "load_report",
+        "Отчёт по нагрузке",
+        ("pdf", "xlsx"),
+        "unit.name, period («01.11.2026 — 30.11.2026»), drafts, totals.{people, duties, "
+        "duty_days, holidays}, fairness[] {title, mean, std, min, max, range, gini, jain}, "
+        "units[] {name, people, duties, load, per_person}, people[] {name, duties, duty_days, "
+        "load, holidays, last_date}, requisites.{…}",
     ),
 }
 
@@ -204,6 +214,58 @@ def daily_context(
     }
 
 
+FAIRNESS_TITLES = {
+    "load": "Нагрузка на человека",
+    "count": "Нарядов на человека",
+    "holiday": "Нарядов в выходные",
+}
+
+
+def _num(x: float) -> str:
+    return f"{x:.2f}".rstrip("0").rstrip(".").replace(".", ",")
+
+
+def load_context(
+    overview: dict[str, Any], people: list[dict[str, Any]], req: dict[str, Any] | None
+) -> dict[str, Any]:
+    d_from = dt.date.fromisoformat(overview["date_from"])
+    d_to = dt.date.fromisoformat(overview["date_to"])
+    return {
+        "unit": {"name": overview["unit_name"]},
+        "period": f"{d_from:%d.%m.%Y} — {d_to:%d.%m.%Y}",
+        "date_from": d_from,
+        "date_to": d_to,
+        "drafts": overview["drafts"],
+        "totals": {k: int(v) for k, v in overview["totals"].items() if k != "load"},
+        "fairness": [
+            {"title": title, **{k: _num(v) for k, v in overview["fairness"][key].items()}}
+            for key, title in FAIRNESS_TITLES.items()
+        ],
+        "units": [
+            {
+                "name": u["unit_name"] + (" (само)" if u["own"] else ""),
+                "people": u["people"],
+                "duties": u["duties"],
+                "load": _num(u["load"]),
+                "per_person": _num(u["load_per_person"]),
+            }
+            for u in overview["units"]
+        ],
+        "people": [
+            {
+                "name": p["person_name"],
+                "duties": p["duties"],
+                "duty_days": p["duty_days"],
+                "load": _num(p["load"]),
+                "holidays": p["holidays"],
+                "last_date": dt.date.fromisoformat(p["last_date"]).strftime("%d.%m.%Y"),
+            }
+            for p in people
+        ],
+        "requisites": requisites(req),
+    }
+
+
 # --- демо-данные для предпросмотра шаблонов -------------------------------------------------------
 
 SAMPLE_REQUISITES = {
@@ -292,7 +354,46 @@ def sample_daily() -> dict[str, Any]:
     }
 
 
+def sample_load() -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    stats = {"people": 3, "mean": 2.0, "std": 0.8165, "gini": 0.2222, "jain": 0.8571,
+             "range": 2.0, "min": 1.0, "max": 3.0}  # fmt: skip
+    overview = {
+        "unit_name": "Факультет 1",
+        "date_from": "2026-11-01",
+        "date_to": "2026-11-30",
+        "drafts": False,
+        "totals": {"people": 3, "duties": 6, "duty_days": 8, "load": 9.0, "holidays": 2},
+        "fairness": {"load": stats, "count": stats, "holiday": stats},
+        "units": [
+            {
+                "unit_name": "1 курс",
+                "own": False,
+                "people": 2,
+                "duties": 4,
+                "load": 6.0,
+                "load_per_person": 3.0,
+            },
+            {
+                "unit_name": "2 курс",
+                "own": False,
+                "people": 1,
+                "duties": 2,
+                "load": 3.0,
+                "load_per_person": 3.0,
+            },
+        ],
+    }
+    people = [
+        {"person_name": f"Курсантов{i} И. П.", "duties": 3 - i, "duty_days": 4 - i,
+         "load": 4.5 - i, "holidays": i % 2, "last_date": "2026-11-2" + str(i)}
+        for i in range(3)
+    ]  # fmt: skip
+    return overview, people
+
+
 def sample_context(form: str) -> dict[str, Any]:
     if form == "schedule_month":
         return schedule_context(sample_schedule(), SAMPLE_REQUISITES)
+    if form == "load_report":
+        return load_context(*sample_load(), SAMPLE_REQUISITES)
     return daily_context(sample_daily(), SAMPLE_REQUISITES, ZoneInfo("Europe/Moscow"))

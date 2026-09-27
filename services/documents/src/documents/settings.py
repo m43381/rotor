@@ -10,5 +10,6 @@ class DocumentsSettings(ServiceSettings):
     max_upload_mb: int = 10
     scheduling_url: str = "http://scheduling:8000"
     org_url: str = "http://org:8000"
+    analytics_url: str = "http://analytics:8000"
     # Часовой пояс инсталляции: время заступления печатается местным (ADR-0008)
     timezone: str = "Europe/Moscow"

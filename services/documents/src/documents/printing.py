@@ -20,13 +20,20 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.exc import StaleDataError
 
-from documents.forms import FORMS, daily_context, sample_context, schedule_context
+from documents.forms import (
+    FORMS,
+    daily_context,
+    load_context,
+    sample_context,
+    schedule_context,
+)
 from documents.models import DocumentSettings, PrintTemplate
 from documents.render import (
     MEDIA,
     builtin_template,
     daily_docx,
     html_to_pdf,
+    load_xlsx,
     render_html,
     schedule_xlsx,
 )
@@ -56,6 +63,7 @@ class PrintService:
         scheduling: UpstreamClient,
         org: UpstreamClient,
         tz: ZoneInfo,
+        analytics: UpstreamClient | None = None,
         policy: Policy = default_policy,
     ) -> None:
         self.session = session
@@ -63,6 +71,7 @@ class PrintService:
         self.token = token
         self.scheduling = scheduling
         self.org = org
+        self.analytics = analytics
         self.tz = tz
         self.policy = policy
 
@@ -298,8 +307,50 @@ class PrintService:
         html = render_html(await self.template_body(form), ctx)
         return Document(name, html_to_pdf(html), MEDIA["pdf"])
 
+    async def load_report(
+        self, unit_id: uuid.UUID, date_from: dt.date, date_to: dt.date, drafts: bool, fmt: str
+    ) -> Document:
+        if fmt not in FORMS["load_report"].formats:
+            raise ValidationFailedError("Отчёт по нагрузке печатается в PDF или XLSX")
+        ctx = await self._load_context(unit_id, date_from, date_to, drafts)
+        name = f"Нагрузка — {ctx['unit']['name']} — {date_from:%d.%m.%Y}–{date_to:%d.%m.%Y}.{fmt}"
+        if fmt == "xlsx":
+            return Document(name, load_xlsx(ctx), MEDIA["xlsx"])
+        html = render_html(await self.template_body("load_report"), ctx)
+        return Document(name, html_to_pdf(html), MEDIA["pdf"])
+
+    async def _load_context(
+        self, unit_id: uuid.UUID, date_from: dt.date, date_to: dt.date, drafts: bool
+    ) -> dict[str, Any]:
+        if self.analytics is None:  # pragma: no cover — всегда задан в приложении
+            raise ValidationFailedError("Аналитика не подключена")
+        params: dict[str, Any] = {
+            "unit_id": str(unit_id),
+            "date_from": str(date_from),
+            "date_to": str(date_to),
+            "drafts": str(drafts).lower(),
+        }
+        overview = await self.analytics.get("/metrics/overview", self.token, params=params)
+        people: list[dict[str, Any]] = []
+        while True:
+            page = await self.analytics.get(
+                "/metrics/people",
+                self.token,
+                params={**params, "limit": 5_000, "offset": len(people)},
+            )
+            people += page["items"]
+            if len(people) >= page["total"] or not page["items"]:
+                break
+        req, _ = await self.requisites(unit_id)
+        return load_context(overview, people, req)
+
     async def html(self, form: str, **kwargs: Any) -> str:
         """HTML формы без перевода в PDF — для тестов и отладки шаблонов."""
+        if form == "load_report":
+            ctx = await self._load_context(
+                kwargs["unit_id"], kwargs["date_from"], kwargs["date_to"], kwargs["drafts"]
+            )
+            return render_html(await self.template_body(form), ctx)
         if form == "schedule_month":
             data = await self.scheduling.get(
                 f"/schedules/{kwargs['schedule_id']}/print", self.token

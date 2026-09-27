@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+{# Отчёт по нагрузке за период: сводка справедливости, подразделения, люди. #}
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Отчёт по нагрузке — {{ unit.name }}</title>
+<style>
+  @page { size: A4; margin: 15mm 12mm 15mm 20mm; @bottom-right { content: "Лист " counter(page) " из " counter(pages); font-size: 8pt; } }
+  body { font-family: "Liberation Serif", "Times New Roman", serif; font-size: 10.5pt; color: #000; }
+  h1 { text-align: center; font-size: 13pt; margin: 0 0 1mm; }
+  h2 { font-size: 11.5pt; margin: 5mm 0 2mm; }
+  .sub { text-align: center; margin-bottom: 4mm; }
+  .note { font-size: 9pt; color: #333; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { border: 0.6pt solid #000; padding: 0.8mm 1.5mm; vertical-align: top; }
+  th { text-align: center; font-size: 9.5pt; }
+  td.num { text-align: right; white-space: nowrap; }
+  thead { display: table-header-group; }
+  tr { page-break-inside: avoid; }
+  .kpi td { width: 25%; }
+  .sign { margin-top: 8mm; }
+</style>
+</head>
+<body>
+  <h1>Отчёт по нагрузке нарядами</h1>
+  <div class="sub">{{ unit.name }} (с нижестоящими) за период {{ period }}{% if drafts %}, включая черновики графиков{% endif %}</div>
+
+  <table class="kpi">
+    <tr><td>Людей в нарядах: <b>{{ totals.people }}</b></td><td>Нарядов: <b>{{ totals.duties }}</b></td>
+        <td>Нарядо-суток: <b>{{ totals.duty_days }}</b></td><td>В выходные и праздники: <b>{{ totals.holidays }}</b></td></tr>
+  </table>
+
+  <h2>Справедливость распределения</h2>
+  <table>
+    <thead><tr><th>Показатель</th><th>Среднее</th><th>σ</th><th>Мин.</th><th>Макс.</th><th>Размах</th><th>Джини</th><th>Джайн</th></tr></thead>
+    <tbody>
+      {% for row in fairness %}
+      <tr><td>{{ row.title }}</td><td class="num">{{ row.mean }}</td><td class="num">{{ row.std }}</td><td class="num">{{ row.min }}</td>
+          <td class="num">{{ row.max }}</td><td class="num">{{ row.range }}</td><td class="num">{{ row.gini }}</td><td class="num">{{ row.jain }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="note">Нагрузка — нарядо-сутки × вес наряда, без затухания. Джини: 0 — всем поровну; Джайн: 1 — всем поровну. Считается по людям, у которых в периоде был хотя бы один наряд.</p>
+
+  {% if units|length > 1 %}
+  <h2>По подразделениям</h2>
+  <table>
+    <thead><tr><th>Подразделение</th><th>Людей</th><th>Нарядов</th><th>Нагрузка</th><th>На человека</th></tr></thead>
+    <tbody>
+      {% for u in units %}
+      <tr><td>{{ u.name }}</td><td class="num">{{ u.people }}</td><td class="num">{{ u.duties }}</td><td class="num">{{ u.load }}</td><td class="num">{{ u.per_person }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  <h2>По людям</h2>
+  <table>
+    <thead><tr><th>№</th><th>Фамилия, инициалы</th><th>Нарядов</th><th>Нарядо-суток</th><th>Нагрузка</th><th>В выходные</th><th>Последний наряд</th></tr></thead>
+    <tbody>
+      {% for p in people %}
+      <tr><td class="num">{{ loop.index }}</td><td>{{ p.name }}</td><td class="num">{{ p.duties }}</td><td class="num">{{ p.duty_days }}</td>
+          <td class="num">{{ p.load }}</td><td class="num">{{ p.holidays }}</td><td class="num">{{ p.last_date }}</td></tr>
+      {% else %}
+      <tr><td colspan="7">Нарядов за период нет</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="sign">
+    Составил: {{ requisites.compiler_position or "" }} {{ requisites.compiler_rank or "" }} ____________ {{ requisites.compiler_name or "" }}
+  </div>
+</body>
+</html>

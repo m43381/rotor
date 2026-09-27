@@ -168,6 +168,68 @@ def schedule_xlsx(ctx: dict[str, Any]) -> bytes:
     return buf.getvalue()
 
 
+def load_xlsx(ctx: dict[str, Any]) -> bytes:
+    """Отчёт по нагрузке: лист «Люди» (для сортировки и фильтров) и лист «Сводка»."""
+    wb = Workbook()
+    ws = wb.active
+    assert ws is not None
+    ws.title = "Люди"
+    ws.append([f"Отчёт по нагрузке: {ctx['unit']['name']} за {ctx['period']}"])
+    ws["A1"].font = Font(bold=True, size=12)
+    ws.append([])
+    header = ["№", "Фамилия, инициалы", "Нарядов", "Нарядо-суток", "Нагрузка", "В выходные",
+              "Последний наряд"]  # fmt: skip
+    ws.append(header)
+    for c in range(1, len(header) + 1):
+        cell = ws.cell(row=3, column=c)
+        cell.font = Font(bold=True)
+        cell.border = BORDER
+        cell.alignment = Alignment(horizontal="center", wrap_text=True)
+    for n, p in enumerate(ctx["people"], start=1):
+        ws.append(
+            [
+                n,
+                p["name"],
+                p["duties"],
+                p["duty_days"],
+                float(p["load"].replace(",", ".")),
+                p["holidays"],
+                p["last_date"],
+            ]
+        )
+        for c in range(1, len(header) + 1):
+            ws.cell(row=ws.max_row, column=c).border = BORDER
+    for letter, width in zip("ABCDEFG", (6, 30, 10, 13, 11, 12, 16), strict=True):
+        ws.column_dimensions[letter].width = width
+    ws.freeze_panes = "A4"
+    ws.auto_filter.ref = f"A3:G{max(3, ws.max_row)}"
+
+    summary = wb.create_sheet("Сводка")
+    summary.append([f"{ctx['unit']['name']} за {ctx['period']}"])
+    summary.append([])
+    for key, title in (
+        ("people", "Людей в нарядах"),
+        ("duties", "Нарядов"),
+        ("duty_days", "Нарядо-суток"),
+        ("holidays", "В выходные и праздники"),
+    ):
+        summary.append([title, ctx["totals"][key]])
+    summary.append([])
+    summary.append(["Показатель", "Среднее", "σ", "Мин.", "Макс.", "Размах", "Джини", "Джайн"])
+    for row in ctx["fairness"]:
+        summary.append([row["title"]] + [row[k] for k in ("mean", "std", "min", "max", "range",
+                                                           "gini", "jain")])  # fmt: skip
+    if ctx["units"]:
+        summary.append([])
+        summary.append(["Подразделение", "Людей", "Нарядов", "Нагрузка", "На человека"])
+        for u in ctx["units"]:
+            summary.append([u["name"], u["people"], u["duties"], u["load"], u["per_person"]])
+    summary.column_dimensions["A"].width = 32
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
 # --- DOCX: суточный наряд ---------------------------------------------------------------------
 
 

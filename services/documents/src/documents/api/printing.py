@@ -22,7 +22,7 @@ from dutyflow_common.errors import UnauthorizedError
 
 router = APIRouter(tags=["printing"])
 _bearer = HTTPBearer(auto_error=False)
-Form = Literal["schedule_month", "daily_roster", "daily_order"]
+Form = Literal["schedule_month", "daily_roster", "daily_order", "load_report"]
 FILE: dict[int | str, dict[str, Any]] = {200: {"content": {"application/octet-stream": {}}}}
 
 
@@ -42,6 +42,7 @@ def print_service(
         scheduling=request.app.state.scheduling,
         org=request.app.state.org,
         tz=ZoneInfo(settings.timezone),
+        analytics=request.app.state.analytics,
     )
 
 
@@ -86,6 +87,23 @@ async def print_daily(
 
 
 @router.get(
+    "/print/load-report",
+    response_class=Response,
+    responses=FILE,
+    summary="Отчёт по нагрузке подразделения и поддерева за период: PDF или XLSX",
+)
+async def print_load_report(
+    svc: ServiceDep,
+    unit_id: Annotated[uuid.UUID, Query()],
+    date_from: Annotated[dt.date, Query()],
+    date_to: Annotated[dt.date, Query()],
+    drafts: Annotated[bool, Query()] = False,
+    format: Annotated[Literal["pdf", "xlsx"], Query()] = "pdf",
+) -> Response:
+    return document(await svc.load_report(unit_id, date_from, date_to, drafts, format))
+
+
+@router.get(
     "/print/html/{form}",
     response_class=HTMLResponse,
     summary="HTML формы до перевода в PDF — для проверки шаблона",
@@ -96,8 +114,21 @@ async def print_html(
     schedule_id: Annotated[uuid.UUID | None, Query()] = None,
     unit_id: Annotated[uuid.UUID | None, Query()] = None,
     date: Annotated[dt.date | None, Query()] = None,
+    date_from: Annotated[dt.date | None, Query()] = None,
+    date_to: Annotated[dt.date | None, Query()] = None,
+    drafts: Annotated[bool, Query()] = False,
 ) -> HTMLResponse:
-    return HTMLResponse(await svc.html(form, schedule_id=schedule_id, unit_id=unit_id, date=date))
+    return HTMLResponse(
+        await svc.html(
+            form,
+            schedule_id=schedule_id,
+            unit_id=unit_id,
+            date=date,
+            date_from=date_from,
+            date_to=date_to,
+            drafts=drafts,
+        )
+    )
 
 
 # --- реквизиты ------------------------------------------------------------------------------------
