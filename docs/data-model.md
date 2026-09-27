@@ -235,11 +235,15 @@ UNIQUE(`owner_unit_id`, `name`) WHERE `is_active`. `assigned_unit_id` — вну
 | is_pinned | bool | Закреплено вручную, движок не пересматривает |
 | rest_override | bool | Ручное нарушение отдыха |
 | override_comment | text NULL | Обязателен при `rest_override` (CHECK) |
-| allocation_run_id | uuid FK NULL | Если назначено автоматически |
-| assigned_by, assigned_at | | |
+| allocation_run_id | uuid FK NULL | Если назначено автоматически (появится с `allocation_run`, фаза 4) |
+| assigned_by, assigned_by_name, assigned_at | | |
+| person_name | text | «Фамилия И. О.» на момент назначения: таблица месяца не обращается в personnel |
+| limit_override | bool | Ручное превышение месячного лимита (open-questions №38), комментарий обязателен |
+| conflict | text NULL | Что изменилось у человека после назначения (исключён, переведён, освобождён, нет допуска) — назначение не снимается, а помечается (№39) |
 
 Ограничения:
 - UNIQUE(`day_plan_id`, `person_id`); число назначений ≤ `headcount` проверяется сервисом.
+- Интервал `[start_at, end_at)` и `occupied_days` вычисляются из шаблона времени наряда в часовом поясе инсталляции (настройка `TIMEZONE`, та же, что у org).
 - **`EXCLUDE USING gist (person_id WITH =, occupied_days WITH &&)`** — «не больше одного наряда в сутки» гарантируется на уровне БД, даже при гонке двух операторов. Отдых (48 ч) проверяется сервисом, потому что его можно нарушить вручную.
 
 > Отдельная сущность `Pin` из `architecture.md` заменена флагами `is_pinned` на `day_plan` (закреплён исполнитель) и `assignment` (закреплён человек).
