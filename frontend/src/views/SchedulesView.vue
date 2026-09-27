@@ -49,6 +49,7 @@ const executorId = ref<string | null>(null)
 
 const current = computed(() => schedules.value.find((s) => s.unit_id === unitId.value) ?? null)
 const canCreate = computed(() => (units.me?.roles ?? []).some((r) => r !== 'viewer'))
+const isSuperadmin = computed(() => units.me?.roles.includes('superadmin') === true)
 const editable = computed(() => table.value?.schedule.can_edit === true)
 const others = computed(() =>
   schedules.value.filter((s) => s.unit_id !== unitId.value && s.pending_incoming > 0),
@@ -368,6 +369,30 @@ function publish() {
   })
 }
 
+/** Снимок задачи для движка (ADR-0013) — файлом, для отладки и бенчмарков. */
+async function downloadSnapshot() {
+  const s = table.value?.schedule
+  if (!s) return
+  busy.value = true
+  try {
+    const { data, response } = await scheduling.GET('/schedules/{schedule_id}/snapshot', {
+      params: { path: { schedule_id: s.id } },
+      parseAs: 'blob',
+    })
+    if (!response.ok || !data) throw new ApiError(response.status, 'error', 'Не удалось собрать снимок')
+    const name = /filename="([^"]+)"/.exec(response.headers.get('Content-Disposition') ?? '')?.[1]
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(data)
+    link.download = name ?? 'snapshot.json'
+    link.click()
+    URL.revokeObjectURL(link.href)
+  } catch (e) {
+    showError(e)
+  } finally {
+    busy.value = false
+  }
+}
+
 function archive() {
   const s = table.value?.schedule
   if (!s) return
@@ -424,6 +449,15 @@ function archive() {
           icon="pi pi-send"
           :loading="busy"
           @click="publish"
+        />
+        <Button
+          v-if="isSuperadmin && table"
+          label="Снимок задачи"
+          icon="pi pi-download"
+          severity="secondary"
+          text
+          :loading="busy"
+          @click="downloadSnapshot"
         />
         <Button
           v-if="editable && table?.schedule.status === 'published'"

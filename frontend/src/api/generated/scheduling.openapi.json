@@ -841,6 +841,47 @@
         }
       }
     },
+    "/schedules/{schedule_id}/snapshot": {
+      "get": {
+        "tags": [
+          "schedules"
+        ],
+        "summary": "Снимок задачи распределения (ADR-0013), файлом JSON",
+        "operationId": "snapshot_schedules__schedule_id__snapshot_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "schedule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Schedule Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/day-plans/{day_plan_id}/candidates": {
       "get": {
         "tags": [
@@ -1810,7 +1851,7 @@
           },
           "assigned": {
             "items": {
-              "$ref": "#/components/schemas/AssignedOut"
+              "$ref": "#/components/schemas/CellPerson"
             },
             "type": "array",
             "title": "Assigned"
@@ -1829,6 +1870,30 @@
           "is_pinned"
         ],
         "title": "CellOut"
+      },
+      "CellPerson": {
+        "properties": {
+          "person_name": {
+            "type": "string",
+            "title": "Person Name"
+          },
+          "conflict": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conflict"
+          }
+        },
+        "type": "object",
+        "required": [
+          "person_name"
+        ],
+        "title": "CellPerson"
       },
       "ChangedOut": {
         "properties": {

@@ -207,6 +207,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/schedules/{schedule_id}/snapshot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Снимок задачи распределения (ADR-0013), файлом JSON */
+        get: operations["snapshot_schedules__schedule_id__snapshot_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/day-plans/{day_plan_id}/candidates": {
         parameters: {
             query?: never;
@@ -546,12 +563,19 @@ export interface components {
              */
             filled: number;
             /** Assigned */
-            assigned?: components["schemas"]["AssignedOut"][];
+            assigned?: components["schemas"]["CellPerson"][];
             /**
              * Has Conflict
              * @default false
              */
             has_conflict: boolean;
+        };
+        /** CellPerson */
+        CellPerson: {
+            /** Person Name */
+            person_name: string;
+            /** Conflict */
+            conflict?: string | null;
         };
         /** ChangedOut */
         ChangedOut: {
@@ -1621,6 +1645,35 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ScheduleOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    snapshot_schedules__schedule_id__snapshot_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                schedule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
