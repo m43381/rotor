@@ -260,8 +260,11 @@ UNIQUE(`owner_unit_id`, `name`) WHERE `is_active`. `assigned_unit_id` — вну
 
 - **`allocation_db`**: состояние задач, если не хватит arq/Redis — `job(id, run_id, status, started_at, finished_at, error)`. Предметных данных нет.
 - **`documents_db`**:
-  - `print_template(id, code, name, format pdf/docx/xlsx, body, version, is_active)` — шаблоны в БД, заменяются без релиза (`open-questions` №15);
-  - `import_job(id, kind person/clearance/exemption, file_ref, status, preview jsonb, errors jsonb, created_by, applied_at)`.
+  - `print_template(id, code, name, format pdf/docx/xlsx, body, version, is_active)` — шаблоны в БД, заменяются без релиза (`open-questions` №15), шаг 6b;
+  - `import_job` (шаг 6a):
+    - поля: `id`, `kind` (`people` / `clearances` / `exemptions`), `status` (`preview` / `applied` / `discarded`), `filename`, `content` (файл), `columns`, `rows` (разобранные строки), `report` (результат проверки владельцем по строкам), `summary`, `state_hash`, `notes` (предупреждения разбора), `applied_rows`, `created_by`, `created_by_name`, `created_at`, `applied_at`;
+    - видна только создателю, удаляется через 7 дней;
+    - проверку и применение делает `personnel` (ADR-0014).
 - **`analytics_db`** (read-model, строится из событий):
   - `duty_fact(assignment_id PK, person_id, unit_id, unit_path, duty_type_id, duty_role_id, date, occupied_days_count, holiday_days_count, load)`;
   - `audit_view` — сводный журнал аудита из событий `audit.recorded` всех сервисов (ADR-0010).
