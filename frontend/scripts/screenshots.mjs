@@ -99,5 +99,40 @@ await page.waitForTimeout(500)
 await shot('14-allocation-preview')
 await page.getByRole('button', { name: 'Отменить' }).click()
 
+// Фаза 6: печать графика, реквизиты и шаблоны, импорт, дашборд нагрузки
+await page.goto(`${base}/schedules?month=${nextMonth}`)
+await page.waitForSelector('.grid td.cell')
+await page.getByRole('button', { name: 'Печать…' }).click()
+await page.getByText('Ведомость суточного наряда на дату').click()
+await page.waitForTimeout(400)
+await shot('15-print')
+await page.keyboard.press('Escape')
+
+await page.goto(`${base}/documents`)
+await page.waitForSelector('#req-approver_position')
+await page.waitForTimeout(500)
+await shot('16-documents')
+
+await page.goto(`${base}/import`)
+await page.waitForSelector('text=Скачать шаблон')
+const csv = [
+  'Фамилия;Имя;Подразделение;Категория',
+  'Скриншотов;Иван;Факультет управления / 1 курс, факультет 1 / Группа 111;Курсант',
+  ';Пётр;Факультет управления / 1 курс, факультет 1 / Группа 111;Курсант',
+].join('\n')
+await page.locator('[data-testid=import-file]').setInputFiles({ name: 'люди.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) })
+await page.waitForSelector('text=создать 1')
+await page.getByText(/^Все \(/).click()
+await page.waitForTimeout(500)
+await shot('17-import-preview')
+await page.getByRole('button', { name: 'Отменить', exact: true }).click()
+
+const last = new Date(next.getFullYear(), next.getMonth() + 1, 0)
+const lastDay = `${nextMonth.slice(0, 8)}${String(last.getDate()).padStart(2, '0')}`
+await page.goto(`${base}/dashboard?from=${nextMonth}&to=${lastDay}&drafts=1`)
+await page.waitForSelector('canvas')
+await page.waitForTimeout(1200)
+await shot('18-dashboard')
+
 await browser.close()
 console.log(`Скриншоты: ${out.pathname}`)

@@ -4,6 +4,7 @@ import createClient, { type Middleware } from 'openapi-fetch'
 import { accessToken, signIn } from '@/auth'
 import type { components, paths as OrgPaths } from './generated/org'
 import type { components as PC, paths as PersonnelPaths } from './generated/personnel'
+import type { components as AC, paths as AnalyticsPaths } from './generated/analytics'
 import type { components as DC, paths as DocumentsPaths } from './generated/documents'
 import type { components as SC, paths as SchedulingPaths } from './generated/scheduling'
 
@@ -55,6 +56,9 @@ export type ImportJob = DC['schemas']['ImportJobOut']
 export type ImportRow = DC['schemas']['ImportRowView']
 export type ImportKind = ImportJob['kind']
 
+export type Overview = AC['schemas']['Overview']
+export type PersonLoad = AC['schemas']['PersonLoad']
+
 /** Ошибка API в формате сервисов: `{code, message, details?}`. */
 export class ApiError extends Error {
   readonly status: number
@@ -92,6 +96,9 @@ scheduling.use(auth)
 
 export const documents = createClient<DocumentsPaths>({ baseUrl: '/api/documents' })
 documents.use(auth)
+
+export const analytics = createClient<AnalyticsPaths>({ baseUrl: '/api/analytics' })
+analytics.use(auth)
 
 interface Result<T> {
   data?: T

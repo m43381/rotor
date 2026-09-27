@@ -190,6 +190,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/print/load-report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Отчёт по нагрузке подразделения и поддерева за период: PDF или XLSX */
+        get: operations["print_load_report_print_load_report_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/print/html/{form}": {
         parameters: {
             query?: never;
@@ -470,7 +487,7 @@ export interface components {
              * Form
              * @enum {string}
              */
-            form: "schedule_month" | "daily_roster" | "daily_order";
+            form: "schedule_month" | "daily_roster" | "daily_order" | "load_report";
             /** Title */
             title: string;
             /** Formats */
@@ -497,7 +514,7 @@ export interface components {
              * Form
              * @enum {string}
              */
-            form: "schedule_month" | "daily_roster" | "daily_order";
+            form: "schedule_month" | "daily_roster" | "daily_order" | "load_report";
             /** Title */
             title: string;
             /** Body */
@@ -879,16 +896,54 @@ export interface operations {
             };
         };
     };
+    print_load_report_print_load_report_get: {
+        parameters: {
+            query: {
+                unit_id: string;
+                date_from: string;
+                date_to: string;
+                drafts?: boolean;
+                format?: "pdf" | "xlsx";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     print_html_print_html__form__get: {
         parameters: {
             query?: {
                 schedule_id?: string | null;
                 unit_id?: string | null;
                 date?: string | null;
+                date_from?: string | null;
+                date_to?: string | null;
+                drafts?: boolean;
             };
             header?: never;
             path: {
-                form: "schedule_month" | "daily_roster" | "daily_order";
+                form: "schedule_month" | "daily_roster" | "daily_order" | "load_report";
             };
             cookie?: never;
         };
@@ -1036,7 +1091,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                form: "schedule_month" | "daily_roster" | "daily_order";
+                form: "schedule_month" | "daily_roster" | "daily_order" | "load_report";
             };
             cookie?: never;
         };
@@ -1067,7 +1122,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                form: "schedule_month" | "daily_roster" | "daily_order";
+                form: "schedule_month" | "daily_roster" | "daily_order" | "load_report";
             };
             cookie?: never;
         };
@@ -1102,7 +1157,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                form: "schedule_month" | "daily_roster" | "daily_order";
+                form: "schedule_month" | "daily_roster" | "daily_order" | "load_report";
             };
             cookie?: never;
         };
@@ -1133,7 +1188,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                form: "schedule_month" | "daily_roster" | "daily_order";
+                form: "schedule_month" | "daily_roster" | "daily_order" | "load_report";
             };
             cookie?: never;
         };

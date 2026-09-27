@@ -635,6 +635,94 @@
         }
       }
     },
+    "/print/load-report": {
+      "get": {
+        "tags": [
+          "printing"
+        ],
+        "summary": "Отчёт по нагрузке подразделения и поддерева за период: PDF или XLSX",
+        "operationId": "print_load_report_print_load_report_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "unit_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Unit Id"
+            }
+          },
+          {
+            "name": "date_from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "title": "Date From"
+            }
+          },
+          {
+            "name": "date_to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "title": "Date To"
+            }
+          },
+          {
+            "name": "drafts",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Drafts"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "pdf",
+                "xlsx"
+              ],
+              "type": "string",
+              "default": "pdf",
+              "title": "Format"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/octet-stream": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/print/html/{form}": {
       "get": {
         "tags": [
@@ -656,7 +744,8 @@
               "enum": [
                 "schedule_month",
                 "daily_roster",
-                "daily_order"
+                "daily_order",
+                "load_report"
               ],
               "type": "string",
               "title": "Form"
@@ -711,6 +800,50 @@
                 }
               ],
               "title": "Date"
+            }
+          },
+          {
+            "name": "date_from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date From"
+            }
+          },
+          {
+            "name": "date_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date To"
+            }
+          },
+          {
+            "name": "drafts",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Drafts"
             }
           }
         ],
@@ -939,7 +1072,8 @@
               "enum": [
                 "schedule_month",
                 "daily_roster",
-                "daily_order"
+                "daily_order",
+                "load_report"
               ],
               "type": "string",
               "title": "Form"
@@ -990,7 +1124,8 @@
               "enum": [
                 "schedule_month",
                 "daily_roster",
-                "daily_order"
+                "daily_order",
+                "load_report"
               ],
               "type": "string",
               "title": "Form"
@@ -1052,7 +1187,8 @@
               "enum": [
                 "schedule_month",
                 "daily_roster",
-                "daily_order"
+                "daily_order",
+                "load_report"
               ],
               "type": "string",
               "title": "Form"
@@ -1104,7 +1240,8 @@
               "enum": [
                 "schedule_month",
                 "daily_roster",
-                "daily_order"
+                "daily_order",
+                "load_report"
               ],
               "type": "string",
               "title": "Form"
@@ -1671,7 +1808,8 @@
             "enum": [
               "schedule_month",
               "daily_roster",
-              "daily_order"
+              "daily_order",
+              "load_report"
             ],
             "title": "Form"
           },
@@ -1770,7 +1908,8 @@
             "enum": [
               "schedule_month",
               "daily_roster",
-              "daily_order"
+              "daily_order",
+              "load_report"
             ],
             "title": "Form"
           },

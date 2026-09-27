@@ -1,0 +1,589 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "DutyFlow analytics",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/metrics/overview": {
+      "get": {
+        "tags": [
+          "metrics"
+        ],
+        "summary": "Нагрузка и справедливость по поддереву за период: сводка для дашборда",
+        "operationId": "overview_metrics_overview_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "unit_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Подразделение; учитывается всё поддерево",
+              "title": "Unit Id"
+            },
+            "description": "Подразделение; учитывается всё поддерево"
+          },
+          {
+            "name": "date_from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Первая дата заступления",
+              "title": "Date From"
+            },
+            "description": "Первая дата заступления"
+          },
+          {
+            "name": "date_to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Последняя дата заступления",
+              "title": "Date To"
+            },
+            "description": "Последняя дата заступления"
+          },
+          {
+            "name": "drafts",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Учитывать черновики графиков (№57)",
+              "default": false,
+              "title": "Drafts"
+            },
+            "description": "Учитывать черновики графиков (№57)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Overview"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/metrics/people": {
+      "get": {
+        "tags": [
+          "metrics"
+        ],
+        "summary": "Нагрузка по людям",
+        "operationId": "people_metrics_people_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "unit_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Подразделение; учитывается всё поддерево",
+              "title": "Unit Id"
+            },
+            "description": "Подразделение; учитывается всё поддерево"
+          },
+          {
+            "name": "date_from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Первая дата заступления",
+              "title": "Date From"
+            },
+            "description": "Первая дата заступления"
+          },
+          {
+            "name": "date_to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Последняя дата заступления",
+              "title": "Date To"
+            },
+            "description": "Последняя дата заступления"
+          },
+          {
+            "name": "drafts",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Учитывать черновики графиков (№57)",
+              "default": false,
+              "title": "Drafts"
+            },
+            "description": "Учитывать черновики графиков (№57)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 5000,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "ascending",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Сначала наименее загруженные",
+              "default": false,
+              "title": "Ascending"
+            },
+            "description": "Сначала наименее загруженные"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PeoplePage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Fairness": {
+        "properties": {
+          "people": {
+            "type": "integer",
+            "title": "People"
+          },
+          "mean": {
+            "type": "number",
+            "title": "Mean"
+          },
+          "std": {
+            "type": "number",
+            "title": "Std"
+          },
+          "gini": {
+            "type": "number",
+            "title": "Gini"
+          },
+          "jain": {
+            "type": "number",
+            "title": "Jain"
+          },
+          "range": {
+            "type": "number",
+            "title": "Range"
+          },
+          "min": {
+            "type": "number",
+            "title": "Min"
+          },
+          "max": {
+            "type": "number",
+            "title": "Max"
+          }
+        },
+        "type": "object",
+        "required": [
+          "people",
+          "mean",
+          "std",
+          "gini",
+          "jain",
+          "range",
+          "min",
+          "max"
+        ],
+        "title": "Fairness"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Overview": {
+        "properties": {
+          "unit_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Unit Id"
+          },
+          "unit_name": {
+            "type": "string",
+            "title": "Unit Name"
+          },
+          "date_from": {
+            "type": "string",
+            "format": "date",
+            "title": "Date From"
+          },
+          "date_to": {
+            "type": "string",
+            "format": "date",
+            "title": "Date To"
+          },
+          "drafts": {
+            "type": "boolean",
+            "title": "Drafts"
+          },
+          "totals": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Totals"
+          },
+          "fairness": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Fairness"
+            },
+            "type": "object",
+            "title": "Fairness"
+          },
+          "histogram": {
+            "items": {
+              "additionalProperties": {
+                "type": "integer"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Histogram"
+          },
+          "units": {
+            "items": {
+              "$ref": "#/components/schemas/UnitLoad"
+            },
+            "type": "array",
+            "title": "Units"
+          },
+          "trend": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Trend"
+          },
+          "top": {
+            "items": {
+              "$ref": "#/components/schemas/PersonLoad"
+            },
+            "type": "array",
+            "title": "Top"
+          },
+          "bottom": {
+            "items": {
+              "$ref": "#/components/schemas/PersonLoad"
+            },
+            "type": "array",
+            "title": "Bottom"
+          }
+        },
+        "type": "object",
+        "required": [
+          "unit_id",
+          "unit_name",
+          "date_from",
+          "date_to",
+          "drafts",
+          "totals",
+          "fairness",
+          "histogram",
+          "units",
+          "trend",
+          "top",
+          "bottom"
+        ],
+        "title": "Overview"
+      },
+      "PeoplePage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PersonRow"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "PeoplePage"
+      },
+      "PersonLoad": {
+        "properties": {
+          "person_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Person Id"
+          },
+          "person_name": {
+            "type": "string",
+            "title": "Person Name"
+          },
+          "duties": {
+            "type": "integer",
+            "title": "Duties"
+          },
+          "duty_days": {
+            "type": "integer",
+            "title": "Duty Days"
+          },
+          "load": {
+            "type": "number",
+            "title": "Load"
+          },
+          "holidays": {
+            "type": "integer",
+            "title": "Holidays"
+          }
+        },
+        "type": "object",
+        "required": [
+          "person_id",
+          "person_name",
+          "duties",
+          "duty_days",
+          "load",
+          "holidays"
+        ],
+        "title": "PersonLoad"
+      },
+      "PersonRow": {
+        "properties": {
+          "person_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Person Id"
+          },
+          "person_name": {
+            "type": "string",
+            "title": "Person Name"
+          },
+          "duties": {
+            "type": "integer",
+            "title": "Duties"
+          },
+          "duty_days": {
+            "type": "integer",
+            "title": "Duty Days"
+          },
+          "load": {
+            "type": "number",
+            "title": "Load"
+          },
+          "holidays": {
+            "type": "integer",
+            "title": "Holidays"
+          },
+          "last_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Last Date"
+          }
+        },
+        "type": "object",
+        "required": [
+          "person_id",
+          "person_name",
+          "duties",
+          "duty_days",
+          "load",
+          "holidays",
+          "last_date"
+        ],
+        "title": "PersonRow"
+      },
+      "UnitLoad": {
+        "properties": {
+          "unit_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Id"
+          },
+          "unit_name": {
+            "type": "string",
+            "title": "Unit Name"
+          },
+          "own": {
+            "type": "boolean",
+            "title": "Own"
+          },
+          "people": {
+            "type": "integer",
+            "title": "People"
+          },
+          "duties": {
+            "type": "integer",
+            "title": "Duties"
+          },
+          "load": {
+            "type": "number",
+            "title": "Load"
+          },
+          "load_per_person": {
+            "type": "number",
+            "title": "Load Per Person"
+          }
+        },
+        "type": "object",
+        "required": [
+          "unit_id",
+          "unit_name",
+          "own",
+          "people",
+          "duties",
+          "load",
+          "load_per_person"
+        ],
+        "title": "UnitLoad"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}

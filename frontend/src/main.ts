@@ -14,6 +14,7 @@ import App from './App.vue'
 import { ensureSignedIn } from './auth'
 import { ru } from './locale/ru'
 import ClearanceMismatchesView from './views/ClearanceMismatchesView.vue'
+import DashboardView from './views/DashboardView.vue'
 import DocumentsView from './views/DocumentsView.vue'
 import DutyLimitsView from './views/DutyLimitsView.vue'
 import DutyTypesView from './views/DutyTypesView.vue'
@@ -43,6 +44,7 @@ async function bootstrap() {
       { path: '/references', component: ReferencesView },
       { path: '/import', component: ImportView },
       { path: '/documents', component: DocumentsView },
+      { path: '/dashboard', component: DashboardView },
       { path: '/:pathMatch(.*)*', redirect: '/units' },
     ],
   })
