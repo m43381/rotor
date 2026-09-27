@@ -249,11 +249,12 @@ UNIQUE(`owner_unit_id`, `name`) WHERE `is_active`. `assigned_unit_id` — вну
 > Отдельная сущность `Pin` из `architecture.md` заменена флагами `is_pinned` на `day_plan` (закреплён исполнитель) и `assignment` (закреплён человек).
 
 ### `allocation_run` — прогон движка (preview → apply)
-`id`, `schedule_id`, `kind` (`units` — между подразделениями / `people` — по людям), `config jsonb`, `seed bigint`, `snapshot_hash text`, `status` (`queued`/`running`/`preview_ready`/`applied`/`discarded`/`failed`), `metrics jsonb` (недокомплект, справедливость, время), `created_by`, `created_at`, `applied_at`.
+`id`, `schedule_id`, `kind` (`units` — между подразделениями / `people` — по людям), `mode` (`fill`/`rebuild`), `config jsonb`, `seed`, `snapshot_hash`, `snapshot bytea` (zlib-JSON), `solution_hash`, `status` (`preview_ready`/`applied`/`discarded`/`stale`/`failed`; `queued`/`running` появятся с очередью в фазе 5), `metrics jsonb` (недокомплект, граница, справедливость, время, дефициты, незакрытые места, снимаемые назначения), `created_by`, `created_by_name`, `created_at`, `applied_at`, `applied_by_name`.
+`stale` — применение отклонено: hash свежего снимка отличается от сохранённого (open-questions №45).
 Снимок хранится (сжатый JSON в `bytea` или файл в томе) ограниченное время — для воспроизведения «почему так распределено».
 
 ### `allocation_decision` — объяснимость
-`run_id FK`, `day_plan_id`, `chosen_id` (person или unit), `rank smallint`, `features jsonb` (вектор признаков скоринга), `alternatives jsonb` (top-N кандидатов с признаками), `rejected_summary jsonb` (сколько отсеяно и почему: нет допуска / освобождение / отдых / лимит). PK(`run_id`, `day_plan_id`, `chosen_id`).
+`run_id FK`, `day_plan_id`, `chosen_id` (person или unit), `chosen_name`, `rank smallint`, `cost`, `candidates` (сколько было допустимых), `features jsonb` (вектор признаков скоринга), `alternatives jsonb` (top-N кандидатов с признаками и именами), `rejected_summary jsonb` (сколько отсеяно и почему: нет допуска / освобождение / занят / отдых / лимит; для подразделений — ёмкость). PK(`run_id`, `day_plan_id`, `chosen_id`).
 
 ## 6. Остальные сервисы
 
