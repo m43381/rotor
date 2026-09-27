@@ -267,8 +267,11 @@ UNIQUE(`owner_unit_id`, `name`) WHERE `is_active`. `assigned_unit_id` — вну
     - поля: `id`, `kind` (`people` / `clearances` / `exemptions`), `status` (`preview` / `applied` / `discarded`), `filename`, `content` (файл), `columns`, `rows` (разобранные строки), `report` (результат проверки владельцем по строкам), `summary`, `state_hash`, `notes` (предупреждения разбора), `applied_rows`, `created_by`, `created_by_name`, `created_at`, `applied_at`;
     - видна только создателю, удаляется через 7 дней;
     - проверку и применение делает `personnel` (ADR-0014).
-- **`analytics_db`** (read-model, строится из событий):
-  - `duty_fact(assignment_id PK, person_id, unit_id, unit_path, duty_type_id, duty_role_id, date, occupied_days_count, holiday_days_count, load)`;
+- **`analytics_db`** (read-model, строится из событий, фаза 6c):
+  - `duty_fact`:
+    - поля: `assignment_id PK`, `person_id`, `person_name`, `unit_id` (подразделение, закрывшее ячейку), `schedule_id`, `schedule_status`, `duty_type_id`, `duty_role_id`, `date`, `start_at`, `end_at`, `occupied_days`, `load` (нарядо-сутки × вес), `holiday`, `source`;
+    - поддерево — через `unit_projection` (путь не копируется в факт, поэтому перенос подразделения не требует пересчёта);
+  - `unit_projection`, `rank_projection`, `processed_event`, `outbox` — общие таблицы;
   - `audit_view` — сводный журнал аудита из событий `audit.recorded` всех сервисов (ADR-0010).
 - **`auth_admin_db`**: только `audit_log` (операции с операторами). Сами операторы живут в Keycloak: `username`, ФИО, роль, атрибут `unit_id`.
 
