@@ -370,3 +370,67 @@ class ReferencesOut(BaseModel):
 
     positions: list[dict[str, Any]]
     attributes: list[dict[str, Any]]
+
+
+# --- пакетный импорт (фаза 6a, open-questions №54–55) ------------------------------------------
+
+ImportKind = Literal["people", "clearances", "exemptions"]
+ImportAction = Literal["create", "update", "unchanged", "error"]
+MAX_IMPORT_ROWS = 20_000
+
+
+class ImportRowIn(BaseModel):
+    """Строка файла: номер строки в файле и значения по ключам столбцов шаблона. Значения —
+    как в файле (строка, число, дата ISO); ссылки — названиями из шаблона."""
+
+    row: int = Field(ge=1)
+    values: dict[str, Any]
+
+
+class ImportIn(BaseModel):
+    rows: list[ImportRowIn] = Field(min_length=1, max_length=MAX_IMPORT_ROWS)
+    # true — только проверить (предпросмотр); false — применить
+    dry_run: bool = True
+    # Применить только корректные строки (№54); иначе при ошибках ничего не применяется
+    skip_invalid: bool = False
+    # Хэш предпросмотра: при применении данные должны остаться такими же
+    expected_hash: str | None = None
+
+
+class ImportIssue(BaseModel):
+    column: str | None = None
+    message: str
+
+
+class ImportRowOut(BaseModel):
+    row: int
+    action: ImportAction
+    label: str | None = None  # о ком строка: «Иванов Иван Иванович»
+    errors: list[ImportIssue] = Field(default_factory=list)
+    warnings: list[ImportIssue] = Field(default_factory=list)
+    # Для изменения — «было → стало» по полям, в человекочитаемом виде
+    changes: dict[str, list[Any]] = Field(default_factory=dict)
+
+
+class ImportOut(BaseModel):
+    kind: ImportKind
+    applied: bool
+    summary: dict[ImportAction, int]
+    rows: list[ImportRowOut]
+    state_hash: str
+
+
+class TemplateColumn(BaseModel):
+    key: str
+    title: str
+    required: bool = False
+    type: Literal["text", "date", "int", "bool", "list"] = "text"
+    options: list[str] | None = None
+    hint: str | None = None
+
+
+class ImportTemplateOut(BaseModel):
+    kind: ImportKind
+    title: str
+    columns: list[TemplateColumn]
+    instructions: list[str]

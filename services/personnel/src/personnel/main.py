@@ -4,7 +4,7 @@ from fastapi import FastAPI
 
 from dutyflow_common.app import create_service_app
 from dutyflow_common.auth import TokenVerifier
-from personnel.api import audit, clearances, internal, people, refs
+from personnel.api import audit, clearances, imports, internal, people, refs
 from personnel.settings import PersonnelSettings
 
 
@@ -13,7 +13,7 @@ def create_app(
 ) -> FastAPI:
     settings = settings or PersonnelSettings()
     app = create_service_app(settings, title="DutyFlow personnel", token_verifier=token_verifier)
-    for module in (people, clearances, refs, audit, internal):
+    for module in (people, clearances, imports, refs, audit, internal):
         app.include_router(module.router)
     return app
 
