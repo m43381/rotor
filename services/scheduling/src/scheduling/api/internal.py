@@ -1,12 +1,14 @@
 """Внутренний batch-API для personnel (`docs/architecture.md` §3.3): требования ролей для
 проверки при выдаче допуска и полной пересинхронизации локальной копии."""
 
-from typing import Any
+import uuid
+from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 
 from dutyflow_common.auth import require_internal
+from scheduling import facts
 from scheduling.api.deps import SessionDep
 from scheduling.models import DutyRole, DutyType
 from scheduling.schemas import DutyRoleBatchItem, DutyRolesBatchIn
@@ -46,3 +48,15 @@ async def duty_roles_batch(data: DutyRolesBatchIn, session: SessionDep) -> list[
         }
         for role, t in rows
     ]
+
+
+@router.get(
+    "/assignments/facts",
+    summary="Факты нарядов пачками по возрастанию id — для перестроения read-model analytics",
+)
+async def assignment_facts(
+    session: SessionDep,
+    after: Annotated[uuid.UUID | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=5_000)] = 2_000,
+) -> list[dict[str, Any]]:
+    return await facts.export(session, after=after, limit=limit)

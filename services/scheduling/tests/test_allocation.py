@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from dutyflow_common.audit import AuditLog
 from dutyflow_common.ids import uuid7
+from dutyflow_common.outbox import OutboxEvent
 from scheduling.checks import PersonInfo
 from scheduling.models import Assignment
 
@@ -139,6 +140,16 @@ async def test_rebuild_keeps_manual(
     assert r.status_code == 200, r.text
     assert await count_assignments(sessionmaker) == total
     assert await count_assignments(sessionmaker, source="manual") == 1
+    # Снятые пересборкой — с событием для read-model аналитики, новые — тоже
+    async with sessionmaker() as session:
+        kinds = [
+            e
+            for e in await session.scalars(
+                select(OutboxEvent.event_type).where(OutboxEvent.aggregate_type == "assignment")
+            )
+        ]
+    assert kinds.count("assignment.removed") == first["filled"]
+    assert kinds.count("assignment.created") == 1 + first["filled"] + rebuild["metrics"]["filled"]
 
     # Дозаполнение, когда всё заполнено: ничего не предлагается
     fill = (await allocate(admin, s["id"])).json()

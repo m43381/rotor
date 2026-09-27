@@ -14,7 +14,6 @@ import uuid
 from collections import defaultdict
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import Any
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import or_, select, update
@@ -34,7 +33,6 @@ from dutyflow_common.errors import (
 )
 from dutyflow_common.ids import uuid7
 from dutyflow_common.ltree import is_ancestor_or_self, is_descendant_or_self
-from dutyflow_common.outbox import add_event
 from dutyflow_common.policy import Policy, default_policy
 from dutyflow_common.projections import UnitProjection, unit_path
 from dutyflow_common.scope import in_scope
@@ -48,6 +46,7 @@ from scheduling.checks import (
     interval,
     resolve_limit,
 )
+from scheduling.facts import emit_created, emit_removed
 from scheduling.models import Assignment, DayPlan, DutyLimit, DutyRole, DutyType, Schedule
 from scheduling.people import PeopleLoader
 from scheduling.schedules import assigned_out, month_days
@@ -405,13 +404,7 @@ class AssignmentService:
             comment=assignment.override_comment,
             require_comment=override,
         )
-        add_event(
-            self.session,
-            "assignment.created",
-            "assignment",
-            assignment.id,
-            _event(assignment, ctx),
-        )
+        await emit_created(self.session, [assignment])
         await self.session.commit()
         return assignment
 
@@ -432,7 +425,7 @@ class AssignmentService:
             scope_unit_id=ctx.unit.unit_id,
             before=a.snapshot(),
         )
-        add_event(self.session, "assignment.removed", "assignment", a.id, _event(a, ctx))
+        await emit_removed(self.session, [a])
         await self.session.delete(a)
         await self.session.commit()
         return ctx.cell.id
@@ -462,20 +455,6 @@ def _interval_of(a: Assignment) -> Interval:
     # PostgreSQL нормализует daterange к виду [lower, upper)
     last = days.upper - dt.timedelta(days=1) if days.upper_inc is False else days.upper
     return Interval(a.start_at, a.end_at, days.lower, last)
-
-
-def _event(a: Assignment, ctx: CellContext) -> dict[str, Any]:
-    return {
-        "assignment_id": a.id,
-        "day_plan_id": a.day_plan_id,
-        "person_id": a.person_id,
-        "unit_id": ctx.unit.unit_id,
-        "duty_type_id": ctx.duty_type.id,
-        "duty_role_id": ctx.role.id,
-        "date": ctx.cell.date,
-        "start_at": a.start_at,
-        "end_at": a.end_at,
-    }
 
 
 # --- конфликты (open-questions №39) ------------------------------------------------------------

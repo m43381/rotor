@@ -38,6 +38,7 @@ from dutyflow_common.ids import uuid7
 from dutyflow_common.outbox import add_event
 from dutyflow_common.projections import UnitProjection
 from scheduling.checks import interval
+from scheduling.facts import emit_created, emit_removed
 from scheduling.models import (
     AllocationDecision,
     AllocationRun,
@@ -422,6 +423,8 @@ class AllocationRunService:
                     before=a.snapshot(),
                     comment="Пересборка автораспределением",
                 )
+            await emit_removed(self.session, gone)
+            for a in gone:
                 await self.session.delete(a)
             await self.session.flush()
         cells = {
@@ -433,6 +436,7 @@ class AllocationRunService:
             )
         }
         tz = ZoneInfo(self.timezone)
+        created: list[Assignment] = []
         for d in decisions:
             cell, duty_type = cells[d.day_plan_id]
             iv = interval(cell.date, duty_type.start_time, duty_type.duration_minutes, tz)
@@ -463,25 +467,9 @@ class AllocationRunService:
                 scope_unit_id=scope_unit,
                 after={**a.snapshot(), "allocation_run_id": run.id},
             )
-            add_event(
-                self.session,
-                "assignment.created",
-                "assignment",
-                a.id,
-                {
-                    "assignment_id": a.id,
-                    "day_plan_id": cell.id,
-                    "person_id": a.person_id,
-                    "unit_id": scope_unit,
-                    "duty_type_id": cell.duty_type_id,
-                    "duty_role_id": cell.duty_role_id,
-                    "date": cell.date,
-                    "start_at": a.start_at,
-                    "end_at": a.end_at,
-                    "source": "auto",
-                },
-            )
+            created.append(a)
         await self.session.flush()
+        await emit_created(self.session, created)
         return len(decisions)
 
     async def _apply_units(

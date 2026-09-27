@@ -41,6 +41,7 @@ from dutyflow_common.outbox import add_event
 from dutyflow_common.policy import Policy, default_policy
 from dutyflow_common.projections import UnitProjection, unit_path
 from dutyflow_common.scope import in_scope, scope_clause
+from scheduling.facts import emit_removed
 from scheduling.models import Assignment, DayPlan, DutyRole, DutyType, Schedule
 from scheduling.schemas import (
     AssignedOut,
@@ -547,6 +548,15 @@ class ScheduleService:
                 "Смена решения снимет эти назначения.",
                 details={"assignments": dropped},
             )
+        if dropped:
+            # События о снятых людях — и в самих ячейках, и ниже по цепочке (там их удалит
+            # каскад вместе с ячейками): read-model аналитики не должна расходиться
+            gone = list(
+                await self.session.scalars(
+                    select(Assignment).join(chain, chain.c.id == Assignment.day_plan_id)
+                )
+            )
+            await emit_removed(self.session, gone)
         # Назначения в самих ячейках (ниже по цепочке их удалит каскад вместе с ячейками)
         await self.session.execute(
             delete(Assignment)
@@ -754,6 +764,13 @@ class ScheduleService:
             scope_unit_id=unit.unit_id,
             before={"status": before},
             after={"status": "archived"},
+        )
+        add_event(
+            self.session,
+            "schedule.archived",
+            "schedule",
+            schedule.id,
+            {"schedule_id": schedule.id, "unit_id": unit.unit_id, "month": schedule.month},
         )
         await self._commit()
         return schedule
