@@ -271,7 +271,9 @@ def main() -> int:
                 else:
                     raise SystemExit(f"Неизвестный эксперимент: {name}")
                 (OUT / f"{name}.json").write_text(
-                    json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8"
+                    json.dumps(data, ensure_ascii=False, indent=1),
+                    encoding="utf-8",
+                    newline="\n",
                 )
                 log(f"{name}: {time.perf_counter() - t0:.0f} с")
     from tools.experiment.report import render
