@@ -962,15 +962,21 @@ export interface components {
             /** Offset */
             offset: number;
         };
-        /** PeopleBatchIn */
+        /**
+         * PeopleBatchIn
+         * @description Выборка — либо по подразделениям (действующие люди), либо по конкретным людям
+         *     (включая исключённых из списков: scheduling проверяет свои назначения).
+         */
         PeopleBatchIn: {
             /** Unit Ids */
-            unit_ids: string[];
+            unit_ids?: string[];
             /**
              * Include Descendants
              * @default true
              */
             include_descendants: boolean;
+            /** Person Ids */
+            person_ids?: string[];
             /**
              * Date From
              * Format: date
@@ -981,6 +987,11 @@ export interface components {
              * Format: date
              */
             date_to: string;
+            /**
+             * Include Names
+             * @default false
+             */
+            include_names: boolean;
         };
         /** PeopleBatchPerson */
         PeopleBatchPerson: {
@@ -994,6 +1005,8 @@ export interface components {
              * Format: uuid
              */
             unit_id: string;
+            /** Is Active */
+            is_active: boolean;
             /** Rank Id */
             rank_id: string | null;
             /** Rank Order */
@@ -1015,6 +1028,14 @@ export interface components {
                 string | null,
                 string | null
             ][];
+            /** Last Name */
+            last_name?: string | null;
+            /** First Name */
+            first_name?: string | null;
+            /** Middle Name */
+            middle_name?: string | null;
+            /** Rank Name */
+            rank_name?: string | null;
         };
         /** PersonCreate */
         PersonCreate: {

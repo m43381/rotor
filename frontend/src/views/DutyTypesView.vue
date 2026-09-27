@@ -8,6 +8,7 @@ import DataTable from 'primevue/datatable'
 import Tag from 'primevue/tag'
 import { useToast } from 'primevue/usetoast'
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 
 import {
   ApiError,
@@ -29,6 +30,7 @@ import { describeRequirements, formatDuration, formatInterval } from '@/utils/du
 const units = useUnitsStore()
 const refs = useRefsStore()
 const toast = useToast()
+const router = useRouter()
 
 const types = ref<DutyType[]>([])
 const loading = ref(false)
@@ -170,6 +172,13 @@ async function onRole(value: DutyRoleIn) {
         </p>
       </div>
       <div class="actions">
+        <Button
+          label="Лимиты нарядов"
+          icon="pi pi-sliders-h"
+          severity="secondary"
+          text
+          @click="router.push('/duty-limits')"
+        />
         <Button v-if="canCreate" label="Новый наряд" icon="pi pi-plus" @click="openType(null)" />
       </div>
     </header>

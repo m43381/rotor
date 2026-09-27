@@ -27,39 +27,39 @@ test('факультет делегирует роль курсу, курс пр
   const duty = roleCells(page, 'Дежурный по факультету')
   await expect(duty.first()).toBeVisible()
 
-  // Две ячейки дежурного (10-е и 11-е) — первому курсу
-  await duty.nth(9).click()
-  await duty.nth(10).click({ modifiers: ['Shift'] })
+  // Две ячейки дежурного (25-е и 26-е, без назначенных людей) — первому курсу
+  await duty.nth(24).click()
+  await duty.nth(25).click({ modifiers: ['Shift'] })
   await expect(page.getByText('Выбрано ячеек: 2')).toBeVisible()
   await page.locator('#executor').click()
   await page.getByRole('option', { name: '1 курс, факультет 1' }).click()
   await page.getByRole('button', { name: 'Делегировать' }).click()
   await expect(page.locator('.p-toast-message', { hasText: 'Роль передана' })).toBeVisible()
-  await expect(duty.nth(9)).toHaveClass(/delegated_pending/)
-  await expect(duty.nth(9)).toHaveText('1КФ1')
+  await expect(duty.nth(24)).toHaveClass(/delegated_pending/)
+  await expect(duty.nth(24)).toHaveText('1КФ1')
 
   // Курс видит входящие и принимает их
   await page.goto(`/schedules?month=${month(1)}`)
   await page.locator('.unit-filter .p-treeselect').click()
   await page.locator('.p-tree-node-label', { hasText: '1 курс, факультет 1' }).click()
   const incoming = roleCells(page, 'Дежурный по факультету')
-  await expect(incoming.nth(9)).toHaveClass(/incoming_pending/)
-  await incoming.nth(9).click()
-  await incoming.nth(10).click({ modifiers: ['Shift'] })
+  await expect(incoming.nth(24)).toHaveClass(/incoming_pending/)
+  await incoming.nth(24).click()
+  await incoming.nth(25).click({ modifiers: ['Shift'] })
   await page.getByRole('button', { name: 'Принять (2)' }).click()
   await expect(page.locator('.p-toast-message', { hasText: 'Входящие приняты' })).toBeVisible()
-  await expect(incoming.nth(9)).toHaveClass(/incoming_active/)
+  await expect(incoming.nth(24)).toHaveClass(/incoming_active/)
 
   // Факультет забирает роль обратно — нужно подтверждение, т. к. курс уже принял
   await page.goto(`/schedules?month=${month(1)}`)
   const back = roleCells(page, 'Дежурный по факультету')
-  await expect(back.nth(9)).toHaveClass(/delegated_accepted/)
-  await back.nth(9).click()
-  await back.nth(10).click({ modifiers: ['Shift'] })
+  await expect(back.nth(24)).toHaveClass(/delegated_accepted/)
+  await back.nth(24).click()
+  await back.nth(25).click({ modifiers: ['Shift'] })
   await page.getByRole('button', { name: 'Вернуть себе' }).click()
   await page.getByRole('button', { name: 'Изменить' }).click()
   await expect(page.locator('.p-toast-message', { hasText: 'Роль возвращена' })).toBeVisible()
-  await expect(back.nth(9)).toHaveClass(/\bown\b/)
+  await expect(back.nth(24)).toHaveClass(/\bown\b/)
 })
 
 test('курс создаёт и публикует график', async ({ page }) => {

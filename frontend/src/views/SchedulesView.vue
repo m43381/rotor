@@ -2,6 +2,7 @@
 // График подразделения на месяц (фаза 3a): таблица «роль наряда × день», делегирование ролей
 // прямым дочерним подразделениям, принятие входящих, закрепление, публикация (ADR-0009).
 // Выделение: клик — ячейка, Shift+клик — прямоугольник, клик по роли или дню — строка/столбец.
+// Двойной клик по ячейке — панель назначения людей (фаза 3b).
 import Button from 'primevue/button'
 import DatePicker from 'primevue/datepicker'
 import Dialog from 'primevue/dialog'
@@ -23,6 +24,7 @@ import {
   type ScheduleTable,
   type TableRow,
 } from '@/api/client'
+import CellPanel from '@/components/CellPanel.vue'
 import UnitTreeSelect from '@/components/UnitTreeSelect.vue'
 import { useUnitsStore } from '@/stores/units'
 import { formatDateTime } from '@/utils/dates'
@@ -178,14 +180,13 @@ function executorName(c: Cell) {
   return table.value?.units[c.executor_unit_id]?.name ?? ''
 }
 
-function cellText(c: Cell): string {
+function cellText(c: Cell, headcount: number): string {
   switch (c.state) {
     case 'own':
-      return ''
-    case 'incoming_pending':
-      return '?'
     case 'incoming_active':
-      return '●'
+      return c.filled ? `${c.filled}/${headcount}` : ''
+    case 'incoming_pending':
+      return c.filled ? `${c.filled}/${headcount}` : '?'
     case 'inactive':
       return '—'
     default: {
@@ -197,7 +198,27 @@ function cellText(c: Cell): string {
 
 function cellTitle(c: Cell, date: string): string {
   const who = c.state.includes('delegated') ? ` → ${executorName(c)}` : ''
-  return `${date.split('-').reverse().join('.')}: ${STATE_LABELS[c.state] ?? c.state}${who}${c.is_pinned ? ' (закреплено)' : ''}`
+  const people = (c.assigned ?? []).map((a) => a.person_name + (a.conflict ? ` — ${a.conflict}` : '')).join(', ')
+  const filled = c.filled && !people ? ` · назначено ${c.filled}` : ''
+  return (
+    `${date.split('-').reverse().join('.')}: ${STATE_LABELS[c.state] ?? c.state}${who}` +
+    `${c.is_pinned ? ' (закреплено)' : ''}${people ? `
+${people}` : ''}${filled}`
+  )
+}
+
+function fillClass(c: Cell, headcount: number): string | undefined {
+  if (!c.filled) return undefined
+  return c.filled >= headcount ? 'full' : 'partial'
+}
+
+// --- панель назначения людей ------------------------------------------------------------------
+const panelVisible = ref(false)
+const panelCell = ref<string | null>(null)
+
+function openPanel(id: string) {
+  panelCell.value = id
+  panelVisible.value = true
 }
 
 const STATUS: Record<string, { label: string; severity: string }> = {
@@ -232,17 +253,36 @@ function delegate(executor: string, success: string) {
   const ids = delegable.value.map((c) => c.id)
   // Смена решения удаляет цепочку ниже — предупреждаем, если там уже приняли
   const accepted = delegable.value.filter((c) => c.state.endsWith('delegated_accepted')).length
-  const go = () =>
-    run(
-      () =>
-        unwrap(
-          scheduling.POST('/schedules/{schedule_id}/delegate', {
-            params: { path: { schedule_id: scheduleId() } },
-            body: { cell_ids: ids, executor_unit_id: executor },
-          }),
-        ),
-      success,
+  const send = (drop: boolean) =>
+    unwrap(
+      scheduling.POST('/schedules/{schedule_id}/delegate', {
+        params: { path: { schedule_id: scheduleId() } },
+        body: { cell_ids: ids, executor_unit_id: executor, drop_assignments: drop },
+      }),
     )
+  const go = () =>
+    run(async () => {
+      try {
+        return await send(false)
+      } catch (e) {
+        if (!(e instanceof ApiError && e.code === 'assignments_exist')) throw e
+        // В ячейках уже есть люди — снимать их только с явного согласия
+        const agreed = await new Promise<boolean>((resolve) =>
+          confirm.require({
+            header: 'Снять назначенных людей?',
+            message: `${e.message} Продолжить?`,
+            icon: 'pi pi-exclamation-triangle',
+            acceptProps: { label: 'Снять и продолжить', severity: 'danger' },
+            rejectProps: { label: 'Отмена', severity: 'secondary', text: true },
+            accept: () => resolve(true),
+            reject: () => resolve(false),
+            onHide: () => resolve(false),
+          }),
+        )
+        if (!agreed) return { changed: 0 }
+        return send(true)
+      }
+    }, success)
   if (!accepted) return go()
   confirm.require({
     header: 'Изменить решение?',
@@ -434,7 +474,10 @@ function archive() {
       <div v-if="editable" class="selection-bar">
         <span class="muted">
           <template v-if="selected.size">Выбрано ячеек: {{ selected.size }}</template>
-          <template v-else>Выберите ячейки: клик, Shift+клик — прямоугольник, клик по роли или дню — вся строка/столбец</template>
+          <template v-else>
+            Выберите ячейки: клик, Shift+клик — прямоугольник, клик по роли или дню — строка/столбец;
+            двойной клик — назначить людей
+          </template>
         </span>
         <template v-if="selected.size">
           <Select
@@ -470,6 +513,14 @@ function archive() {
             size="small"
             severity="success"
             @click="accept(false)"
+          />
+          <Button
+            v-if="selectedCells.length === 1 && selectedCells[0]"
+            label="Люди…"
+            icon="pi pi-users"
+            size="small"
+            severity="secondary"
+            @click="selectedCells[0] && openPanel(selectedCells[0].id)"
           />
           <Button label="Закрепить" icon="pi pi-lock" size="small" severity="secondary" text @click="pin(true)" />
           <Button label="Открепить" icon="pi pi-lock-open" size="small" severity="secondary" text @click="pin(false)" />
@@ -516,14 +567,16 @@ function archive() {
                     'cell',
                     table.days[col]?.kind,
                     c?.state,
-                    { selected: c && selected.has(c.id), empty: !c, clickable: c && editable },
+                    c && fillClass(c, r.row.headcount),
+                    { selected: c && selected.has(c.id), empty: !c, clickable: !!c, conflict: c?.has_conflict },
                   ]"
                   :title="c ? cellTitle(c, table.days[col]?.date ?? '') : undefined"
                   :data-cell="c?.id"
                   @click="clickCell({ row: r.index, col }, $event)"
+                  @dblclick="c && openPanel(c.id)"
                 >
                   <template v-if="c">
-                    {{ cellText(c) }}<i v-if="c.is_pinned" class="pi pi-lock pin" />
+                    {{ cellText(c, r.row.headcount) }}<i v-if="c.is_pinned" class="pi pi-lock pin" />
                   </template>
                 </td>
               </tr>
@@ -544,6 +597,7 @@ function archive() {
       </div>
     </template>
 
+    <CellPanel v-model:visible="panelVisible" :cell-id="panelCell" @changed="load" />
     <Dialog v-model:visible="warningsVisible" header="График опубликован" modal :style="{ width: '32rem' }">
       <p>В поддереве остались непринятые ячейки. Публикацию это не блокирует, но их стоит проверить:</p>
       <ul>
@@ -719,6 +773,20 @@ thead .sticky {
 .cell.inactive {
   background-color: var(--p-surface-200);
   color: var(--p-text-muted-color);
+}
+.cell.partial {
+  box-shadow: inset 0 -3px 0 var(--p-amber-400);
+}
+.cell.full {
+  box-shadow: inset 0 -3px 0 var(--p-emerald-500);
+}
+.cell.conflict::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-top: 7px solid var(--p-red-500);
+  border-right: 7px solid transparent;
 }
 .cell.selected {
   outline: 2px solid var(--p-primary-color);

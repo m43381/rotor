@@ -40,6 +40,12 @@ export type ScheduleTable = SC['schemas']['TableOut']
 export type TableRow = SC['schemas']['TableRow']
 export type Cell = SC['schemas']['CellOut']
 export type PendingWarning = SC['schemas']['PendingWarning']
+export type Candidates = SC['schemas']['CandidatesOut']
+export type Candidate = SC['schemas']['CandidateOut']
+export type Assigned = SC['schemas']['AssignedOut']
+export type SchedViolation = SC['schemas']['ViolationOut']
+export type DutyLimit = SC['schemas']['DutyLimitOut']
+export type DutyLimitIn = SC['schemas']['DutyLimitIn']
 
 /** Ошибка API в формате сервисов: `{code, message, details?}`. */
 export class ApiError extends Error {

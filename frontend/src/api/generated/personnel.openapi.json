@@ -3069,13 +3069,21 @@
             },
             "type": "array",
             "maxItems": 10000,
-            "minItems": 1,
             "title": "Unit Ids"
           },
           "include_descendants": {
             "type": "boolean",
             "title": "Include Descendants",
             "default": true
+          },
+          "person_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 50000,
+            "title": "Person Ids"
           },
           "date_from": {
             "type": "string",
@@ -3086,15 +3094,20 @@
             "type": "string",
             "format": "date",
             "title": "Date To"
+          },
+          "include_names": {
+            "type": "boolean",
+            "title": "Include Names",
+            "default": false
           }
         },
         "type": "object",
         "required": [
-          "unit_ids",
           "date_from",
           "date_to"
         ],
-        "title": "PeopleBatchIn"
+        "title": "PeopleBatchIn",
+        "description": "Выборка — либо по подразделениям (действующие люди), либо по конкретным людям\n(включая исключённых из списков: scheduling проверяет свои назначения)."
       },
       "PeopleBatchPerson": {
         "properties": {
@@ -3107,6 +3120,10 @@
             "type": "string",
             "format": "uuid",
             "title": "Unit Id"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
           },
           "rank_id": {
             "anyOf": [
@@ -3203,12 +3220,57 @@
             },
             "type": "array",
             "title": "Clearances"
+          },
+          "last_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Name"
+          },
+          "first_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Name"
+          },
+          "middle_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Middle Name"
+          },
+          "rank_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rank Name"
           }
         },
         "type": "object",
         "required": [
           "id",
           "unit_id",
+          "is_active",
           "rank_id",
           "rank_order",
           "position_id",

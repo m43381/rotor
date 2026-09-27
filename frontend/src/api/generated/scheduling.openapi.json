@@ -841,6 +841,390 @@
         }
       }
     },
+    "/day-plans/{day_plan_id}/candidates": {
+      "get": {
+        "tags": [
+          "assignments"
+        ],
+        "summary": "Назначенные и кандидаты: люди поддерева исполнителя с причинами непригодности",
+        "operationId": "candidates_day_plans__day_plan_id__candidates_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "day_plan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Day Plan Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidatesOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/day-plans/{day_plan_id}/assignments": {
+      "post": {
+        "tags": [
+          "assignments"
+        ],
+        "summary": "Назначить человека",
+        "description": "422 `assignment_blocked` — жёсткие нарушения (допуск, освобождение, занят, не в подразделении); 422 `override_required` — нарушены отдых или лимит, повтор с `confirm_override` и комментарием. Нарушения — в `details.violations`.",
+        "operationId": "assign_day_plans__day_plan_id__assignments_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "day_plan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Day Plan Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidatesOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/assignments/{assignment_id}": {
+      "delete": {
+        "tags": [
+          "assignments"
+        ],
+        "summary": "Remove",
+        "operationId": "remove_assignments__assignment_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "assignment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Assignment Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidatesOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/assignments/{assignment_id}/pin": {
+      "post": {
+        "tags": [
+          "assignments"
+        ],
+        "summary": "Pin",
+        "operationId": "pin_assignments__assignment_id__pin_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "assignment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Assignment Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PinAssignmentIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidatesOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/duty-limits": {
+      "get": {
+        "tags": [
+          "duty-limits"
+        ],
+        "summary": "List Limits",
+        "operationId": "list_limits_duty_limits_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DutyLimitOut"
+                  },
+                  "type": "array",
+                  "title": "Response List Limits Duty Limits Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "duty-limits"
+        ],
+        "summary": "Create Limit",
+        "operationId": "create_limit_duty_limits_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DutyLimitIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DutyLimitOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/duty-limits/{limit_id}": {
+      "put": {
+        "tags": [
+          "duty-limits"
+        ],
+        "summary": "Update Limit",
+        "operationId": "update_limit_duty_limits__limit_id__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Limit Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DutyLimitUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DutyLimitOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "duty-limits"
+        ],
+        "summary": "Delete Limit",
+        "operationId": "delete_limit_duty_limits__limit_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Limit Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/audit": {
       "get": {
         "tags": [
@@ -1005,6 +1389,106 @@
         "type": "object",
         "title": "AcceptIn"
       },
+      "AssignIn": {
+        "properties": {
+          "person_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Person Id"
+          },
+          "confirm_override": {
+            "type": "boolean",
+            "title": "Confirm Override",
+            "default": false
+          },
+          "override_comment": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Override Comment"
+          }
+        },
+        "type": "object",
+        "required": [
+          "person_id"
+        ],
+        "title": "AssignIn"
+      },
+      "AssignedOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "person_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Person Id"
+          },
+          "person_name": {
+            "type": "string",
+            "title": "Person Name"
+          },
+          "is_pinned": {
+            "type": "boolean",
+            "title": "Is Pinned"
+          },
+          "rest_override": {
+            "type": "boolean",
+            "title": "Rest Override"
+          },
+          "limit_override": {
+            "type": "boolean",
+            "title": "Limit Override"
+          },
+          "override_comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Override Comment"
+          },
+          "conflict": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conflict"
+          },
+          "after_publish": {
+            "type": "boolean",
+            "title": "After Publish"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "person_id",
+          "person_name",
+          "is_pinned",
+          "rest_override",
+          "limit_override",
+          "override_comment",
+          "conflict",
+          "after_publish"
+        ],
+        "title": "AssignedOut"
+      },
       "AttributeRequirement": {
         "properties": {
           "code": {
@@ -1112,6 +1596,183 @@
         ],
         "title": "AuditEntryOut"
       },
+      "CandidateOut": {
+        "properties": {
+          "person_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Person Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "rank_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rank Name"
+          },
+          "unit_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Unit Id"
+          },
+          "unit_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Name"
+          },
+          "month_total": {
+            "type": "integer",
+            "title": "Month Total"
+          },
+          "month_holiday": {
+            "type": "integer",
+            "title": "Month Holiday"
+          },
+          "last_duty": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Duty"
+          },
+          "violations": {
+            "items": {
+              "$ref": "#/components/schemas/ViolationOut"
+            },
+            "type": "array",
+            "title": "Violations"
+          },
+          "eligible": {
+            "type": "boolean",
+            "title": "Eligible"
+          }
+        },
+        "type": "object",
+        "required": [
+          "person_id",
+          "name",
+          "rank_name",
+          "unit_id",
+          "unit_name",
+          "month_total",
+          "month_holiday",
+          "last_duty",
+          "violations",
+          "eligible"
+        ],
+        "title": "CandidateOut"
+      },
+      "CandidatesOut": {
+        "properties": {
+          "cell": {
+            "$ref": "#/components/schemas/CellInfo"
+          },
+          "assigned": {
+            "items": {
+              "$ref": "#/components/schemas/AssignedOut"
+            },
+            "type": "array",
+            "title": "Assigned"
+          },
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/CandidateOut"
+            },
+            "type": "array",
+            "title": "Candidates"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cell",
+          "assigned",
+          "candidates"
+        ],
+        "title": "CandidatesOut"
+      },
+      "CellInfo": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "schedule_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Schedule Id"
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "duty_type_name": {
+            "type": "string",
+            "title": "Duty Type Name"
+          },
+          "role_name": {
+            "type": "string",
+            "title": "Role Name"
+          },
+          "headcount": {
+            "type": "integer",
+            "title": "Headcount"
+          },
+          "start_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start At"
+          },
+          "end_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "End At"
+          },
+          "executor_unit_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Executor Unit Id"
+          },
+          "can_assign": {
+            "type": "boolean",
+            "title": "Can Assign"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "schedule_id",
+          "date",
+          "duty_type_name",
+          "role_name",
+          "headcount",
+          "start_at",
+          "end_at",
+          "executor_unit_id",
+          "can_assign"
+        ],
+        "title": "CellInfo"
+      },
       "CellOut": {
         "properties": {
           "id": {
@@ -1141,6 +1802,23 @@
           "is_pinned": {
             "type": "boolean",
             "title": "Is Pinned"
+          },
+          "filled": {
+            "type": "integer",
+            "title": "Filled",
+            "default": 0
+          },
+          "assigned": {
+            "items": {
+              "$ref": "#/components/schemas/AssignedOut"
+            },
+            "type": "array",
+            "title": "Assigned"
+          },
+          "has_conflict": {
+            "type": "boolean",
+            "title": "Has Conflict",
+            "default": false
           }
         },
         "type": "object",
@@ -1181,6 +1859,11 @@
             "type": "string",
             "format": "uuid",
             "title": "Executor Unit Id"
+          },
+          "drop_assignments": {
+            "type": "boolean",
+            "title": "Drop Assignments",
+            "default": false
           }
         },
         "type": "object",
@@ -1189,6 +1872,258 @@
           "executor_unit_id"
         ],
         "title": "DelegateIn"
+      },
+      "DutyLimitIn": {
+        "properties": {
+          "unit_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Unit Id"
+          },
+          "applies_to_subtree": {
+            "type": "boolean",
+            "title": "Applies To Subtree",
+            "default": true
+          },
+          "rank_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rank Id"
+          },
+          "position_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position Id"
+          },
+          "max_duties": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 31.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Duties"
+          },
+          "max_holiday_duties": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 31.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Holiday Duties"
+          }
+        },
+        "type": "object",
+        "required": [
+          "unit_id"
+        ],
+        "title": "DutyLimitIn"
+      },
+      "DutyLimitOut": {
+        "properties": {
+          "unit_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Unit Id"
+          },
+          "applies_to_subtree": {
+            "type": "boolean",
+            "title": "Applies To Subtree",
+            "default": true
+          },
+          "rank_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rank Id"
+          },
+          "position_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position Id"
+          },
+          "max_duties": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 31.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Duties"
+          },
+          "max_holiday_duties": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 31.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Holiday Duties"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "unit_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Name"
+          },
+          "rank_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rank Name"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "can_edit": {
+            "type": "boolean",
+            "title": "Can Edit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "unit_id",
+          "id",
+          "unit_name",
+          "rank_name",
+          "version",
+          "can_edit"
+        ],
+        "title": "DutyLimitOut"
+      },
+      "DutyLimitUpdate": {
+        "properties": {
+          "unit_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Unit Id"
+          },
+          "applies_to_subtree": {
+            "type": "boolean",
+            "title": "Applies To Subtree",
+            "default": true
+          },
+          "rank_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rank Id"
+          },
+          "position_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position Id"
+          },
+          "max_duties": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 31.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Duties"
+          },
+          "max_holiday_duties": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 31.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Holiday Duties"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "unit_id",
+          "version"
+        ],
+        "title": "DutyLimitUpdate"
       },
       "DutyRoleBatchItem": {
         "properties": {
@@ -1968,6 +2903,19 @@
         ],
         "title": "PendingWarning"
       },
+      "PinAssignmentIn": {
+        "properties": {
+          "pinned": {
+            "type": "boolean",
+            "title": "Pinned"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pinned"
+        ],
+        "title": "PinAssignmentIn"
+      },
       "PinIn": {
         "properties": {
           "cell_ids": {
@@ -2383,6 +3331,29 @@
           "version"
         ],
         "title": "VersionIn"
+      },
+      "ViolationOut": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "overridable": {
+            "type": "boolean",
+            "title": "Overridable"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "message",
+          "overridable"
+        ],
+        "title": "ViolationOut"
       }
     },
     "securitySchemes": {

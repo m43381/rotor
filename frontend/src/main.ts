@@ -14,6 +14,7 @@ import App from './App.vue'
 import { ensureSignedIn } from './auth'
 import { ru } from './locale/ru'
 import ClearanceMismatchesView from './views/ClearanceMismatchesView.vue'
+import DutyLimitsView from './views/DutyLimitsView.vue'
 import DutyTypesView from './views/DutyTypesView.vue'
 import PeopleView from './views/PeopleView.vue'
 import PersonView from './views/PersonView.vue'
@@ -35,6 +36,7 @@ async function bootstrap() {
       { path: '/people/:id', component: PersonView },
       { path: '/schedules', component: SchedulesView },
       { path: '/duty-types', component: DutyTypesView },
+      { path: '/duty-limits', component: DutyLimitsView },
       { path: '/reports/clearance-mismatches', component: ClearanceMismatchesView },
       { path: '/references', component: ReferencesView },
       { path: '/:pathMatch(.*)*', redirect: '/units' },

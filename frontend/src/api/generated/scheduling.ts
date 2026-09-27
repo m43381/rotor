@@ -207,6 +207,113 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/day-plans/{day_plan_id}/candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Назначенные и кандидаты: люди поддерева исполнителя с причинами непригодности */
+        get: operations["candidates_day_plans__day_plan_id__candidates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/day-plans/{day_plan_id}/assignments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Назначить человека
+         * @description 422 `assignment_blocked` — жёсткие нарушения (допуск, освобождение, занят, не в подразделении); 422 `override_required` — нарушены отдых или лимит, повтор с `confirm_override` и комментарием. Нарушения — в `details.violations`.
+         */
+        post: operations["assign_day_plans__day_plan_id__assignments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/assignments/{assignment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove */
+        delete: operations["remove_assignments__assignment_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/assignments/{assignment_id}/pin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Pin */
+        post: operations["pin_assignments__assignment_id__pin_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/duty-limits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Limits */
+        get: operations["list_limits_duty_limits_get"];
+        put?: never;
+        /** Create Limit */
+        post: operations["create_limit_duty_limits_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/duty-limits/{limit_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Limit */
+        put: operations["update_limit_duty_limits__limit_id__put"];
+        post?: never;
+        /** Delete Limit */
+        delete: operations["delete_limit_duty_limits__limit_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/audit": {
         parameters: {
             query?: never;
@@ -249,6 +356,48 @@ export interface components {
         AcceptIn: {
             /** Cell Ids */
             cell_ids?: string[] | null;
+        };
+        /** AssignIn */
+        AssignIn: {
+            /**
+             * Person Id
+             * Format: uuid
+             */
+            person_id: string;
+            /**
+             * Confirm Override
+             * @default false
+             */
+            confirm_override: boolean;
+            /** Override Comment */
+            override_comment?: string | null;
+        };
+        /** AssignedOut */
+        AssignedOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Person Id
+             * Format: uuid
+             */
+            person_id: string;
+            /** Person Name */
+            person_name: string;
+            /** Is Pinned */
+            is_pinned: boolean;
+            /** Rest Override */
+            rest_override: boolean;
+            /** Limit Override */
+            limit_override: boolean;
+            /** Override Comment */
+            override_comment: string | null;
+            /** Conflict */
+            conflict: string | null;
+            /** After Publish */
+            after_publish: boolean;
         };
         /** AttributeRequirement */
         AttributeRequirement: {
@@ -294,6 +443,84 @@ export interface components {
             /** Comment */
             comment: string | null;
         };
+        /** CandidateOut */
+        CandidateOut: {
+            /**
+             * Person Id
+             * Format: uuid
+             */
+            person_id: string;
+            /** Name */
+            name: string;
+            /** Rank Name */
+            rank_name: string | null;
+            /**
+             * Unit Id
+             * Format: uuid
+             */
+            unit_id: string;
+            /** Unit Name */
+            unit_name: string | null;
+            /** Month Total */
+            month_total: number;
+            /** Month Holiday */
+            month_holiday: number;
+            /** Last Duty */
+            last_duty: string | null;
+            /** Violations */
+            violations: components["schemas"]["ViolationOut"][];
+            /** Eligible */
+            eligible: boolean;
+        };
+        /** CandidatesOut */
+        CandidatesOut: {
+            cell: components["schemas"]["CellInfo"];
+            /** Assigned */
+            assigned: components["schemas"]["AssignedOut"][];
+            /** Candidates */
+            candidates: components["schemas"]["CandidateOut"][];
+        };
+        /** CellInfo */
+        CellInfo: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Schedule Id
+             * Format: uuid
+             */
+            schedule_id: string;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Duty Type Name */
+            duty_type_name: string;
+            /** Role Name */
+            role_name: string;
+            /** Headcount */
+            headcount: number;
+            /**
+             * Start At
+             * Format: date-time
+             */
+            start_at: string;
+            /**
+             * End At
+             * Format: date-time
+             */
+            end_at: string;
+            /**
+             * Executor Unit Id
+             * Format: uuid
+             */
+            executor_unit_id: string;
+            /** Can Assign */
+            can_assign: boolean;
+        };
         /** CellOut */
         CellOut: {
             /**
@@ -313,6 +540,18 @@ export interface components {
             executor_unit_id: string;
             /** Is Pinned */
             is_pinned: boolean;
+            /**
+             * Filled
+             * @default 0
+             */
+            filled: number;
+            /** Assigned */
+            assigned?: components["schemas"]["AssignedOut"][];
+            /**
+             * Has Conflict
+             * @default false
+             */
+            has_conflict: boolean;
         };
         /** ChangedOut */
         ChangedOut: {
@@ -328,6 +567,89 @@ export interface components {
              * Format: uuid
              */
             executor_unit_id: string;
+            /**
+             * Drop Assignments
+             * @default false
+             */
+            drop_assignments: boolean;
+        };
+        /** DutyLimitIn */
+        DutyLimitIn: {
+            /**
+             * Unit Id
+             * Format: uuid
+             */
+            unit_id: string;
+            /**
+             * Applies To Subtree
+             * @default true
+             */
+            applies_to_subtree: boolean;
+            /** Rank Id */
+            rank_id?: string | null;
+            /** Position Id */
+            position_id?: string | null;
+            /** Max Duties */
+            max_duties?: number | null;
+            /** Max Holiday Duties */
+            max_holiday_duties?: number | null;
+        };
+        /** DutyLimitOut */
+        DutyLimitOut: {
+            /**
+             * Unit Id
+             * Format: uuid
+             */
+            unit_id: string;
+            /**
+             * Applies To Subtree
+             * @default true
+             */
+            applies_to_subtree: boolean;
+            /** Rank Id */
+            rank_id?: string | null;
+            /** Position Id */
+            position_id?: string | null;
+            /** Max Duties */
+            max_duties?: number | null;
+            /** Max Holiday Duties */
+            max_holiday_duties?: number | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Unit Name */
+            unit_name: string | null;
+            /** Rank Name */
+            rank_name: string | null;
+            /** Version */
+            version: number;
+            /** Can Edit */
+            can_edit: boolean;
+        };
+        /** DutyLimitUpdate */
+        DutyLimitUpdate: {
+            /**
+             * Unit Id
+             * Format: uuid
+             */
+            unit_id: string;
+            /**
+             * Applies To Subtree
+             * @default true
+             */
+            applies_to_subtree: boolean;
+            /** Rank Id */
+            rank_id?: string | null;
+            /** Position Id */
+            position_id?: string | null;
+            /** Max Duties */
+            max_duties?: number | null;
+            /** Max Holiday Duties */
+            max_holiday_duties?: number | null;
+            /** Version */
+            version: number;
         };
         /** DutyRoleBatchItem */
         DutyRoleBatchItem: {
@@ -624,6 +946,11 @@ export interface components {
             /** Count */
             count: number;
         };
+        /** PinAssignmentIn */
+        PinAssignmentIn: {
+            /** Pinned */
+            pinned: boolean;
+        };
         /** PinIn */
         PinIn: {
             /** Cell Ids */
@@ -782,6 +1109,15 @@ export interface components {
         VersionIn: {
             /** Version */
             version: number;
+        };
+        /** ViolationOut */
+        ViolationOut: {
+            /** Kind */
+            kind: string;
+            /** Message */
+            message: string;
+            /** Overridable */
+            overridable: boolean;
         };
     };
     responses: never;
@@ -1285,6 +1621,255 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ScheduleOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    candidates_day_plans__day_plan_id__candidates_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                day_plan_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CandidatesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    assign_day_plans__day_plan_id__assignments_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                day_plan_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CandidatesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_assignments__assignment_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                assignment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CandidatesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pin_assignments__assignment_id__pin_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                assignment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PinAssignmentIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CandidatesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_limits_duty_limits_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DutyLimitOut"][];
+                };
+            };
+        };
+    };
+    create_limit_duty_limits_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DutyLimitIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DutyLimitOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_limit_duty_limits__limit_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                limit_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DutyLimitUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DutyLimitOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_limit_duty_limits__limit_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                limit_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
