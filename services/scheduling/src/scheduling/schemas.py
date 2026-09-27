@@ -440,3 +440,68 @@ class RunOut(RunBrief):
 
 
 CellOut.model_rebuild()
+
+
+# --- данные для печатных форм (фаза 6b) ---------------------------------------------------------
+
+
+class PrintPerson(BaseModel):
+    person_id: uuid.UUID
+    rank_name: str | None
+    last_name: str
+    first_name: str
+    middle_name: str | None
+    short_name: str  # «Иванов И. И.»
+    unit_name: str | None
+    conflict: str | None = None
+
+
+class PrintCell(BaseModel):
+    # Ячейку закрывает дочернее подразделение — печатается его имя, а не люди
+    executor_unit_name: str | None = None
+    people: list[PrintPerson] = Field(default_factory=list)
+    missing: int = 0
+
+
+class PrintRow(BaseModel):
+    duty_type_name: str
+    duty_type_short_name: str | None
+    owner_unit_name: str | None
+    role_name: str
+    start_time: dt.time
+    duration_minutes: int
+    headcount: int
+    cells: list[PrintCell | None]
+
+
+class PrintScheduleOut(BaseModel):
+    schedule: ScheduleOut
+    days: list[TableDay]
+    rows: list[PrintRow]
+
+
+class RosterRole(BaseModel):
+    role_name: str
+    headcount: int
+    people: list[PrintPerson]
+    missing: int
+
+
+class RosterDuty(BaseModel):
+    duty_type_name: str
+    owner_unit_name: str | None
+    executor_unit_name: str | None
+    start_at: dt.datetime
+    end_at: dt.datetime
+    roles: list[RosterRole]
+
+
+class DailyRosterOut(BaseModel):
+    unit_id: uuid.UUID
+    unit_name: str
+    date: dt.date
+    day_kind: Literal["workday", "weekend", "holiday", "preholiday"]
+    day_name: str | None
+    # Статусы графиков, из которых собран наряд: для пометки «ПРОЕКТ» (open-questions №58)
+    statuses: list[ScheduleStatus]
+    duties: list[RosterDuty]

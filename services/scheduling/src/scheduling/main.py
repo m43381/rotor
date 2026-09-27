@@ -4,7 +4,16 @@ from fastapi import FastAPI
 
 from dutyflow_common.app import create_service_app
 from dutyflow_common.auth import TokenVerifier
-from scheduling.api import allocation, assignments, audit, duty_types, internal, limits, schedules
+from scheduling.api import (
+    allocation,
+    assignments,
+    audit,
+    duty_types,
+    internal,
+    limits,
+    printing,
+    schedules,
+)
 from scheduling.people import PeopleLoader, http_people_loader
 from scheduling.refs import RefsLoader, http_refs_loader
 from scheduling.settings import SchedulingSettings
@@ -25,7 +34,16 @@ def create_app(
     app.state.people_loader = people_loader or http_people_loader(settings)
     app.state.solver = solver or http_solver(settings)
     app.state.jobs = jobs or http_jobs(settings)
-    for module in (duty_types, schedules, assignments, limits, allocation, audit, internal):
+    for module in (
+        duty_types,
+        schedules,
+        assignments,
+        limits,
+        allocation,
+        printing,
+        audit,
+        internal,
+    ):
         app.include_router(module.router)
     return app
 
