@@ -106,6 +106,16 @@ class FakePeople:
         ]
 
 
+async def local_solver(
+    snapshot: dict[str, object], config: dict[str, object], seed: int
+) -> dict[str, object]:
+    """Настоящий движок allocation в процессе — вместо HTTP-вызова сервиса."""
+    from allocation.engine.config import make_config
+    from allocation.engine.solve import solve
+
+    return solve(snapshot, make_config(config), seed)
+
+
 FAKE_PEOPLE = FakePeople()
 UNIT_PATHS: dict[uuid.UUID, str] = {}
 
@@ -120,7 +130,11 @@ async def app(
     settings: SchedulingSettings, issuer: TestIssuer, migrated: str
 ) -> AsyncIterator[FastAPI]:
     application = create_app(
-        settings, token_verifier=issuer.verifier, refs_loader=load_refs, people_loader=FAKE_PEOPLE
+        settings,
+        token_verifier=issuer.verifier,
+        refs_loader=load_refs,
+        people_loader=FAKE_PEOPLE,
+        solver=local_solver,
     )
     async with LifespanManager(application):
         yield application
@@ -179,9 +193,9 @@ async def org(app: FastAPI, settings: SchedulingSettings) -> Org:
     async with engine.begin() as conn:
         await conn.execute(
             text(
-                "TRUNCATE assignment, duty_limit, day_plan, schedule, duty_role, duty_type,"
-                " unit_projection, rank_projection, calendar_projection, audit_log, outbox,"
-                " processed_event CASCADE"
+                "TRUNCATE allocation_decision, allocation_run, assignment, duty_limit, day_plan,"
+                " schedule, duty_role, duty_type, unit_projection, rank_projection,"
+                " calendar_projection, audit_log, outbox, processed_event CASCADE"
             )
         )
     await engine.dispose()

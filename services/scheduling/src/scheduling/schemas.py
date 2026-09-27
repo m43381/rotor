@@ -383,4 +383,54 @@ class DutyLimitOut(DutyLimitIn):
     can_edit: bool
 
 
+# --- автораспределение (фаза 4b) --------------------------------------------------------------
+
+
+class AllocateIn(BaseModel):
+    kind: Literal["people", "units"] = "people"
+    # fill — только пустые места; rebuild — движок может заменить свои незакреплённые (№41)
+    mode: Literal["fill", "rebuild"] = "fill"
+    # Область: ячейки графика; None — весь месяц
+    cell_ids: list[uuid.UUID] | None = Field(default=None, max_length=10_000)
+    seed: int = Field(default=1, ge=0, le=2**31 - 1)
+    # Переопределение настроек движка (веса, затухание) — см. allocation/config/default.yaml
+    config: dict[str, Any] = Field(default_factory=dict)
+
+
+class DecisionOut(BaseModel):
+    day_plan_id: uuid.UUID
+    date: dt.date | None
+    duty_type_name: str | None
+    role_name: str | None
+    chosen_id: uuid.UUID
+    chosen_name: str
+    cost: float
+    candidates: int
+    features: dict[str, Any]
+    alternatives: list[dict[str, Any]]
+    rejected: dict[str, Any] | None
+
+
+class RunBrief(BaseModel):
+    id: uuid.UUID
+    schedule_id: uuid.UUID
+    kind: str
+    mode: str
+    status: Literal["preview_ready", "applied", "discarded", "stale", "failed"]
+    seed: int
+    created_by_name: str
+    created_at: dt.datetime
+    applied_at: dt.datetime | None
+    applied_by_name: str | None
+    filled: int
+    places: int
+
+
+class RunOut(RunBrief):
+    config: dict[str, Any]
+    # Метрики движка, дефициты, незакрытые места, снимаемые назначения
+    metrics: dict[str, Any]
+    decisions: list[DecisionOut]
+
+
 CellOut.model_rebuild()

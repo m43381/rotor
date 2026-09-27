@@ -230,6 +230,10 @@ class ScheduleService:
         scope = self.policy.scope_for(self.operator.roles, "schedule", action)
         return in_scope(path, await self.operator_path(), scope)
 
+    async def access(self, schedule_id: uuid.UUID, action: str) -> tuple[Schedule, UnitProjection]:
+        """График и его подразделение с проверкой права (для других сервисов модуля)."""
+        return await self._schedule(schedule_id, action)
+
     async def _schedule(
         self, schedule_id: uuid.UUID, action: str
     ) -> tuple[Schedule, UnitProjection]:
@@ -502,6 +506,7 @@ class ScheduleService:
         executor_unit_id: uuid.UUID,
         *,
         drop_assignments: bool = False,
+        commit: bool = True,
     ) -> int:
         """Передать ячейки прямому дочернему подразделению или вернуть себе."""
         schedule, unit = await self._schedule(schedule_id, "update")
@@ -617,7 +622,8 @@ class ScheduleService:
                 "day_plan_ids": ids,
             },
         )
-        await self._commit()
+        if commit:
+            await self._commit()
         return len(changed)
 
     async def accept(self, schedule_id: uuid.UUID, cell_ids: Sequence[uuid.UUID] | None) -> int:

@@ -12,6 +12,7 @@ from dutyflow_common.db import get_session
 from scheduling.assignments import AssignmentService
 from scheduling.duty_types import DutyTypeService
 from scheduling.limits import LimitService
+from scheduling.runs import AllocationRunService
 from scheduling.schedules import ScheduleService
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
@@ -49,3 +50,20 @@ def limit_service(request: Request, session: SessionDep, operator: OperatorDep) 
 
 
 LimitServiceDep = Annotated[LimitService, Depends(limit_service)]
+
+
+def run_service(
+    request: Request, session: SessionDep, operator: OperatorDep
+) -> AllocationRunService:
+    state = request.app.state
+    return AllocationRunService(
+        session,
+        operator,
+        state.people_loader,
+        state.solver,
+        state.settings.timezone,
+        state.settings.allocation_snapshot_days,
+    )
+
+
+RunServiceDep = Annotated[AllocationRunService, Depends(run_service)]

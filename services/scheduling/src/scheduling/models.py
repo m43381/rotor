@@ -27,7 +27,7 @@ from sqlalchemy import (
     Uuid,
     text,
 )
-from sqlalchemy.dialects.postgresql import DATERANGE, JSONB, ExcludeConstraint, Range
+from sqlalchemy.dialects.postgresql import BYTEA, DATERANGE, JSONB, ExcludeConstraint, Range
 from sqlalchemy.orm import Mapped, mapped_column
 
 from dutyflow_common.audit import AuditLog
@@ -37,6 +37,8 @@ from dutyflow_common.outbox import OutboxEvent, ProcessedEvent
 from dutyflow_common.projections import RankProjection, UnitProjection
 
 __all__ = [
+    "AllocationDecision",
+    "AllocationRun",
     "Assignment",
     "AuditLog",
     "Base",
@@ -242,6 +244,10 @@ class Assignment(UuidPkMixin, TimestampMixin, Base):
     override_comment: Mapped[str | None] = mapped_column(Text)
     # Изменения у человека после назначения (open-questions №39): не снимаем, а помечаем
     conflict: Mapped[str | None] = mapped_column(Text)
+    # Если назначено применением прогона движка (фаза 4b)
+    allocation_run_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("allocation_run.id", ondelete="SET NULL"), index=True
+    )
     assigned_by: Mapped[str] = mapped_column(String(100))
     assigned_by_name: Mapped[str] = mapped_column(String(200))
     assigned_at: Mapped[dt.datetime] = mapped_column(
@@ -292,6 +298,60 @@ class DutyLimit(UuidPkMixin, TimestampMixin, VersionedMixin, Base):
             "max_duties": self.max_duties,
             "max_holiday_duties": self.max_holiday_duties,
         }
+
+
+class AllocationRun(UuidPkMixin, TimestampMixin, Base):
+    """Прогон движка: предпросмотр → применение (`docs/data-model.md` §5, фаза 4b).
+
+    Снимок хранится сжатым — чтобы воспроизвести, «почему так распределено». Применение
+    сравнивает hash свежего снимка с сохранённым: если данные изменились, прогон устарел
+    (open-questions №45).
+    """
+
+    __tablename__ = "allocation_run"
+    __table_args__ = (
+        CheckConstraint("kind IN ('people', 'units')", name="kind"),
+        CheckConstraint("mode IN ('fill', 'rebuild')", name="mode"),
+        CheckConstraint(
+            "status IN ('preview_ready', 'applied', 'discarded', 'stale', 'failed')", name="status"
+        ),
+        Index("ix_allocation_run_schedule", "schedule_id", "created_at"),
+    )
+
+    schedule_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("schedule.id", ondelete="CASCADE"))
+    kind: Mapped[str] = mapped_column(String(10))
+    mode: Mapped[str] = mapped_column(String(10), default="fill")
+    config: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    seed: Mapped[int] = mapped_column(Integer)
+    snapshot_hash: Mapped[str] = mapped_column(String(64))
+    snapshot: Mapped[bytes] = mapped_column(BYTEA)  # zlib(JSON)
+    solution_hash: Mapped[str] = mapped_column(String(64))
+    status: Mapped[str] = mapped_column(String(20), default="preview_ready")
+    # Сводка решения: метрики, дефициты, незакрытые места, снимаемые назначения
+    metrics: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    created_by: Mapped[str] = mapped_column(String(100))
+    created_by_name: Mapped[str] = mapped_column(String(200))
+    applied_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+    applied_by_name: Mapped[str | None] = mapped_column(String(200))
+
+
+class AllocationDecision(Base):
+    """Объяснение решения по ячейке: кто выбран, признаки, альтернативы, причины отсева."""
+
+    __tablename__ = "allocation_decision"
+
+    run_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("allocation_run.id", ondelete="CASCADE"), primary_key=True
+    )
+    day_plan_id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    chosen_id: Mapped[uuid.UUID] = mapped_column(primary_key=True)  # человек или подразделение
+    chosen_name: Mapped[str] = mapped_column(String(300))
+    rank: Mapped[int] = mapped_column(SmallInteger, default=1)
+    cost: Mapped[float] = mapped_column(Numeric(12, 6, asdecimal=False))
+    candidates: Mapped[int] = mapped_column(Integer)
+    features: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    alternatives: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
+    rejected_summary: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
 
 
 def include_object(
