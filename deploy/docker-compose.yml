@@ -37,6 +37,7 @@ services:
       ORG_DB_PASSWORD: ${ORG_DB_PASSWORD}
       PERSONNEL_DB_PASSWORD: ${PERSONNEL_DB_PASSWORD}
       SCHEDULING_DB_PASSWORD: ${SCHEDULING_DB_PASSWORD}
+      DOCUMENTS_DB_PASSWORD: ${DOCUMENTS_DB_PASSWORD}
       KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
     volumes:
       - ./postgres/ensure-databases.sh:/ensure-databases.sh:ro
@@ -248,6 +249,27 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # Импорт и печать (фаза 6): чужие данные читает и пишет через публичные API владельцев
+  # от имени оператора (ADR-0014); своя БД — только задачи импорта и настройки документов.
+  documents:
+    build:
+      context: ..
+      dockerfile: services/Dockerfile
+      args:
+        SERVICE: documents
+    image: dutyflow/documents:dev
+    environment:
+      <<: *service-env
+      SERVICE_NAME: documents
+      DATABASE_URL: postgresql+asyncpg://documents:${DOCUMENTS_DB_PASSWORD}@postgres:5432/documents_db
+      PERSONNEL_URL: http://personnel:8000
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+      personnel:
+        condition: service_healthy
+    restart: unless-stopped
+
   gateway:
     build:
       context: ../frontend
@@ -262,6 +284,8 @@ services:
       personnel:
         condition: service_healthy
       scheduling:
+        condition: service_healthy
+      documents:
         condition: service_healthy
       keycloak:
         condition: service_healthy
