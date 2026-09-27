@@ -192,6 +192,11 @@ class ScheduleOut(BaseModel):
     pending_incoming: int
 
 
+class CellPerson(BaseModel):
+    person_name: str
+    conflict: str | None = None
+
+
 class CellOut(BaseModel):
     id: uuid.UUID
     state: CellState
@@ -199,8 +204,9 @@ class CellOut(BaseModel):
     is_pinned: bool
     # Назначено людей по всей цепочке делегирования (для переданных — у исполнителя ниже)
     filled: int = 0
-    # Кто назначен — если ячейку закрывает само подразделение графика
-    assigned: list["AssignedOut"] = Field(default_factory=list)
+    # Кто назначен — если ячейку закрывает само подразделение графика. Кратко: подробности
+    # (пометки, обоснования) — в панели ячейки, таблица на 60 ролей должна оставаться лёгкой
+    assigned: list["CellPerson"] = Field(default_factory=list)
     has_conflict: bool = False
 
 

@@ -4,7 +4,8 @@ import datetime as dt
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request, Response
+from pydantic_core import to_json
 
 from scheduling.api.deps import ScheduleServiceDep
 from scheduling.schemas import (
@@ -87,3 +88,20 @@ async def publish(schedule_id: uuid.UUID, data: VersionIn, svc: ScheduleServiceD
 async def archive(schedule_id: uuid.UUID, data: VersionIn, svc: ScheduleServiceDep) -> ScheduleOut:
     await svc.archive(schedule_id, data.version)
     return await svc.get(schedule_id)
+
+
+@router.get(
+    "/schedules/{schedule_id}/snapshot",
+    summary="Снимок задачи распределения (ADR-0013), файлом JSON",
+    response_class=Response,
+)
+async def snapshot(schedule_id: uuid.UUID, request: Request, svc: ScheduleServiceDep) -> Response:
+    data = await svc.snapshot(
+        schedule_id, request.app.state.people_loader, request.app.state.settings.timezone
+    )
+    name = f"snapshot_{data['schedule']['month']:%Y-%m}_{str(schedule_id)[:8]}.json"
+    return Response(
+        content=to_json(data),
+        media_type="application/json",
+        headers={"Content-Disposition": f'attachment; filename="{name}"'},
+    )

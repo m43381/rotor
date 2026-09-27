@@ -45,6 +45,7 @@ from scheduling.models import Assignment, DayPlan, DutyRole, DutyType, Schedule
 from scheduling.schemas import (
     AssignedOut,
     CellOut,
+    CellPerson,
     CellState,
     PendingWarning,
     ScheduleOut,
@@ -398,14 +399,14 @@ class ScheduleService:
                 )
             ).all()
         )
-        assigned: dict[uuid.UUID, list[AssignedOut]] = defaultdict(list)
-        for a in await self.session.scalars(
-            select(Assignment)
+        assigned: dict[uuid.UUID, list[CellPerson]] = defaultdict(list)
+        for day_plan_id, name, conflict in await self.session.execute(
+            select(Assignment.day_plan_id, Assignment.person_name, Assignment.conflict)
             .join(DayPlan, DayPlan.id == Assignment.day_plan_id)
             .where(DayPlan.schedule_id == schedule.id)
             .order_by(Assignment.assigned_at)
         ):
-            assigned[a.day_plan_id].append(assigned_out(a, schedule.published_at))
+            assigned[day_plan_id].append(CellPerson(person_name=name, conflict=conflict))
         index = {d: i for i, d in enumerate(days)}
         by_role: dict[uuid.UUID, list[CellOut | None]] = {r: [None] * len(days) for r in role_ids}
         executors = {schedule.unit_id}
@@ -419,7 +420,7 @@ class ScheduleService:
                 is_pinned=c.is_pinned,
                 filled=filled.get(c.id, 0),
                 assigned=assigned.get(c.id, []),
-                has_conflict=any(a.conflict for a in assigned.get(c.id, [])),
+                has_conflict=any(p.conflict for p in assigned.get(c.id, [])),
             )
             executors.add(c.executor_unit_id)
 
@@ -674,6 +675,13 @@ class ScheduleService:
         )
         await self._commit()
         return len(cells)
+
+    async def snapshot(self, schedule_id: uuid.UUID, people: Any, timezone: str) -> dict[str, Any]:
+        """Снимок задачи для движка (ADR-0013). Данные — в пределах права чтения графика."""
+        from scheduling.snapshot import build_snapshot  # снимок импортирует этот модуль
+
+        schedule, unit = await self._schedule(schedule_id, "read")
+        return await build_snapshot(self.session, people, schedule, unit, timezone=timezone)
 
     # --- статус графика ----------------------------------------------------------------------
 
