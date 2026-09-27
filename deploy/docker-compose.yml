@@ -217,6 +217,19 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # Движок распределения: без предметной БД, только внутренний API для scheduling (ADR-0006)
+  allocation:
+    build:
+      context: ..
+      dockerfile: services/Dockerfile
+      args:
+        SERVICE: allocation
+    image: dutyflow/allocation:dev
+    environment:
+      <<: *service-env
+      SERVICE_NAME: allocation
+    restart: unless-stopped
+
   gateway:
     build:
       context: ../frontend

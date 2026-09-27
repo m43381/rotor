@@ -16,8 +16,8 @@ FROM python:3.12-slim
 ARG SERVICE
 RUN useradd --system --uid 10001 --home /srv app
 COPY --from=build /app/.venv /app/.venv
-COPY services/${SERVICE}/alembic.ini /srv/service/alembic.ini
-COPY services/${SERVICE}/migrations /srv/service/migrations
+# Каталог сервиса целиком: миграции есть не у всех (у allocation нет предметной БД)
+COPY services/${SERVICE} /srv/service
 ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1 SERVICE=${SERVICE}
 WORKDIR /srv/service
 USER app
@@ -25,4 +25,4 @@ EXPOSE 8000
 HEALTHCHECK --interval=10s --timeout=3s --retries=5 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"
 # Миграции применяются при старте; при нескольких репликах их лучше вынести в отдельный job.
-CMD ["sh", "-c", "alembic upgrade head && exec uvicorn ${SERVICE}.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips='*'"]
+CMD ["sh", "-c", "if [ -f alembic.ini ]; then alembic upgrade head; fi && exec uvicorn ${SERVICE}.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips='*'"]

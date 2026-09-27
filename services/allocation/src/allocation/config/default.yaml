@@ -1,0 +1,22 @@
+# Настройки движка распределения по умолчанию (allocation.engine.config.EngineConfig).
+# Прогон может переопределить любое поле. Значения — утверждённые ответы open-questions
+# №42–43; точные веса подбираются в экспериментах фазы 5.
+
+half_life_days: 30      # нагрузка месячной давности весит вдвое меньше свежей
+holiday_weight: 1.5     # наряд в выходной или праздник тяжелее обычного
+
+people_weights:
+  load: 1.0
+  same_type: 0.5
+  holiday: 1.0
+  recency: 2.0
+
+unit_weights:
+  quota: 1.0
+  same_day: 0.5
+  capacity: 0.3
+  debt_lambda: 0.5
+
+alternatives: 5
+strict_feasibility: true
+strict_feasibility_max_edges: 5000000

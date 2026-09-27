@@ -42,9 +42,10 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "**/tests/**" = ["S105", "S106", "S311"]
 "tools/**" = ["S311"]  # синтетика и бенчмарки: детерминированный random по seed — это намеренно
+"services/allocation/src/allocation/synthetic.py" = ["S311"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["dutyflow_common", "org", "personnel", "scheduling"]
+known-first-party = ["allocation", "dutyflow_common", "org", "personnel", "scheduling"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -53,10 +54,16 @@ plugins = ["pydantic.mypy"]
 exclude = ["migrations/versions/", "frontend/"]
 namespace_packages = true
 explicit_package_bases = true
-mypy_path = ["libs/common/src", "services/org/src", "services/personnel/src", "services/scheduling/src"]
+mypy_path = [
+    "libs/common/src",
+    "services/org/src",
+    "services/personnel/src",
+    "services/scheduling/src",
+    "services/allocation/src",
+]
 
 [[tool.mypy.overrides]]
-module = ["testcontainers.*", "asgi_lifespan.*", "asyncpg.*"]
+module = ["testcontainers.*", "asgi_lifespan.*", "asyncpg.*", "scipy.*", "yaml.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

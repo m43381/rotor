@@ -22,12 +22,13 @@ jobs:
       - run: uv sync --all-packages --frozen
       - run: uv run ruff check .
       - run: uv run ruff format --check .
-      - run: uv run mypy libs/common/src services/org/src services/personnel/src services/scheduling/src tools
+      - run: uv run mypy libs/common/src services/org/src services/personnel/src services/scheduling/src services/allocation/src tools
       # Интеграционные тесты поднимают PostgreSQL 16 через testcontainers (Docker есть на раннере)
       - run: uv run pytest libs/common -q
       - run: uv run pytest services/org -q
       - run: uv run pytest services/personnel -q
       - run: uv run pytest services/scheduling -q
+      - run: uv run pytest services/allocation -q
 
   frontend:
     name: Frontend — eslint, vue-tsc, vitest, лицензии, сборка
