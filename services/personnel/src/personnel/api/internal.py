@@ -46,7 +46,9 @@ def _json(content: Any) -> Response:
 
 @router.post("/people/batch", response_model=list[PeopleBatchPerson])
 async def people_batch(data: PeopleBatchIn, session: SessionDep) -> Response:
-    if data.include_descendants:
+    if data.person_ids:
+        people_q = select(Person.id).where(Person.id.in_(data.person_ids))
+    elif data.include_descendants:
         roots = (
             await session.scalars(
                 select(UnitProjection.path).where(UnitProjection.unit_id.in_(data.unit_ids))
@@ -67,7 +69,18 @@ async def people_batch(data: PeopleBatchIn, session: SessionDep) -> Response:
     ids = people_q.subquery()
 
     people = await session.execute(
-        select(Person.id, Person.unit_id, Person.rank_id, RankProjection.order, Person.position_id)
+        select(
+            Person.id,
+            Person.unit_id,
+            Person.is_active,
+            Person.rank_id,
+            RankProjection.order.label("rank_order"),
+            Person.position_id,
+            Person.last_name,
+            Person.first_name,
+            Person.middle_name,
+            RankProjection.name.label("rank_name"),
+        )
         .join(ids, ids.c.id == Person.id)
         .outerjoin(RankProjection, RankProjection.rank_id == Person.rank_id)
         .order_by(Person.id)
@@ -107,21 +120,29 @@ async def people_batch(data: PeopleBatchIn, session: SessionDep) -> Response:
     ):
         clearances[person_id] = list(zip(roles, froms, tos, strict=True))
 
-    return _json(
-        [
-            {
-                "id": pid,
-                "unit_id": unit_id,
-                "rank_id": rank_id,
-                "rank_order": rank_order,
-                "position_id": position_id,
-                "attributes": attrs.get(pid, {}),
-                "exemptions": exemptions.get(pid, []),
-                "clearances": clearances.get(pid, []),
+    result = []
+    for p in people:
+        pid = p.id
+        item: dict[str, Any] = {
+            "id": pid,
+            "unit_id": p.unit_id,
+            "is_active": p.is_active,
+            "rank_id": p.rank_id,
+            "rank_order": p.rank_order,
+            "position_id": p.position_id,
+            "attributes": attrs.get(pid, {}),
+            "exemptions": exemptions.get(pid, []),
+            "clearances": clearances.get(pid, []),
+        }
+        if data.include_names:
+            item |= {
+                "last_name": p.last_name,
+                "first_name": p.first_name,
+                "middle_name": p.middle_name,
+                "rank_name": p.rank_name,
             }
-            for pid, unit_id, rank_id, rank_order, position_id in people
-        ]
-    )
+        result.append(item)
+    return _json(result)
 
 
 @router.post("/people/availability-batch", response_model=AvailabilityOut)

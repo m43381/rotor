@@ -73,3 +73,22 @@ async def test_availability_masks(admin: AsyncClient, internal: AsyncClient, org
         json={"person_ids": [a["id"]], "date_from": "2026-10-01", "date_to": "2026-10-07"},
     )
     assert r.json() == {"date_from": "2026-10-01", "days": 7, "masks": {a["id"]: "0011011"}}
+
+
+async def test_people_batch_by_ids_with_names(
+    admin: AsyncClient, internal: AsyncClient, org: Org
+) -> None:
+    a = await add_person(admin, org.course_a1, "Именной", rank_id=str(org.rank_major))
+    gone = await add_person(admin, org.fac_b, "Ушедший")
+    await admin.post(f"/people/{gone['id']}/archive", json={"version": gone["version"]})
+    period = {"date_from": "2026-10-01", "date_to": "2026-10-31"}
+    r = await internal.post(
+        "/internal/people/batch",
+        json={"person_ids": [a["id"], gone["id"]], "include_names": True, **period},
+    )
+    people = {p["last_name"]: p for p in r.json()}
+    assert people["Именной"]["rank_name"] == "Майор"
+    assert people["Именной"]["is_active"] is True
+    assert people["Ушедший"]["is_active"] is False  # исключённые тоже — по id
+    bad = await internal.post("/internal/people/batch", json=period)
+    assert bad.status_code == 422

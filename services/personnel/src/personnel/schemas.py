@@ -186,15 +186,28 @@ class BulkResult(BaseModel):
 
 
 class PeopleBatchIn(BaseModel):
-    unit_ids: list[uuid.UUID] = Field(min_length=1, max_length=10_000)
+    """Выборка — либо по подразделениям (действующие люди), либо по конкретным людям
+    (включая исключённых из списков: scheduling проверяет свои назначения)."""
+
+    unit_ids: list[uuid.UUID] = Field(default_factory=list, max_length=10_000)
     include_descendants: bool = True
+    person_ids: list[uuid.UUID] = Field(default_factory=list, max_length=50_000)
     date_from: dt.date
     date_to: dt.date
+    # ФИО и звание — для списков кандидатов; для снимка движка не нужны
+    include_names: bool = False
+
+    @model_validator(mode="after")
+    def _one_selector(self) -> "PeopleBatchIn":
+        if bool(self.unit_ids) == bool(self.person_ids):
+            raise ValueError("Укажите либо подразделения, либо людей")
+        return self
 
 
 class PeopleBatchPerson(BaseModel):
     id: uuid.UUID
     unit_id: uuid.UUID
+    is_active: bool
     rank_id: uuid.UUID | None
     rank_order: int | None
     position_id: uuid.UUID | None
@@ -204,6 +217,11 @@ class PeopleBatchPerson(BaseModel):
     # Неотозванные допуски, действующие хотя бы в часть периода: [роль, с, по] (NULL — без границы).
     # Требования ролей здесь не проверяются: допуск важнее требований (ADR-0009).
     clearances: list[tuple[uuid.UUID, dt.date | None, dt.date | None]]
+    # Только при include_names
+    last_name: str | None = None
+    first_name: str | None = None
+    middle_name: str | None = None
+    rank_name: str | None = None
 
 
 class AvailabilityIn(BaseModel):
