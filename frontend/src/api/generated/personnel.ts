@@ -262,6 +262,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/imports/{kind}/template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Столбцы шаблона импорта и значения выпадающих списков для оператора */
+        get: operations["import_template_imports__kind__template_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/imports/{kind}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Проверить или применить строки импорта
+         * @description `dry_run: true` — предпросмотр: действие и ошибки по каждой строке и хэш состояния. `dry_run: false` — применение одной транзакцией; с `expected_hash` применяется, только если данные не изменились с предпросмотра (иначе 409 `import_stale`). Строки с ошибками пропускаются только при `skip_invalid: true`, иначе 422.
+         */
+        post: operations["run_import_imports__kind__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/positions": {
         parameters: {
             query?: never;
@@ -884,6 +921,95 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** ImportIn */
+        ImportIn: {
+            /** Rows */
+            rows: components["schemas"]["ImportRowIn"][];
+            /**
+             * Dry Run
+             * @default true
+             */
+            dry_run: boolean;
+            /**
+             * Skip Invalid
+             * @default false
+             */
+            skip_invalid: boolean;
+            /** Expected Hash */
+            expected_hash?: string | null;
+        };
+        /** ImportIssue */
+        ImportIssue: {
+            /** Column */
+            column?: string | null;
+            /** Message */
+            message: string;
+        };
+        /** ImportOut */
+        ImportOut: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "people" | "clearances" | "exemptions";
+            /** Applied */
+            applied: boolean;
+            /** Summary */
+            summary: {
+                [key: string]: number;
+            };
+            /** Rows */
+            rows: components["schemas"]["ImportRowOut"][];
+            /** State Hash */
+            state_hash: string;
+        };
+        /**
+         * ImportRowIn
+         * @description Строка файла: номер строки в файле и значения по ключам столбцов шаблона. Значения —
+         *     как в файле (строка, число, дата ISO); ссылки — названиями из шаблона.
+         */
+        ImportRowIn: {
+            /** Row */
+            row: number;
+            /** Values */
+            values: {
+                [key: string]: unknown;
+            };
+        };
+        /** ImportRowOut */
+        ImportRowOut: {
+            /** Row */
+            row: number;
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "create" | "update" | "unchanged" | "error";
+            /** Label */
+            label?: string | null;
+            /** Errors */
+            errors?: components["schemas"]["ImportIssue"][];
+            /** Warnings */
+            warnings?: components["schemas"]["ImportIssue"][];
+            /** Changes */
+            changes?: {
+                [key: string]: unknown[];
+            };
+        };
+        /** ImportTemplateOut */
+        ImportTemplateOut: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "people" | "clearances" | "exemptions";
+            /** Title */
+            title: string;
+            /** Columns */
+            columns: components["schemas"]["TemplateColumn"][];
+            /** Instructions */
+            instructions: string[];
+        };
         /** MismatchItem */
         MismatchItem: {
             /**
@@ -1227,6 +1353,28 @@ export interface components {
         RevokeIn: {
             /** Comment */
             comment?: string | null;
+        };
+        /** TemplateColumn */
+        TemplateColumn: {
+            /** Key */
+            key: string;
+            /** Title */
+            title: string;
+            /**
+             * Required
+             * @default false
+             */
+            required: boolean;
+            /**
+             * Type
+             * @default text
+             * @enum {string}
+             */
+            type: "text" | "date" | "int" | "bool" | "list";
+            /** Options */
+            options?: string[] | null;
+            /** Hint */
+            hint?: string | null;
         };
         /** TransferIn */
         TransferIn: {
@@ -1887,6 +2035,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Page_MismatchItem_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    import_template_imports__kind__template_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: "people" | "clearances" | "exemptions";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportTemplateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    run_import_imports__kind__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: "people" | "clearances" | "exemptions";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportOut"];
                 };
             };
             /** @description Validation Error */

@@ -1128,6 +1128,121 @@
         }
       }
     },
+    "/imports/{kind}/template": {
+      "get": {
+        "tags": [
+          "imports"
+        ],
+        "summary": "Столбцы шаблона импорта и значения выпадающих списков для оператора",
+        "operationId": "import_template_imports__kind__template_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": [
+                "people",
+                "clearances",
+                "exemptions"
+              ],
+              "type": "string",
+              "title": "Kind"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportTemplateOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/imports/{kind}": {
+      "post": {
+        "tags": [
+          "imports"
+        ],
+        "summary": "Проверить или применить строки импорта",
+        "description": "`dry_run: true` — предпросмотр: действие и ошибки по каждой строке и хэш состояния. `dry_run: false` — применение одной транзакцией; с `expected_hash` применяется, только если данные не изменились с предпросмотра (иначе 409 `import_stale`). Строки с ошибками пропускаются только при `skip_invalid: true`, иначе 422.",
+        "operationId": "run_import_imports__kind__post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": [
+                "people",
+                "clearances",
+                "exemptions"
+              ],
+              "type": "string",
+              "title": "Kind"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/positions": {
       "get": {
         "tags": [
@@ -2832,6 +2947,238 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "ImportIn": {
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/ImportRowIn"
+            },
+            "type": "array",
+            "maxItems": 20000,
+            "minItems": 1,
+            "title": "Rows"
+          },
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run",
+            "default": true
+          },
+          "skip_invalid": {
+            "type": "boolean",
+            "title": "Skip Invalid",
+            "default": false
+          },
+          "expected_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Hash"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rows"
+        ],
+        "title": "ImportIn"
+      },
+      "ImportIssue": {
+        "properties": {
+          "column": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Column"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "title": "ImportIssue"
+      },
+      "ImportOut": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "people",
+              "clearances",
+              "exemptions"
+            ],
+            "title": "Kind"
+          },
+          "applied": {
+            "type": "boolean",
+            "title": "Applied"
+          },
+          "summary": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "enum": [
+                "create",
+                "update",
+                "unchanged",
+                "error"
+              ]
+            },
+            "type": "object",
+            "title": "Summary"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/ImportRowOut"
+            },
+            "type": "array",
+            "title": "Rows"
+          },
+          "state_hash": {
+            "type": "string",
+            "title": "State Hash"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "applied",
+          "summary",
+          "rows",
+          "state_hash"
+        ],
+        "title": "ImportOut"
+      },
+      "ImportRowIn": {
+        "properties": {
+          "row": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Row"
+          },
+          "values": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Values"
+          }
+        },
+        "type": "object",
+        "required": [
+          "row",
+          "values"
+        ],
+        "title": "ImportRowIn",
+        "description": "Строка файла: номер строки в файле и значения по ключам столбцов шаблона. Значения —\nкак в файле (строка, число, дата ISO); ссылки — названиями из шаблона."
+      },
+      "ImportRowOut": {
+        "properties": {
+          "row": {
+            "type": "integer",
+            "title": "Row"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "create",
+              "update",
+              "unchanged",
+              "error"
+            ],
+            "title": "Action"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/ImportIssue"
+            },
+            "type": "array",
+            "title": "Errors"
+          },
+          "warnings": {
+            "items": {
+              "$ref": "#/components/schemas/ImportIssue"
+            },
+            "type": "array",
+            "title": "Warnings"
+          },
+          "changes": {
+            "additionalProperties": {
+              "items": {},
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Changes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "row",
+          "action"
+        ],
+        "title": "ImportRowOut"
+      },
+      "ImportTemplateOut": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "people",
+              "clearances",
+              "exemptions"
+            ],
+            "title": "Kind"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "columns": {
+            "items": {
+              "$ref": "#/components/schemas/TemplateColumn"
+            },
+            "type": "array",
+            "title": "Columns"
+          },
+          "instructions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Instructions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "title",
+          "columns",
+          "instructions"
+        ],
+        "title": "ImportTemplateOut"
+      },
       "MismatchItem": {
         "properties": {
           "duty_role_id": {
@@ -3886,6 +4233,66 @@
         },
         "type": "object",
         "title": "RevokeIn"
+      },
+      "TemplateColumn": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "required": {
+            "type": "boolean",
+            "title": "Required",
+            "default": false
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "text",
+              "date",
+              "int",
+              "bool",
+              "list"
+            ],
+            "title": "Type",
+            "default": "text"
+          },
+          "options": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Options"
+          },
+          "hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hint"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "title"
+        ],
+        "title": "TemplateColumn"
       },
       "TransferIn": {
         "properties": {

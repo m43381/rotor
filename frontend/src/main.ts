@@ -16,6 +16,7 @@ import { ru } from './locale/ru'
 import ClearanceMismatchesView from './views/ClearanceMismatchesView.vue'
 import DutyLimitsView from './views/DutyLimitsView.vue'
 import DutyTypesView from './views/DutyTypesView.vue'
+import ImportView from './views/ImportView.vue'
 import PeopleView from './views/PeopleView.vue'
 import PersonView from './views/PersonView.vue'
 import ReferencesView from './views/ReferencesView.vue'
@@ -39,6 +40,7 @@ async function bootstrap() {
       { path: '/duty-limits', component: DutyLimitsView },
       { path: '/reports/clearance-mismatches', component: ClearanceMismatchesView },
       { path: '/references', component: ReferencesView },
+      { path: '/import', component: ImportView },
       { path: '/:pathMatch(.*)*', redirect: '/units' },
     ],
   })

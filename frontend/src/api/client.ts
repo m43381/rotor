@@ -4,6 +4,7 @@ import createClient, { type Middleware } from 'openapi-fetch'
 import { accessToken, signIn } from '@/auth'
 import type { components, paths as OrgPaths } from './generated/org'
 import type { components as PC, paths as PersonnelPaths } from './generated/personnel'
+import type { components as DC, paths as DocumentsPaths } from './generated/documents'
 import type { components as SC, paths as SchedulingPaths } from './generated/scheduling'
 
 export type Unit = components['schemas']['UnitOut']
@@ -50,6 +51,10 @@ export type Run = SC['schemas']['RunOut']
 export type RunBrief = SC['schemas']['RunBrief']
 export type Decision = SC['schemas']['DecisionOut']
 
+export type ImportJob = DC['schemas']['ImportJobOut']
+export type ImportRow = DC['schemas']['ImportRowView']
+export type ImportKind = ImportJob['kind']
+
 /** Ошибка API в формате сервисов: `{code, message, details?}`. */
 export class ApiError extends Error {
   readonly status: number
@@ -85,6 +90,9 @@ personnel.use(auth)
 export const scheduling = createClient<SchedulingPaths>({ baseUrl: '/api/scheduling' })
 scheduling.use(auth)
 
+export const documents = createClient<DocumentsPaths>({ baseUrl: '/api/documents' })
+documents.use(auth)
+
 interface Result<T> {
   data?: T
   error?: unknown
@@ -104,4 +112,29 @@ export async function unwrap<T>(call: Promise<Result<T>>): Promise<T> {
     )
   }
   return data as T
+}
+
+/** Сохраняет файл из ответа API (`parseAs: 'blob'`); имя — из Content-Disposition. */
+export async function saveFile(
+  call: Promise<{ data?: Blob; error?: unknown; response: Response }>,
+  fallback: string,
+): Promise<void> {
+  const { data, error, response } = await call
+  if (!response.ok || !data) {
+    let body = (error ?? {}) as { code?: string; message?: string }
+    if (error instanceof Blob) body = JSON.parse(await error.text()) as typeof body
+    throw new ApiError(response.status, body.code ?? 'error', body.message ?? 'Не удалось скачать файл')
+  }
+  const link = document.createElement('a')
+  link.href = URL.createObjectURL(data)
+  link.download = fileName(response.headers.get('Content-Disposition')) ?? fallback
+  link.click()
+  URL.revokeObjectURL(link.href)
+}
+
+export function fileName(disposition: string | null): string | null {
+  if (!disposition) return null
+  const utf = /filename\*=UTF-8''([^;]+)/i.exec(disposition)?.[1]
+  if (utf) return decodeURIComponent(utf)
+  return /filename="([^"]+)"/.exec(disposition)?.[1] ?? null
 }

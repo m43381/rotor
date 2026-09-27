@@ -23,6 +23,8 @@ const ROLE_NAMES: Record<string, string> = {
   viewer: 'Просмотр',
 }
 const isSuperadmin = computed(() => store.me?.roles.includes('superadmin') === true)
+// Импорт меняет данные — наблюдателю не показывается (права проверяет сервис по строкам)
+const canImport = computed(() => (store.me?.roles ?? []).some((r) => r !== 'viewer'))
 const roleLabel = computed(() =>
   (store.me?.roles ?? []).map((r) => ROLE_NAMES[r] ?? r).join(', '),
 )
@@ -44,6 +46,7 @@ const roleLabel = computed(() =>
         <RouterLink to="/duty-types" :class="{ 'router-link-active': route.path === '/duty-limits' }">
           Наряды
         </RouterLink>
+        <RouterLink v-if="canImport" to="/import">Импорт</RouterLink>
         <RouterLink v-if="isSuperadmin" to="/references">Справочники</RouterLink>
       </nav>
       <div v-if="store.me" class="user">
