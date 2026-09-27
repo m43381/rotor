@@ -1,6 +1,8 @@
 <script setup lang="ts">
-// Карточка человека: данные, характеристики, освобождения, история изменений.
+// Карточка человека: данные, характеристики, освобождения, допуски, история изменений.
 import Button from 'primevue/button'
+import Checkbox from 'primevue/checkbox'
+import DatePicker from 'primevue/datepicker'
 import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
 import Dialog from 'primevue/dialog'
@@ -24,15 +26,17 @@ import {
   personnel,
   unwrap,
   type AuditEntry,
+  type Clearance,
   type Exemption,
   type Person,
 } from '@/api/client'
 import AttributeFields from '@/components/AttributeFields.vue'
+import ClearanceGrantDialog from '@/components/ClearanceGrantDialog.vue'
 import ExemptionDialog from '@/components/ExemptionDialog.vue'
 import UnitTreeSelect from '@/components/UnitTreeSelect.vue'
 import { useRefsStore } from '@/stores/refs'
 import { useUnitsStore } from '@/stores/units'
-import { formatDate, formatDateTime } from '@/utils/dates'
+import { formatDate, formatDateTime, fromIso, toIso } from '@/utils/dates'
 
 const route = useRoute()
 const router = useRouter()
@@ -130,11 +134,11 @@ async function loadHistory() {
 
 onMounted(async () => {
   await load()
-  await loadHistory()
+  await Promise.all([loadHistory(), loadClearances()])
 })
 watch(personId, async () => {
   await load()
-  await loadHistory()
+  await Promise.all([loadHistory(), loadClearances()])
 })
 
 function showError(e: unknown) {
@@ -322,6 +326,132 @@ function deleteExemption(e: Exemption) {
   })
 }
 
+// --- допуски к ролям нарядов (ADR-0009) -------------------------------------------------------
+const clearances = ref<Clearance[]>([])
+const showRevoked = ref(false)
+const grantVisible = ref(false)
+// Индикатор на вкладке: действующие допуски, которые не проходят текущие требования роли
+const mismatches = computed(() => clearances.value.filter((c) => c.violations.length > 0).length)
+const activeClearances = computed(() => clearances.value.filter((c) => c.status !== 'revoked').length)
+
+async function loadClearances() {
+  try {
+    clearances.value = await unwrap(
+      personnel.GET('/people/{person_id}/clearances', {
+        params: { path: { person_id: personId.value }, query: { include_revoked: showRevoked.value } },
+      }),
+    )
+  } catch {
+    clearances.value = []
+  }
+}
+watch(showRevoked, loadClearances)
+
+async function runClearance(action: () => Promise<Clearance[]>, success: string): Promise<boolean> {
+  busy.value = true
+  try {
+    await action()
+    await loadClearances()
+    toast.add({ severity: 'success', summary: success, life: 3000 })
+    await loadHistory()
+    return true
+  } catch (e) {
+    showError(e)
+    if (e instanceof ApiError && e.status === 409) await loadClearances()
+    return false
+  } finally {
+    busy.value = false
+  }
+}
+
+async function onGrant(value: {
+  duty_role_id: string
+  valid_from: string | null
+  valid_to: string | null
+  confirm_override: boolean
+  override_comment: string | null
+}) {
+  const ok = await runClearance(
+    () =>
+      unwrap(
+        personnel.POST('/people/{person_id}/clearances', {
+          params: { path: { person_id: personId.value } },
+          body: value,
+        }),
+      ),
+    value.confirm_override ? 'Допуск выдан вопреки требованиям' : 'Допуск выдан',
+  )
+  if (ok) grantVisible.value = false
+}
+
+const STATUS: Record<string, { label: string; severity: string }> = {
+  active: { label: 'Действует', severity: 'success' },
+  future: { label: 'Ещё не действует', severity: 'info' },
+  expired: { label: 'Истёк', severity: 'secondary' },
+  revoked: { label: 'Отозван', severity: 'secondary' },
+  role_inactive: { label: 'Роль не действует', severity: 'secondary' },
+}
+
+function period(c: Clearance) {
+  if (!c.valid_from && !c.valid_to) return 'бессрочно'
+  const from = c.valid_from ? `с ${formatDate(c.valid_from)}` : ''
+  const to = c.valid_to ? `по ${formatDate(c.valid_to)}` : ''
+  return [from, to].filter(Boolean).join(' ')
+}
+
+const datesVisible = ref(false)
+const datesTarget = ref<Clearance | null>(null)
+const datesFrom = ref<Date | null>(null)
+const datesTo = ref<Date | null>(null)
+
+function openDates(c: Clearance) {
+  datesTarget.value = c
+  datesFrom.value = c.valid_from ? fromIso(c.valid_from) : null
+  datesTo.value = c.valid_to ? fromIso(c.valid_to) : null
+  datesVisible.value = true
+}
+
+async function saveDates() {
+  const c = datesTarget.value
+  if (!c) return
+  const ok = await runClearance(
+    () =>
+      unwrap(
+        personnel.PATCH('/clearances/{clearance_id}', {
+          params: { path: { clearance_id: c.id } },
+          body: {
+            version: c.version,
+            valid_from: datesFrom.value ? toIso(datesFrom.value) : null,
+            valid_to: datesTo.value ? toIso(datesTo.value) : null,
+          },
+        }),
+      ),
+    'Срок допуска изменён',
+  )
+  if (ok) datesVisible.value = false
+}
+
+function revoke(c: Clearance) {
+  confirm.require({
+    header: 'Отозвать допуск?',
+    message: `${c.duty_type_name}: ${c.role_name}. Человек перестанет назначаться на эту роль.`,
+    icon: 'pi pi-ban',
+    acceptProps: { label: 'Отозвать', severity: 'danger' },
+    rejectProps: { label: 'Отмена', severity: 'secondary', text: true },
+    accept: () =>
+      runClearance(
+        () =>
+          unwrap(
+            personnel.POST('/clearances/{clearance_id}/revoke', {
+              params: { path: { clearance_id: c.id } },
+              body: {},
+            }),
+          ),
+        'Допуск отозван',
+      ),
+  })
+}
+
 const ACTIONS: Record<string, string> = {
   'person.create': 'Добавлен',
   'person.update': 'Изменён',
@@ -329,6 +459,10 @@ const ACTIONS: Record<string, string> = {
   'person.restore': 'Восстановлен в списках',
   'person.transfer': 'Перевод',
   'exemption.create': 'Освобождение',
+  'clearance.grant': 'Допуск выдан',
+  'clearance.grant_override': 'Допуск вопреки требованиям',
+  'clearance.update': 'Срок допуска',
+  'clearance.revoke': 'Допуск отозван',
 }
 function describe(entry: AuditEntry): string {
   const fields = Object.keys(entry.after ?? entry.before ?? {})
@@ -396,6 +530,14 @@ function describe(entry: AuditEntry): string {
       <TabList>
         <Tab value="main">Данные</Tab>
         <Tab value="exemptions">Освобождения ({{ person.exemptions.length }})</Tab>
+        <Tab value="clearances">
+          Допуски ({{ activeClearances }})
+          <i
+            v-if="mismatches"
+            class="pi pi-exclamation-triangle mismatch-icon"
+            :title="`Не проходят требования роли: ${mismatches}`"
+          />
+        </Tab>
         <Tab value="history">История</Tab>
       </TabList>
       <TabPanels>
@@ -483,6 +625,70 @@ function describe(entry: AuditEntry): string {
           </DataTable>
         </TabPanel>
 
+        <TabPanel value="clearances">
+          <div class="toolbar">
+            <Button v-if="editable" label="Выдать допуск" icon="pi pi-plus" @click="grantVisible = true" />
+            <label class="check">
+              <Checkbox v-model="showRevoked" binary input-id="show-revoked" />
+              <span>Показывать отозванные</span>
+            </label>
+          </div>
+          <Message v-if="mismatches" severity="warn" :closable="false">
+            Допусков, не проходящих текущие требования роли: {{ mismatches }}. Они действуют (допуск
+            важнее требований), но попадают в отчёт о несоответствиях.
+          </Message>
+          <DataTable :value="clearances" data-key="id" class="clearances">
+            <template #empty>Допусков нет</template>
+            <Column header="Роль и наряд">
+              <template #body="{ data }">
+                <div class="role">{{ data.role_name }}</div>
+                <small class="sub">{{ data.duty_type_name }} · {{ data.owner_unit_name }}</small>
+              </template>
+            </Column>
+            <Column header="Срок" style="width: 13rem">
+              <template #body="{ data }">{{ period(data) }}</template>
+            </Column>
+            <Column header="Статус" style="width: 11rem">
+              <template #body="{ data }">
+                <Tag :value="STATUS[data.status]?.label" :severity="STATUS[data.status]?.severity" />
+              </template>
+            </Column>
+            <Column header="Требования">
+              <template #body="{ data }">
+                <Tag v-if="data.overrides_requirements" value="Выдан вопреки требованиям" severity="warn" />
+                <ul v-if="data.violations.length" class="violations">
+                  <li v-for="v in data.violations" :key="v.message">{{ v.message }}</li>
+                </ul>
+                <span v-else-if="!data.overrides_requirements && data.status !== 'revoked'" class="sub">
+                  соответствует
+                </span>
+                <div v-if="data.override_comment" class="sub">Обоснование: {{ data.override_comment }}</div>
+              </template>
+            </Column>
+            <Column header="Выдал" style="width: 12rem">
+              <template #body="{ data }">
+                {{ data.granted_by_name }}
+                <div class="sub">{{ formatDateTime(data.granted_at) }}</div>
+              </template>
+            </Column>
+            <Column v-if="editable" style="width: 7rem">
+              <template #body="{ data }">
+                <template v-if="data.status !== 'revoked'">
+                  <Button icon="pi pi-calendar" text rounded aria-label="Изменить срок" @click="openDates(data)" />
+                  <Button
+                    icon="pi pi-ban"
+                    text
+                    rounded
+                    severity="danger"
+                    aria-label="Отозвать допуск"
+                    @click="revoke(data)"
+                  />
+                </template>
+              </template>
+            </Column>
+          </DataTable>
+        </TabPanel>
+
         <TabPanel value="history">
           <DataTable :value="history" data-key="id">
             <template #empty>Изменений нет</template>
@@ -536,6 +742,30 @@ function describe(entry: AuditEntry): string {
         <div class="dialog-actions">
           <Button label="Отмена" severity="secondary" text @click="transferVisible = false" />
           <Button label="Перевести" :disabled="!transferTarget" :loading="busy" @click="transfer" />
+        </div>
+      </div>
+    </Dialog>
+    <ClearanceGrantDialog
+      v-model:visible="grantVisible"
+      :person-id="person.id"
+      :busy="busy"
+      @submit="onGrant"
+      @error="showError"
+    />
+    <Dialog v-model:visible="datesVisible" header="Срок действия допуска" modal :style="{ width: '28rem' }">
+      <div class="dialog">
+        <label for="cd-from">Действует с</label>
+        <DatePicker v-model="datesFrom" input-id="cd-from" date-format="dd.mm.yy" show-button-bar placeholder="Сразу" />
+        <label for="cd-to">по</label>
+        <DatePicker v-model="datesTo" input-id="cd-to" date-format="dd.mm.yy" show-button-bar placeholder="Бессрочно" />
+        <div class="dialog-actions">
+          <Button label="Отмена" severity="secondary" text @click="datesVisible = false" />
+          <Button
+            label="Сохранить"
+            :disabled="!!datesFrom && !!datesTo && datesTo < datesFrom"
+            :loading="busy"
+            @click="saveDates"
+          />
         </div>
       </div>
     </Dialog>
@@ -604,6 +834,34 @@ h3 {
 }
 .toolbar {
   margin-bottom: 0.75rem;
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+.check {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+.mismatch-icon {
+  color: var(--p-orange-500);
+  margin-left: 0.25rem;
+}
+.clearances {
+  margin-top: 0.75rem;
+}
+.role {
+  font-weight: 600;
+}
+.sub {
+  color: var(--p-text-muted-color);
+  font-size: 0.85rem;
+}
+.violations {
+  margin: 0.25rem 0 0;
+  padding-left: 1.1rem;
+  color: var(--p-orange-700);
+  font-size: 0.9rem;
 }
 .dialog {
   display: grid;

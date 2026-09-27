@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Личный состав в зоне ответственности: постраничная навигация (open-questions №33),
-// фильтр по дереву, поиск, массовое освобождение.
+// фильтр по дереву, поиск, массовое освобождение и массовая выдача допусков.
 import Button from 'primevue/button'
 import Checkbox from 'primevue/checkbox'
 import Column from 'primevue/column'
@@ -12,6 +12,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { ApiError, personnel, unwrap, type PersonCreate, type PersonListItem } from '@/api/client'
+import BulkClearanceDialog from '@/components/BulkClearanceDialog.vue'
 import ExemptionDialog from '@/components/ExemptionDialog.vue'
 import PersonFormDialog from '@/components/PersonFormDialog.vue'
 import UnitTreeSelect from '@/components/UnitTreeSelect.vue'
@@ -124,6 +125,7 @@ async function onCreate(value: PersonCreate) {
 
 // --- массовое освобождение (болезнь, отпуск, командировка группы людей) ----------------------
 const exemptionVisible = ref(false)
+const clearanceVisible = ref(false)
 async function onBulkExemption(value: {
   reason_id: string
   date_from: string
@@ -167,6 +169,21 @@ async function onBulkExemption(value: {
         </p>
       </div>
       <div class="actions">
+        <Button
+          label="Несоответствия допусков"
+          icon="pi pi-exclamation-triangle"
+          severity="secondary"
+          text
+          @click="router.push('/reports/clearance-mismatches')"
+        />
+        <Button
+          v-if="canEdit"
+          label="Допуск"
+          icon="pi pi-verified"
+          severity="secondary"
+          :disabled="!selection.length"
+          @click="clearanceVisible = true"
+        />
         <Button
           v-if="canEdit"
           label="Освобождение"
@@ -233,6 +250,7 @@ async function onBulkExemption(value: {
       :default-unit-id="unitId ?? units.me?.unit.id ?? null"
       @submit="onCreate"
     />
+    <BulkClearanceDialog v-model:visible="clearanceVisible" :person-ids="selection.map((p) => p.id)" />
     <ExemptionDialog
       v-model:visible="exemptionVisible"
       :title="`Освобождение для ${selection.length} чел.`"

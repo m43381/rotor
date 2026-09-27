@@ -4,6 +4,7 @@ import createClient, { type Middleware } from 'openapi-fetch'
 import { accessToken, signIn } from '@/auth'
 import type { components, paths as OrgPaths } from './generated/org'
 import type { components as PC, paths as PersonnelPaths } from './generated/personnel'
+import type { components as SC, paths as SchedulingPaths } from './generated/scheduling'
 
 export type Unit = components['schemas']['UnitOut']
 export type UnitType = components['schemas']['UnitTypeOut']
@@ -21,6 +22,19 @@ export type AttributeDefinition = PC['schemas']['AttributeDefinitionOut']
 export type ExemptionReason = PC['schemas']['ExemptionReasonOut']
 export type BulkResult = PC['schemas']['BulkResult']
 export type AuditEntry = PC['schemas']['AuditEntryOut']
+export type Clearance = PC['schemas']['ClearanceOut']
+export type ClearanceOption = PC['schemas']['ClearanceOption']
+export type ClearanceRole = PC['schemas']['ClearanceRoleOut']
+export type Violation = PC['schemas']['ViolationOut']
+export type BulkClearanceResult = PC['schemas']['BulkClearanceResult']
+export type MismatchItem = PC['schemas']['MismatchItem']
+
+export type DutyType = SC['schemas']['DutyTypeOut']
+export type DutyRole = SC['schemas']['DutyRoleOut']
+export type DutyRoleIn = SC['schemas']['DutyRoleIn']
+export type DutyTypeCreate = SC['schemas']['DutyTypeCreate']
+export type DutyTypeUpdate = SC['schemas']['DutyTypeUpdate']
+export type AttributeRequirement = SC['schemas']['AttributeRequirement']
 
 /** Ошибка API в формате сервисов: `{code, message, details?}`. */
 export class ApiError extends Error {
@@ -53,6 +67,9 @@ org.use(auth)
 
 export const personnel = createClient<PersonnelPaths>({ baseUrl: '/api/personnel' })
 personnel.use(auth)
+
+export const scheduling = createClient<SchedulingPaths>({ baseUrl: '/api/scheduling' })
+scheduling.use(auth)
 
 interface Result<T> {
   data?: T

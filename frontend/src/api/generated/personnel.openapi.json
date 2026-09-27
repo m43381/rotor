@@ -665,6 +665,469 @@
         ]
       }
     },
+    "/people/{person_id}/clearances": {
+      "get": {
+        "tags": [
+          "clearances"
+        ],
+        "summary": "List Clearances",
+        "operationId": "list_clearances_people__person_id__clearances_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "person_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Person Id"
+            }
+          },
+          {
+            "name": "include_revoked",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Include Revoked"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ClearanceOut"
+                  },
+                  "title": "Response List Clearances People  Person Id  Clearances Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "clearances"
+        ],
+        "summary": "Выдать допуск",
+        "description": "Если человек не проходит требования роли — 422 `requirements_not_met` с перечнем нарушений в `details.violations`. Повтор с `confirm_override` и комментарием выдаёт допуск вопреки требованиям.",
+        "operationId": "grant_clearance_people__person_id__clearances_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "person_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Person Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClearanceIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ClearanceOut"
+                  },
+                  "title": "Response Grant Clearance People  Person Id  Clearances Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/people/{person_id}/clearance-options": {
+      "get": {
+        "tags": [
+          "clearances"
+        ],
+        "summary": "Роли, к которым можно выдать допуск, и соответствие требованиям",
+        "operationId": "clearance_options_people__person_id__clearance_options_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "person_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Person Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ClearanceOption"
+                  },
+                  "title": "Response Clearance Options People  Person Id  Clearance Options Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/clearances/{clearance_id}": {
+      "patch": {
+        "tags": [
+          "clearances"
+        ],
+        "summary": "Update Clearance",
+        "operationId": "update_clearance_clearances__clearance_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "clearance_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Clearance Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClearanceUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ClearanceOut"
+                  },
+                  "title": "Response Update Clearance Clearances  Clearance Id  Patch"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/clearances/{clearance_id}/revoke": {
+      "post": {
+        "tags": [
+          "clearances"
+        ],
+        "summary": "Revoke Clearance",
+        "operationId": "revoke_clearance_clearances__clearance_id__revoke_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "clearance_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Clearance Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevokeIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ClearanceOut"
+                  },
+                  "title": "Response Revoke Clearance Clearances  Clearance Id  Revoke Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/clearances/bulk": {
+      "post": {
+        "tags": [
+          "clearances"
+        ],
+        "summary": "Допуск группе людей",
+        "operationId": "bulk_clearance_clearances_bulk_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkClearanceIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkClearanceResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/clearance-roles": {
+      "get": {
+        "tags": [
+          "clearances"
+        ],
+        "summary": "Роли, допуски к которым оператор выдаёт своим людям",
+        "operationId": "clearance_roles_clearance_roles_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ClearanceRoleOut"
+                  },
+                  "type": "array",
+                  "title": "Response Clearance Roles Clearance Roles Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/reports/clearance-mismatches": {
+      "get": {
+        "tags": [
+          "clearances"
+        ],
+        "summary": "Действующие допуски, не проходящие текущие требования ролей",
+        "operationId": "clearance_mismatches_reports_clearance_mismatches_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "unit_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Unit Id"
+            }
+          },
+          {
+            "name": "subtree",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Subtree"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_MismatchItem_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/positions": {
       "get": {
         "tags": [
@@ -1241,6 +1704,28 @@
           }
         }
       }
+    },
+    "/internal/references": {
+      "post": {
+        "tags": [
+          "internal"
+        ],
+        "summary": "References",
+        "description": "Должности и характеристики — для проверки ссылок в требованиях ролей (scheduling).",
+        "operationId": "references_internal_references_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReferencesOut"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1553,6 +2038,103 @@
         ],
         "title": "AvailabilityOut"
       },
+      "BulkClearanceIn": {
+        "properties": {
+          "confirm_override": {
+            "type": "boolean",
+            "title": "Confirm Override",
+            "default": false
+          },
+          "override_comment": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Override Comment"
+          },
+          "valid_from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid From"
+          },
+          "valid_to": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid To"
+          },
+          "person_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 1000,
+            "minItems": 1,
+            "title": "Person Ids"
+          },
+          "duty_role_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Duty Role Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "person_ids",
+          "duty_role_ids"
+        ],
+        "title": "BulkClearanceIn"
+      },
+      "BulkClearanceResult": {
+        "properties": {
+          "done": {
+            "type": "integer",
+            "title": "Done"
+          },
+          "skipped": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Skipped"
+          },
+          "needs_override": {
+            "type": "integer",
+            "title": "Needs Override",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "done"
+        ],
+        "title": "BulkClearanceResult"
+      },
       "BulkExemptionIn": {
         "properties": {
           "reason_id": {
@@ -1622,6 +2204,422 @@
           "done"
         ],
         "title": "BulkResult"
+      },
+      "ClearanceIn": {
+        "properties": {
+          "confirm_override": {
+            "type": "boolean",
+            "title": "Confirm Override",
+            "default": false
+          },
+          "override_comment": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Override Comment"
+          },
+          "valid_from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid From"
+          },
+          "valid_to": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid To"
+          },
+          "duty_role_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Duty Role Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "duty_role_id"
+        ],
+        "title": "ClearanceIn"
+      },
+      "ClearanceOption": {
+        "properties": {
+          "duty_role_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Duty Role Id"
+          },
+          "role_name": {
+            "type": "string",
+            "title": "Role Name"
+          },
+          "duty_type_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duty Type Id"
+          },
+          "duty_type_name": {
+            "type": "string",
+            "title": "Duty Type Name"
+          },
+          "owner_unit_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Unit Id"
+          },
+          "owner_unit_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Unit Name"
+          },
+          "sort_order": {
+            "type": "integer",
+            "title": "Sort Order"
+          },
+          "has_requirements": {
+            "type": "boolean",
+            "title": "Has Requirements"
+          },
+          "violations": {
+            "items": {
+              "$ref": "#/components/schemas/ViolationOut"
+            },
+            "type": "array",
+            "title": "Violations"
+          },
+          "granted": {
+            "type": "boolean",
+            "title": "Granted"
+          }
+        },
+        "type": "object",
+        "required": [
+          "duty_role_id",
+          "role_name",
+          "duty_type_id",
+          "duty_type_name",
+          "owner_unit_id",
+          "owner_unit_name",
+          "sort_order",
+          "has_requirements",
+          "violations",
+          "granted"
+        ],
+        "title": "ClearanceOption",
+        "description": "Роль, к которой человеку можно выдать допуск, и его соответствие требованиям."
+      },
+      "ClearanceOut": {
+        "properties": {
+          "duty_role_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Duty Role Id"
+          },
+          "role_name": {
+            "type": "string",
+            "title": "Role Name"
+          },
+          "duty_type_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duty Type Id"
+          },
+          "duty_type_name": {
+            "type": "string",
+            "title": "Duty Type Name"
+          },
+          "owner_unit_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Unit Id"
+          },
+          "owner_unit_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Unit Name"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "person_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Person Id"
+          },
+          "valid_from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid From"
+          },
+          "valid_to": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid To"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "future",
+              "expired",
+              "revoked",
+              "role_inactive"
+            ],
+            "title": "Status"
+          },
+          "overrides_requirements": {
+            "type": "boolean",
+            "title": "Overrides Requirements"
+          },
+          "override_comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Override Comment"
+          },
+          "granted_by_name": {
+            "type": "string",
+            "title": "Granted By Name"
+          },
+          "granted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Granted At"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "violations": {
+            "items": {
+              "$ref": "#/components/schemas/ViolationOut"
+            },
+            "type": "array",
+            "title": "Violations"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "duty_role_id",
+          "role_name",
+          "duty_type_id",
+          "duty_type_name",
+          "owner_unit_id",
+          "owner_unit_name",
+          "id",
+          "person_id",
+          "valid_from",
+          "valid_to",
+          "status",
+          "overrides_requirements",
+          "override_comment",
+          "granted_by_name",
+          "granted_at",
+          "revoked_at",
+          "violations",
+          "version"
+        ],
+        "title": "ClearanceOut"
+      },
+      "ClearanceRoleOut": {
+        "properties": {
+          "duty_role_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Duty Role Id"
+          },
+          "role_name": {
+            "type": "string",
+            "title": "Role Name"
+          },
+          "duty_type_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duty Type Id"
+          },
+          "duty_type_name": {
+            "type": "string",
+            "title": "Duty Type Name"
+          },
+          "owner_unit_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Unit Id"
+          },
+          "owner_unit_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Unit Name"
+          },
+          "sort_order": {
+            "type": "integer",
+            "title": "Sort Order"
+          },
+          "has_requirements": {
+            "type": "boolean",
+            "title": "Has Requirements"
+          }
+        },
+        "type": "object",
+        "required": [
+          "duty_role_id",
+          "role_name",
+          "duty_type_id",
+          "duty_type_name",
+          "owner_unit_id",
+          "owner_unit_name",
+          "sort_order",
+          "has_requirements"
+        ],
+        "title": "ClearanceRoleOut"
+      },
+      "ClearanceUpdate": {
+        "properties": {
+          "valid_from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid From"
+          },
+          "valid_to": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid To"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version"
+        ],
+        "title": "ClearanceUpdate"
       },
       "ExemptionIn": {
         "properties": {
@@ -1834,6 +2832,141 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "MismatchItem": {
+        "properties": {
+          "duty_role_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Duty Role Id"
+          },
+          "role_name": {
+            "type": "string",
+            "title": "Role Name"
+          },
+          "duty_type_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duty Type Id"
+          },
+          "duty_type_name": {
+            "type": "string",
+            "title": "Duty Type Name"
+          },
+          "owner_unit_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Unit Id"
+          },
+          "owner_unit_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Unit Name"
+          },
+          "clearance_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Clearance Id"
+          },
+          "person_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Person Id"
+          },
+          "person_name": {
+            "type": "string",
+            "title": "Person Name"
+          },
+          "unit_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Unit Id"
+          },
+          "unit_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Name"
+          },
+          "overrides_requirements": {
+            "type": "boolean",
+            "title": "Overrides Requirements"
+          },
+          "override_comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Override Comment"
+          },
+          "valid_to": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid To"
+          },
+          "violations": {
+            "items": {
+              "$ref": "#/components/schemas/ViolationOut"
+            },
+            "type": "array",
+            "title": "Violations"
+          }
+        },
+        "type": "object",
+        "required": [
+          "duty_role_id",
+          "role_name",
+          "duty_type_id",
+          "duty_type_name",
+          "owner_unit_id",
+          "owner_unit_name",
+          "clearance_id",
+          "person_id",
+          "person_name",
+          "unit_id",
+          "unit_name",
+          "overrides_requirements",
+          "override_comment",
+          "valid_to",
+          "violations"
+        ],
+        "title": "MismatchItem"
+      },
       "Page_AuditEntryOut_": {
         "properties": {
           "items": {
@@ -1864,6 +2997,37 @@
           "offset"
         ],
         "title": "Page[AuditEntryOut]"
+      },
+      "Page_MismatchItem_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MismatchItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "Page[MismatchItem]"
       },
       "Page_PersonListItem_": {
         "properties": {
@@ -2002,6 +3166,43 @@
             },
             "type": "array",
             "title": "Exemptions"
+          },
+          "clearances": {
+            "items": {
+              "prefixItems": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              ],
+              "type": "array",
+              "maxItems": 3,
+              "minItems": 3
+            },
+            "type": "array",
+            "title": "Clearances"
           }
         },
         "type": "object",
@@ -2012,7 +3213,8 @@
           "rank_order",
           "position_id",
           "attributes",
-          "exemptions"
+          "exemptions",
+          "clearances"
         ],
         "title": "PeopleBatchPerson"
       },
@@ -2578,6 +3780,51 @@
         ],
         "title": "PositionOut"
       },
+      "ReferencesOut": {
+        "properties": {
+          "positions": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Positions"
+          },
+          "attributes": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Attributes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "positions",
+          "attributes"
+        ],
+        "title": "ReferencesOut",
+        "description": "Внутренний API для scheduling: справочники, на которые ссылаются требования ролей."
+      },
+      "RevokeIn": {
+        "properties": {
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          }
+        },
+        "type": "object",
+        "title": "RevokeIn"
+      },
       "TransferIn": {
         "properties": {
           "person_ids": {
@@ -2642,6 +3889,41 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "ViolationOut": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "rank",
+              "position",
+              "attribute"
+            ],
+            "title": "Kind"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "code",
+          "message"
+        ],
+        "title": "ViolationOut"
       }
     },
     "securitySchemes": {

@@ -139,6 +139,129 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/people/{person_id}/clearances": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Clearances */
+        get: operations["list_clearances_people__person_id__clearances_get"];
+        put?: never;
+        /**
+         * Выдать допуск
+         * @description Если человек не проходит требования роли — 422 `requirements_not_met` с перечнем нарушений в `details.violations`. Повтор с `confirm_override` и комментарием выдаёт допуск вопреки требованиям.
+         */
+        post: operations["grant_clearance_people__person_id__clearances_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/people/{person_id}/clearance-options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Роли, к которым можно выдать допуск, и соответствие требованиям */
+        get: operations["clearance_options_people__person_id__clearance_options_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/clearances/{clearance_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Clearance */
+        patch: operations["update_clearance_clearances__clearance_id__patch"];
+        trace?: never;
+    };
+    "/clearances/{clearance_id}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Revoke Clearance */
+        post: operations["revoke_clearance_clearances__clearance_id__revoke_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/clearances/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Допуск группе людей */
+        post: operations["bulk_clearance_clearances_bulk_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/clearance-roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Роли, допуски к которым оператор выдаёт своим людям */
+        get: operations["clearance_roles_clearance_roles_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reports/clearance-mismatches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Действующие допуски, не проходящие текущие требования ролей */
+        get: operations["clearance_mismatches_reports_clearance_mismatches_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/positions": {
         parameters: {
             query?: never;
@@ -298,6 +421,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/references": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * References
+         * @description Должности и характеристики — для проверки ссылок в требованиях ролей (scheduling).
+         */
+        post: operations["references_internal_references_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -437,6 +580,38 @@ export interface components {
                 [key: string]: string;
             };
         };
+        /** BulkClearanceIn */
+        BulkClearanceIn: {
+            /**
+             * Confirm Override
+             * @default false
+             */
+            confirm_override: boolean;
+            /** Override Comment */
+            override_comment?: string | null;
+            /** Valid From */
+            valid_from?: string | null;
+            /** Valid To */
+            valid_to?: string | null;
+            /** Person Ids */
+            person_ids: string[];
+            /** Duty Role Ids */
+            duty_role_ids: string[];
+        };
+        /** BulkClearanceResult */
+        BulkClearanceResult: {
+            /** Done */
+            done: number;
+            /** Skipped */
+            skipped?: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Needs Override
+             * @default 0
+             */
+            needs_override: number;
+        };
         /** BulkExemptionIn */
         BulkExemptionIn: {
             /**
@@ -467,6 +642,139 @@ export interface components {
             skipped?: {
                 [key: string]: unknown;
             }[];
+        };
+        /** ClearanceIn */
+        ClearanceIn: {
+            /**
+             * Confirm Override
+             * @default false
+             */
+            confirm_override: boolean;
+            /** Override Comment */
+            override_comment?: string | null;
+            /** Valid From */
+            valid_from?: string | null;
+            /** Valid To */
+            valid_to?: string | null;
+            /**
+             * Duty Role Id
+             * Format: uuid
+             */
+            duty_role_id: string;
+        };
+        /**
+         * ClearanceOption
+         * @description Роль, к которой человеку можно выдать допуск, и его соответствие требованиям.
+         */
+        ClearanceOption: {
+            /**
+             * Duty Role Id
+             * Format: uuid
+             */
+            duty_role_id: string;
+            /** Role Name */
+            role_name: string;
+            /** Duty Type Id */
+            duty_type_id: string | null;
+            /** Duty Type Name */
+            duty_type_name: string;
+            /** Owner Unit Id */
+            owner_unit_id: string | null;
+            /** Owner Unit Name */
+            owner_unit_name: string | null;
+            /** Sort Order */
+            sort_order: number;
+            /** Has Requirements */
+            has_requirements: boolean;
+            /** Violations */
+            violations: components["schemas"]["ViolationOut"][];
+            /** Granted */
+            granted: boolean;
+        };
+        /** ClearanceOut */
+        ClearanceOut: {
+            /**
+             * Duty Role Id
+             * Format: uuid
+             */
+            duty_role_id: string;
+            /** Role Name */
+            role_name: string;
+            /** Duty Type Id */
+            duty_type_id: string | null;
+            /** Duty Type Name */
+            duty_type_name: string;
+            /** Owner Unit Id */
+            owner_unit_id: string | null;
+            /** Owner Unit Name */
+            owner_unit_name: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Person Id
+             * Format: uuid
+             */
+            person_id: string;
+            /** Valid From */
+            valid_from: string | null;
+            /** Valid To */
+            valid_to: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "future" | "expired" | "revoked" | "role_inactive";
+            /** Overrides Requirements */
+            overrides_requirements: boolean;
+            /** Override Comment */
+            override_comment: string | null;
+            /** Granted By Name */
+            granted_by_name: string;
+            /**
+             * Granted At
+             * Format: date-time
+             */
+            granted_at: string;
+            /** Revoked At */
+            revoked_at: string | null;
+            /** Violations */
+            violations: components["schemas"]["ViolationOut"][];
+            /** Version */
+            version: number;
+        };
+        /** ClearanceRoleOut */
+        ClearanceRoleOut: {
+            /**
+             * Duty Role Id
+             * Format: uuid
+             */
+            duty_role_id: string;
+            /** Role Name */
+            role_name: string;
+            /** Duty Type Id */
+            duty_type_id: string | null;
+            /** Duty Type Name */
+            duty_type_name: string;
+            /** Owner Unit Id */
+            owner_unit_id: string | null;
+            /** Owner Unit Name */
+            owner_unit_name: string | null;
+            /** Sort Order */
+            sort_order: number;
+            /** Has Requirements */
+            has_requirements: boolean;
+        };
+        /** ClearanceUpdate */
+        ClearanceUpdate: {
+            /** Valid From */
+            valid_from?: string | null;
+            /** Valid To */
+            valid_to?: string | null;
+            /** Version */
+            version: number;
         };
         /** ExemptionIn */
         ExemptionIn: {
@@ -576,10 +884,66 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** MismatchItem */
+        MismatchItem: {
+            /**
+             * Duty Role Id
+             * Format: uuid
+             */
+            duty_role_id: string;
+            /** Role Name */
+            role_name: string;
+            /** Duty Type Id */
+            duty_type_id: string | null;
+            /** Duty Type Name */
+            duty_type_name: string;
+            /** Owner Unit Id */
+            owner_unit_id: string | null;
+            /** Owner Unit Name */
+            owner_unit_name: string | null;
+            /**
+             * Clearance Id
+             * Format: uuid
+             */
+            clearance_id: string;
+            /**
+             * Person Id
+             * Format: uuid
+             */
+            person_id: string;
+            /** Person Name */
+            person_name: string;
+            /**
+             * Unit Id
+             * Format: uuid
+             */
+            unit_id: string;
+            /** Unit Name */
+            unit_name: string | null;
+            /** Overrides Requirements */
+            overrides_requirements: boolean;
+            /** Override Comment */
+            override_comment: string | null;
+            /** Valid To */
+            valid_to: string | null;
+            /** Violations */
+            violations: components["schemas"]["ViolationOut"][];
+        };
         /** Page[AuditEntryOut] */
         Page_AuditEntryOut_: {
             /** Items */
             items: components["schemas"]["AuditEntryOut"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /** Page[MismatchItem] */
+        Page_MismatchItem_: {
+            /** Items */
+            items: components["schemas"]["MismatchItem"][];
             /** Total */
             total: number;
             /** Limit */
@@ -644,6 +1008,12 @@ export interface components {
             exemptions: [
                 string,
                 string
+            ][];
+            /** Clearances */
+            clearances: [
+                string,
+                string | null,
+                string | null
             ][];
         };
         /** PersonCreate */
@@ -818,6 +1188,25 @@ export interface components {
              */
             id: string;
         };
+        /**
+         * ReferencesOut
+         * @description Внутренний API для scheduling: справочники, на которые ссылаются требования ролей.
+         */
+        ReferencesOut: {
+            /** Positions */
+            positions: {
+                [key: string]: unknown;
+            }[];
+            /** Attributes */
+            attributes: {
+                [key: string]: unknown;
+            }[];
+        };
+        /** RevokeIn */
+        RevokeIn: {
+            /** Comment */
+            comment?: string | null;
+        };
         /** TransferIn */
         TransferIn: {
             /** Person Ids */
@@ -840,6 +1229,18 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /** ViolationOut */
+        ViolationOut: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "rank" | "position" | "attribute";
+            /** Code */
+            code: string | null;
+            /** Message */
+            message: string;
         };
     };
     responses: never;
@@ -1222,6 +1623,262 @@ export interface operations {
             };
         };
     };
+    list_clearances_people__person_id__clearances_get: {
+        parameters: {
+            query?: {
+                include_revoked?: boolean;
+            };
+            header?: never;
+            path: {
+                person_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClearanceOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    grant_clearance_people__person_id__clearances_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                person_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClearanceIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClearanceOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    clearance_options_people__person_id__clearance_options_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                person_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClearanceOption"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_clearance_clearances__clearance_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clearance_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClearanceUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClearanceOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_clearance_clearances__clearance_id__revoke_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clearance_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RevokeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClearanceOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bulk_clearance_clearances_bulk_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkClearanceIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkClearanceResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    clearance_roles_clearance_roles_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClearanceRoleOut"][];
+                };
+            };
+        };
+    };
+    clearance_mismatches_reports_clearance_mismatches_get: {
+        parameters: {
+            query?: {
+                unit_id?: string | null;
+                subtree?: boolean;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_MismatchItem_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_positions_positions_get: {
         parameters: {
             query?: never;
@@ -1582,6 +2239,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    references_internal_references_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReferencesOut"];
                 };
             };
         };

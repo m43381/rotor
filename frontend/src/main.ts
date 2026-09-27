@@ -13,6 +13,8 @@ import { createRouter, createWebHistory } from 'vue-router'
 import App from './App.vue'
 import { ensureSignedIn } from './auth'
 import { ru } from './locale/ru'
+import ClearanceMismatchesView from './views/ClearanceMismatchesView.vue'
+import DutyTypesView from './views/DutyTypesView.vue'
 import PeopleView from './views/PeopleView.vue'
 import PersonView from './views/PersonView.vue'
 import ReferencesView from './views/ReferencesView.vue'
@@ -30,6 +32,8 @@ async function bootstrap() {
       { path: '/units', component: UnitsView },
       { path: '/people', component: PeopleView },
       { path: '/people/:id', component: PersonView },
+      { path: '/duty-types', component: DutyTypesView },
+      { path: '/reports/clearance-mismatches', component: ClearanceMismatchesView },
       { path: '/references', component: ReferencesView },
       { path: '/:pathMatch(.*)*', redirect: '/units' },
     ],

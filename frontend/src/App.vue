@@ -40,6 +40,7 @@ const roleLabel = computed(() =>
         <RouterLink to="/people" :class="{ 'router-link-active': route.path.startsWith('/people') }">
           Личный состав
         </RouterLink>
+        <RouterLink to="/duty-types">Наряды</RouterLink>
         <RouterLink v-if="isSuperadmin" to="/references">Справочники</RouterLink>
       </nav>
       <div v-if="store.me" class="user">
