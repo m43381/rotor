@@ -8,6 +8,7 @@ members = [
     "dutyflow-common",
     "dutyflow-org",
     "dutyflow-personnel",
+    "dutyflow-scheduling",
 ]
 
 [[package]]
@@ -346,6 +347,23 @@ requires-dist = [
 name = "dutyflow-personnel"
 version = "0.1.0"
 source = { editable = "services/personnel" }
+dependencies = [
+    { name = "alembic" },
+    { name = "dutyflow-common" },
+    { name = "uvicorn", extra = ["standard"] },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "alembic", specifier = ">=1.14" },
+    { name = "dutyflow-common", editable = "libs/common" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.32" },
+]
+
+[[package]]
+name = "dutyflow-scheduling"
+version = "0.1.0"
+source = { editable = "services/scheduling" }
 dependencies = [
     { name = "alembic" },
     { name = "dutyflow-common" },

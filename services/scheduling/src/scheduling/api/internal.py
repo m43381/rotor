@@ -1,0 +1,48 @@
+"""Внутренний batch-API для personnel (`docs/architecture.md` §3.3): требования ролей для
+проверки при выдаче допуска и полной пересинхронизации локальной копии."""
+
+from typing import Any
+
+from fastapi import APIRouter, Depends
+from sqlalchemy import select
+
+from dutyflow_common.auth import require_internal
+from scheduling.api.deps import SessionDep
+from scheduling.models import DutyRole, DutyType
+from scheduling.schemas import DutyRoleBatchItem, DutyRolesBatchIn
+
+router = APIRouter(prefix="/internal", tags=["internal"], dependencies=[Depends(require_internal)])
+
+
+@router.post("/duty-roles/batch", response_model=list[DutyRoleBatchItem])
+async def duty_roles_batch(data: DutyRolesBatchIn, session: SessionDep) -> list[dict[str, Any]]:
+    stmt = select(DutyRole, DutyType).join(DutyType, DutyType.id == DutyRole.duty_type_id)
+    if data.role_ids:
+        stmt = stmt.where(DutyRole.id.in_(data.role_ids))
+    if not data.include_inactive:
+        stmt = stmt.where(DutyRole.is_active, DutyType.is_active)
+    rows = await session.execute(stmt.order_by(DutyType.id, DutyRole.sort_order, DutyRole.id))
+    return [
+        {
+            "id": role.id,
+            "duty_type_id": role.duty_type_id,
+            "code": role.code,
+            "name": role.name,
+            "headcount": role.headcount,
+            "sort_order": role.sort_order,
+            "min_rank_order": role.min_rank_order,
+            "allowed_position_ids": role.allowed_position_ids,
+            "attribute_requirements": role.attribute_requirements,
+            "is_active": role.is_active,
+            "version": role.version,
+            "duty_type": {
+                "id": t.id,
+                "name": t.name,
+                "short_name": t.short_name,
+                "owner_unit_id": t.owner_unit_id,
+                "is_active": t.is_active,
+                "version": t.version,
+            },
+        }
+        for role, t in rows
+    ]

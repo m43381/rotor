@@ -106,6 +106,22 @@ DEFAULT_RULES: dict[RuleKey, Scope] = {
     },
     **_rules(Role.VIEWER, "person", read=SUBTREE),
     **_rules(Role.VIEWER, "exemption", read=SUBTREE),
+    # Типы нарядов ведёт подразделение-владелец (и вышестоящие операторы). Кроме своего
+    # поддерева оператор всегда видит наряды вышестоящих подразделений — их роли могут
+    # делегироваться вниз (ADR-0009); это правило реализует сервис scheduling.
+    **{
+        (role, "duty_type", action): SUBTREE
+        for role in (Role.UNIT_ADMIN, Role.OPERATOR)
+        for action in ("read", "create", "update")
+    },
+    **_rules(Role.VIEWER, "duty_type", read=SUBTREE),
+    # Допуски выдаёт оператор, в чей scope входит подразделение человека (ADR-0009).
+    **{
+        (role, "clearance", action): SUBTREE
+        for role in (Role.UNIT_ADMIN, Role.OPERATOR)
+        for action in ("read", "grant", "update", "revoke")
+    },
+    **_rules(Role.VIEWER, "clearance", read=SUBTREE),
     # Журнал аудита: оператор видит записи своего поддерева (ADR-0010).
     **_rules(Role.UNIT_ADMIN, "audit", read=SUBTREE),
     **_rules(Role.OPERATOR, "audit", read=SUBTREE),

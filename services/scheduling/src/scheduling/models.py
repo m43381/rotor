@@ -1,0 +1,141 @@
+"""Модели БД сервиса scheduling (`docs/data-model.md` §5).
+
+Фаза 2b — только справочная часть: типы нарядов с шаблоном времени (ADR-0008) и роли
+с требованиями (ADR-0009). Графики, ячейки и назначения появятся в фазе 3.
+"""
+
+import datetime as dt
+import uuid
+from typing import Any
+
+from sqlalchemy import (
+    ARRAY,
+    Boolean,
+    CheckConstraint,
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    SmallInteger,
+    String,
+    Time,
+    UniqueConstraint,
+    Uuid,
+    text,
+)
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import Mapped, mapped_column
+
+from dutyflow_common.audit import AuditLog
+from dutyflow_common.db import Base, TimestampMixin, UuidPkMixin, VersionedMixin
+from dutyflow_common.outbox import OutboxEvent, ProcessedEvent
+from dutyflow_common.projections import RankProjection, UnitProjection
+
+__all__ = [
+    "AuditLog",
+    "Base",
+    "DutyRole",
+    "DutyType",
+    "OutboxEvent",
+    "ProcessedEvent",
+    "RankProjection",
+    "UnitProjection",
+]
+
+MIN_DURATION = 60
+MAX_DURATION = 7 * 24 * 60
+DEFAULT_REST_HOURS = 48  # open-questions №8
+
+
+class DutyType(UuidPkMixin, TimestampMixin, VersionedMixin, Base):
+    """Тип наряда. Интервал экземпляра: [дата + start_time, + duration) (ADR-0008)."""
+
+    __tablename__ = "duty_type"
+    __table_args__ = (
+        CheckConstraint(
+            f"duration_minutes BETWEEN {MIN_DURATION} AND {MAX_DURATION}", name="duration"
+        ),
+        CheckConstraint("rest_hours BETWEEN 0 AND 720", name="rest_hours"),
+        CheckConstraint("load_weight > 0", name="load_weight"),
+        # Два действующих наряда с одним именем у одного подразделения путали бы операторов.
+        Index(
+            "uq_duty_type_owner_name_active",
+            "owner_unit_id",
+            "name",
+            unique=True,
+            postgresql_where=text("is_active"),
+        ),
+    )
+
+    name: Mapped[str] = mapped_column(String(200))
+    short_name: Mapped[str | None] = mapped_column(String(50))
+    owner_unit_id: Mapped[uuid.UUID] = mapped_column(index=True)
+    assigned_unit_id: Mapped[uuid.UUID | None]
+    start_time: Mapped[dt.time] = mapped_column(Time)
+    duration_minutes: Mapped[int] = mapped_column(Integer)
+    rest_hours: Mapped[int] = mapped_column(SmallInteger, default=DEFAULT_REST_HOURS)
+    load_weight: Mapped[float] = mapped_column(Numeric(4, 2, asdecimal=False), default=1.0)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    def snapshot(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "short_name": self.short_name,
+            "owner_unit_id": self.owner_unit_id,
+            "assigned_unit_id": self.assigned_unit_id,
+            "start_time": self.start_time,
+            "duration_minutes": self.duration_minutes,
+            "rest_hours": self.rest_hours,
+            "load_weight": self.load_weight,
+            "is_active": self.is_active,
+        }
+
+
+class DutyRole(UuidPkMixin, TimestampMixin, VersionedMixin, Base):
+    """Роль внутри наряда: численность и требования к человеку (ADR-0009).
+
+    Требования используются только при выдаче допуска и в отчёте о несоответствиях —
+    движок распределения их не видит, он смотрит на допуск.
+    """
+
+    __tablename__ = "duty_role"
+    __table_args__ = (
+        UniqueConstraint("duty_type_id", "code"),
+        CheckConstraint("headcount BETWEEN 1 AND 100", name="headcount"),
+    )
+
+    duty_type_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("duty_type.id"), index=True)
+    code: Mapped[str] = mapped_column(String(50))
+    name: Mapped[str] = mapped_column(String(200))
+    headcount: Mapped[int] = mapped_column(SmallInteger, default=1)
+    sort_order: Mapped[int] = mapped_column(SmallInteger, default=0)
+    min_rank_order: Mapped[int | None] = mapped_column(SmallInteger)
+    allowed_position_ids: Mapped[list[uuid.UUID] | None] = mapped_column(ARRAY(Uuid()))
+    # [{"code": "category", "op": "in", "value": ["Курсант"]}] — dutyflow_common.requirements
+    attribute_requirements: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB, server_default=text("'[]'::jsonb")
+    )
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    def snapshot(self) -> dict[str, Any]:
+        return {
+            "duty_type_id": self.duty_type_id,
+            "code": self.code,
+            "name": self.name,
+            "headcount": self.headcount,
+            "sort_order": self.sort_order,
+            "min_rank_order": self.min_rank_order,
+            "allowed_position_ids": (
+                sorted(map(str, self.allowed_position_ids))
+                if self.allowed_position_ids is not None
+                else None
+            ),
+            "attribute_requirements": self.attribute_requirements,
+            "is_active": self.is_active,
+        }
+
+
+def include_object(
+    obj: object, name: str | None, type_: str, reflected: bool, compare_to: object
+) -> bool:
+    return True

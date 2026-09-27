@@ -1,0 +1,23 @@
+"""Общие зависимости роутеров scheduling."""
+
+from typing import Annotated
+
+from fastapi import Depends, Request
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from dutyflow_common.auth import get_operator
+from dutyflow_common.context import Operator
+from dutyflow_common.db import get_session
+from scheduling.duty_types import DutyTypeService
+
+SessionDep = Annotated[AsyncSession, Depends(get_session)]
+OperatorDep = Annotated[Operator, Depends(get_operator)]
+
+
+def duty_type_service(
+    request: Request, session: SessionDep, operator: OperatorDep
+) -> DutyTypeService:
+    return DutyTypeService(session, operator, request.app.state.refs_loader)
+
+
+DutyTypeServiceDep = Annotated[DutyTypeService, Depends(duty_type_service)]

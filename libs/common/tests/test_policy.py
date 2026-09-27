@@ -39,3 +39,12 @@ def test_personnel_rules() -> None:
         is Scope.OWN_AND_ALL_DESCENDANTS
     )
     assert default_policy.scope_for({Role.OPERATOR}, "position", "create") is Scope.NONE
+
+
+def test_duty_type_and_clearance_rules() -> None:
+    subtree = Scope.OWN_AND_ALL_DESCENDANTS
+    assert default_policy.scope_for({Role.OPERATOR}, "duty_type", "create") is subtree
+    assert default_policy.scope_for({Role.VIEWER}, "duty_type", "update") is Scope.NONE
+    assert default_policy.scope_for({Role.UNIT_ADMIN}, "clearance", "grant") is subtree
+    assert default_policy.scope_for({Role.VIEWER}, "clearance", "read") is subtree
+    assert default_policy.scope_for({Role.VIEWER}, "clearance", "revoke") is Scope.NONE

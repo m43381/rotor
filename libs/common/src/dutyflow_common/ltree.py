@@ -26,6 +26,11 @@ def is_descendant_or_self(path: SQLColumnExpression[str], ancestor: str) -> Colu
     return path.op("<@", return_type=Boolean())(cast(literal(ancestor), Ltree()))
 
 
+def is_ancestor_or_self(path: SQLColumnExpression[str], descendant: str) -> ColumnElement[bool]:
+    """`path @> descendant` — узел лежит на пути от корня до `descendant`, включая его самого."""
+    return path.op("@>", return_type=Boolean())(cast(literal(descendant), Ltree()))
+
+
 def matches(path: SQLColumnExpression[str], query: str) -> ColumnElement[bool]:
     """`path ~ lquery`."""
     return path.op("~", return_type=Boolean())(cast(literal(query), Lquery()))
