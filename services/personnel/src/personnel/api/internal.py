@@ -1,6 +1,7 @@
 """Внутренние batch-эндпоинты для scheduling/documents (`docs/architecture.md` §3.2).
 
-Снимок личного состава собирается тремя запросами (люди, характеристики, освобождения)
+Снимок личного состава собирается четырьмя запросами (люди, характеристики, освобождения,
+допуски)
 независимо от числа людей — без N+1 (правило `CLAUDE.md` №4). Ответ сериализуется напрямую
 в JSON (pydantic-core), минуя построение 50 тыс. pydantic-моделей.
 """
@@ -12,15 +13,29 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Response
 from pydantic_core import to_json
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
+from sqlalchemy.dialects.postgresql import aggregate_order_by
 
 from dutyflow_common.auth import require_internal
 from dutyflow_common.errors import ValidationFailedError
 from dutyflow_common.ltree import is_descendant_or_self
 from dutyflow_common.projections import RankProjection, UnitProjection
 from personnel.api.deps import SessionDep
-from personnel.models import AttributeDefinition, Exemption, Person, PersonAttribute
-from personnel.schemas import AvailabilityIn, AvailabilityOut, PeopleBatchIn, PeopleBatchPerson
+from personnel.models import (
+    AttributeDefinition,
+    Clearance,
+    Exemption,
+    Person,
+    PersonAttribute,
+    Position,
+)
+from personnel.schemas import (
+    AvailabilityIn,
+    AvailabilityOut,
+    PeopleBatchIn,
+    PeopleBatchPerson,
+    ReferencesOut,
+)
 
 router = APIRouter(prefix="/internal", tags=["internal"], dependencies=[Depends(require_internal)])
 
@@ -72,6 +87,25 @@ async def people_batch(data: PeopleBatchIn, session: SessionDep) -> Response:
         .order_by(Exemption.date_from)
     ):
         exemptions[person_id].append((date_from, date_to))
+    # Допусков в ~5 раз больше, чем людей: агрегируем в БД — одна строка на человека,
+    # массивы декодирует asyncpg, а не цикл по строкам в Python.
+    clearances: dict[uuid.UUID, list[tuple[uuid.UUID, dt.date | None, dt.date | None]]] = {}
+    for person_id, roles, froms, tos in await session.execute(
+        select(
+            Clearance.person_id,
+            func.array_agg(aggregate_order_by(Clearance.duty_role_id, Clearance.duty_role_id)),
+            func.array_agg(aggregate_order_by(Clearance.valid_from, Clearance.duty_role_id)),
+            func.array_agg(aggregate_order_by(Clearance.valid_to, Clearance.duty_role_id)),
+        )
+        .join(ids, ids.c.id == Clearance.person_id)
+        .where(
+            Clearance.revoked_at.is_(None),
+            or_(Clearance.valid_from.is_(None), Clearance.valid_from <= data.date_to),
+            or_(Clearance.valid_to.is_(None), Clearance.valid_to >= data.date_from),
+        )
+        .group_by(Clearance.person_id)
+    ):
+        clearances[person_id] = list(zip(roles, froms, tos, strict=True))
 
     return _json(
         [
@@ -83,6 +117,7 @@ async def people_batch(data: PeopleBatchIn, session: SessionDep) -> Response:
                 "position_id": position_id,
                 "attributes": attrs.get(pid, {}),
                 "exemptions": exemptions.get(pid, []),
+                "clearances": clearances.get(pid, []),
             }
             for pid, unit_id, rank_id, rank_order, position_id in people
         ]
@@ -117,4 +152,24 @@ async def availability_batch(data: AvailabilityIn, session: SessionDep) -> Respo
             "days": days,
             "masks": {k: v.decode() for k, v in masks.items()},
         }
+    )
+
+
+@router.post("/references", response_model=ReferencesOut)
+async def references(session: SessionDep) -> ReferencesOut:
+    """Должности и характеристики — для проверки ссылок в требованиях ролей (scheduling)."""
+    positions = await session.execute(select(Position.id, Position.name, Position.is_active))
+    attributes = await session.scalars(select(AttributeDefinition))
+    return ReferencesOut(
+        positions=[{"id": i, "name": n, "is_active": a} for i, n, a in positions],
+        attributes=[
+            {
+                "code": a.code,
+                "name": a.name,
+                "value_type": a.value_type,
+                "enum_options": a.enum_options,
+                "is_active": a.is_active,
+            }
+            for a in attributes
+        ],
     )

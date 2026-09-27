@@ -8,11 +8,9 @@ from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.exc import StaleDataError
 
 from dutyflow_common import audit
-from dutyflow_common.context import Operator
 from dutyflow_common.errors import (
     ConflictError,
     ForbiddenError,
@@ -22,9 +20,8 @@ from dutyflow_common.errors import (
 from dutyflow_common.ltree import is_descendant_or_self
 from dutyflow_common.outbox import add_event
 from dutyflow_common.pagination import Page, PageParams
-from dutyflow_common.policy import Policy, default_policy
-from dutyflow_common.projections import RankProjection, UnitProjection, unit_path
-from dutyflow_common.scope import Scope, in_scope, scope_clause
+from dutyflow_common.projections import RankProjection, UnitProjection
+from dutyflow_common.scope import in_scope, scope_clause
 from personnel.attributes import validate_values
 from personnel.models import (
     AttributeDefinition,
@@ -47,6 +44,7 @@ from personnel.schemas import (
     PersonOut,
     PersonUpdate,
 )
+from personnel.scoped import ScopedService, check_version
 
 OVERLAP_CONSTRAINT = "ex_exemption_no_overlap"
 EXEMPTION_EVENTS = {
@@ -61,47 +59,7 @@ def _like_pattern(q: str) -> str:
     return f"%{escaped}%"
 
 
-class PeopleService:
-    def __init__(
-        self, session: AsyncSession, operator: Operator, policy: Policy = default_policy
-    ) -> None:
-        self.session = session
-        self.operator = operator
-        self.policy = policy
-        self._op_path: str | None = None
-
-    # --- scope ---------------------------------------------------------------------------
-
-    async def operator_path(self) -> str:
-        if self._op_path is None:
-            self._op_path = await unit_path(self.session, self.operator.unit_id)
-        return self._op_path
-
-    def _scope(self, resource: str, action: str) -> Scope:
-        return self.policy.scope_for(self.operator.roles, resource, action)
-
-    async def _unit(self, unit_id: uuid.UUID) -> UnitProjection:
-        unit = await self.session.get(UnitProjection, unit_id)
-        if unit is None:
-            raise ValidationFailedError("Подразделение не найдено")
-        return unit
-
-    async def _require_unit(self, resource: str, action: str, unit_id: uuid.UUID) -> UnitProjection:
-        unit = await self._unit(unit_id)
-        if not in_scope(unit.path, await self.operator_path(), self._scope(resource, action)):
-            raise ForbiddenError("Подразделение вне зоны ответственности оператора")
-        return unit
-
-    async def _person(self, person_id: uuid.UUID, resource: str, action: str) -> Person:
-        person = await self.session.get(Person, person_id)
-        if person is None:
-            raise NotFoundError("Человек не найден")
-        try:
-            await self._require_unit(resource, action, person.unit_id)
-        except ValidationFailedError as exc:  # подразделение неизвестно — для оператора «нет»
-            raise NotFoundError("Человек не найден") from exc
-        return person
-
+class PeopleService(ScopedService):
     # --- список и карточка -----------------------------------------------------------------
 
     def _list_query(self) -> Any:  # Select с четырьмя колонками; точный тип громоздок
@@ -291,7 +249,7 @@ class PeopleService:
         person = await self._person(person_id, "person", "update")
         if not person.is_active:
             raise ValidationFailedError("Человек исключён из списков — сначала восстановите его")
-        _check_version(person.version, data.version)
+        check_version(person.version, data.version)
         fields = data.model_fields_set - {"version", "attributes"}
         if {"last_name", "first_name"} & fields and not all(
             getattr(data, f) for f in {"last_name", "first_name"} & fields
@@ -339,7 +297,7 @@ class PeopleService:
         self, person_id: uuid.UUID, version: int, *, archived: bool, comment: str | None
     ) -> Person:
         person = await self._person(person_id, "person", "archive")
-        _check_version(person.version, version)
+        check_version(person.version, version)
         if person.is_active != archived:
             raise ValidationFailedError(
                 "Человек уже исключён из списков" if archived else "Человек не исключён из списков"
@@ -449,7 +407,7 @@ class PeopleService:
 
     async def update_exemption(self, exemption_id: uuid.UUID, data: ExemptionUpdate) -> Exemption:
         exemption, person = await self._exemption(exemption_id, "update")
-        _check_version(exemption.version, data.version)
+        check_version(exemption.version, data.version)
         await self._reason(data.reason_id)
         before = exemption.snapshot()
         for key, value in data.model_dump(exclude={"version"}).items():
@@ -552,21 +510,6 @@ class PeopleService:
         except StaleDataError as exc:
             await self.session.rollback()
             raise ConflictError("Карточка уже изменена другим пользователем") from exc
-
-    async def _commit(self) -> None:
-        try:
-            await self.session.commit()
-        except StaleDataError as exc:
-            await self.session.rollback()
-            raise ConflictError("Данные уже изменены другим пользователем") from exc
-
-
-def _check_version(current: int, given: int) -> None:
-    if current != given:
-        raise ConflictError(
-            "Данные уже изменены другим пользователем. Обновите страницу.",
-            details={"current_version": current},
-        )
 
 
 def _event(p: Person) -> dict[str, Any]:

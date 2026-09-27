@@ -4,7 +4,7 @@
 PostgreSQL 16 в контейнере) — сериализация и запросы к БД включены, сеть — нет.
 
 - `POST /internal/people/batch` — снимок для движка распределения: люди поддерева
-  с характеристиками и освобождениями за месяц;
+  с характеристиками, освобождениями и допусками за месяц;
 - `GET /people` — страница списка в scope оператора (виртуальный скролл UI) и поиск по ФИО.
 
     just bench-people        # → docs/benchmarks/people-snapshot.md
@@ -39,18 +39,21 @@ RUNS = 10
 SEED = 20260926
 MONTH_FROM, MONTH_TO = dt.date(2026, 11, 1), dt.date(2026, 11, 30)
 INTERNAL = "bench-token"
+ROLES = 20  # ролей нарядов в организации
+CLEARANCES_PER_PERSON = 5  # оценка объёма `docs/data-model.md` §8: ~250 тыс. на 50 тыс. человек
 
 
 async def load(url: str, people: int) -> dict[str, Any]:
-    """Дерево (проекция) + люди + характеристика «категория» + освобождения у ~15%."""
+    """Дерево (проекция) + люди + характеристика «категория» + освобождения у ~15%
+    + допуски (~5 ролей на человека, у части — со сроком действия)."""
     rng = random.Random(SEED + people)
     tree = generate_tree(UNITS, rng)
     unit_ids = [uuid.uuid5(uuid.NAMESPACE_OID, f"unit-{i}") for i in range(len(tree.parent))]
     conn = await asyncpg.connect(url)
     try:
         await conn.execute(
-            "TRUNCATE person, person_attribute, exemption, unit_projection, audit_log, outbox"
-            " CASCADE"
+            "TRUNCATE person, person_attribute, exemption, clearance, unit_projection, audit_log,"
+            " outbox CASCADE"
         )
         # ltree нельзя передать бинарным COPY — вставляем пачками через executemany
         await conn.executemany(
@@ -68,7 +71,8 @@ async def load(url: str, people: int) -> dict[str, Any]:
         )
         reason_id = await conn.fetchval("SELECT id FROM exemption_reason WHERE code = 'leave'")
         now = dt.datetime.now(dt.UTC)
-        person_rows, attr_rows, ex_rows = [], [], []
+        roles = [uuid.uuid5(uuid.NAMESPACE_OID, f"role-{i}") for i in range(ROLES)]
+        person_rows, attr_rows, ex_rows, cl_rows = [], [], [], []
         for k in range(people):
             pid = uuid.uuid5(uuid.NAMESPACE_OID, f"person-{people}-{k}")
             f = fio(rng)
@@ -76,6 +80,23 @@ async def load(url: str, people: int) -> dict[str, Any]:
                 (pid, unit_ids[rng.choice(leaves)], f.last, f.first, f.middle, True, now, now, 1)
             )
             attr_rows.append((pid, category_id, '{"v": "Курсант"}'))
+            for role in rng.sample(roles, CLEARANCES_PER_PERSON):
+                valid_to = MONTH_FROM + dt.timedelta(days=rng.randint(-30, 60))
+                cl_rows.append(
+                    (
+                        uuid.uuid4(),
+                        pid,
+                        role,
+                        valid_to if rng.random() < 0.2 else None,
+                        False,
+                        "bench",
+                        "bench",
+                        now,
+                        now,
+                        now,
+                        1,
+                    )
+                )
             if rng.random() < 0.15:
                 start = MONTH_FROM + dt.timedelta(days=rng.randint(-10, 25))
                 ex_rows.append(
@@ -121,6 +142,23 @@ async def load(url: str, people: int) -> dict[str, Any]:
                 "date_from",
                 "date_to",
                 "created_by",
+                "created_at",
+                "updated_at",
+                "version",
+            ],
+        )
+        await conn.copy_records_to_table(
+            "clearance",
+            records=cl_rows,
+            columns=[
+                "id",
+                "person_id",
+                "duty_role_id",
+                "valid_to",
+                "overrides_requirements",
+                "granted_by",
+                "granted_by_name",
+                "granted_at",
                 "created_at",
                 "updated_at",
                 "version",
@@ -234,7 +272,8 @@ def render(rows: list[dict[str, Any]], version: str) -> str:
         f"PostgreSQL {version}, "
         f"{platform.system()} {platform.machine()}, Python {platform.python_version()}. "
         f"Код сервиса personnel в процессе (ASGI, без сети), медиана {RUNS} прогонов, мс. "
-        f"Дерево — {num(UNITS)} подразделений, у ~15% людей освобождения, период снимка — "
+        f"Дерево — {num(UNITS)} подразделений, у ~15% людей освобождения, "
+        f"{CLEARANCES_PER_PERSON} допусков на человека ({ROLES} ролей), период снимка — "
         f"{MONTH_FROM:%d.%m}–{MONTH_TO:%d.%m.%Y}. Seed {SEED}.",
         "",
         "| Людей в БД | Операция | Записей | Время, мс | Ответ, КБ |",
@@ -251,6 +290,13 @@ def render(rows: list[dict[str, Any]], version: str) -> str:
         "Время страницы списка растёт с объёмом из-за подсчёта `total` (count по JOIN со scope) "
         "и OFFSET; сама выборка страницы идёт по индексу сортировки. Если на реальных данных это "
         "станет заметно, total можно считать приблизительно или кэшировать.",
+        "",
+        "С фазы 2b снимок включает допуски (~5 на человека): они дают около половины объёма "
+        "ответа и основную часть времени на 20–50 тыс. человек (до 2b снимок 50 000 человек "
+        "занимал 1,4 с и 10 МБ). Допуски агрегируются в БД по человеку. Компактный формат снимка "
+        "(словарь ролей вместо повторяющихся UUID или Arrow, `docs/architecture.md` §4) — задача "
+        "фазы 3, когда снимок начнёт собирать scheduling; движок работает с поддеревом "
+        "подразделения, а не со всей организацией.",
         "",
     ]
     return "\n".join(lines)

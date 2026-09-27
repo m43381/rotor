@@ -129,8 +129,9 @@ async def org(app: FastAPI, settings: PersonnelSettings) -> Org:
     async with engine.begin() as conn:
         await conn.execute(
             text(
-                "TRUNCATE person, person_attribute, exemption, position, unit_projection,"
-                " rank_projection, audit_log, outbox, processed_event CASCADE"
+                "TRUNCATE person, person_attribute, exemption, clearance, position,"
+                " unit_projection, rank_projection, duty_type_projection, duty_role_projection,"
+                " audit_log, outbox, processed_event CASCADE"
             )
         )
         # Справочники из миграции (причины, характеристика «категория») не трогаем,

@@ -10,6 +10,7 @@ import uuid
 from typing import Any
 
 from sqlalchemy import (
+    ARRAY,
     Boolean,
     CheckConstraint,
     Column,
@@ -17,9 +18,11 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    Integer,
     SmallInteger,
     String,
     Text,
+    Uuid,
     func,
     text,
 )
@@ -34,6 +37,9 @@ from dutyflow_common.projections import RankProjection, UnitProjection
 __all__ = [
     "AttributeDefinition",
     "AuditLog",
+    "Clearance",
+    "DutyRoleProjection",
+    "DutyTypeProjection",
     "Exemption",
     "ExemptionReason",
     "OutboxEvent",
@@ -191,3 +197,89 @@ class Exemption(UuidPkMixin, TimestampMixin, VersionedMixin, Base):
             "date_to": self.date_to,
             "comment": self.comment,
         }
+
+
+class Clearance(UuidPkMixin, TimestampMixin, VersionedMixin, Base):
+    """Допуск человека к роли наряда (ADR-0009). Отзыв не удаляет строку: история остаётся."""
+
+    __tablename__ = "clearance"
+    __table_args__ = (
+        # Один действующий (неотозванный) допуск на роль; после отзыва можно выдать заново.
+        Index(
+            "uq_clearance_person_role_active",
+            "person_id",
+            "duty_role_id",
+            unique=True,
+            postgresql_where=text("revoked_at IS NULL"),
+        ),
+        Index("ix_clearance_role", "duty_role_id", postgresql_where=text("revoked_at IS NULL")),
+        CheckConstraint(
+            "valid_from IS NULL OR valid_to IS NULL OR valid_to >= valid_from", name="dates"
+        ),
+        CheckConstraint(
+            "NOT overrides_requirements OR length(btrim(coalesce(override_comment, ''))) > 0",
+            name="override_comment",
+        ),
+    )
+
+    person_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("person.id", ondelete="CASCADE"), index=True
+    )
+    duty_role_id: Mapped[uuid.UUID]  # scheduling.duty_role, без FK (разные БД)
+    valid_from: Mapped[dt.date | None] = mapped_column(Date)
+    valid_to: Mapped[dt.date | None] = mapped_column(Date)
+    overrides_requirements: Mapped[bool] = mapped_column(Boolean, default=False)
+    override_comment: Mapped[str | None] = mapped_column(Text)
+    granted_by: Mapped[str] = mapped_column(String(100))
+    granted_by_name: Mapped[str] = mapped_column(String(200))
+    granted_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    revoked_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+    revoked_by: Mapped[str | None] = mapped_column(String(100))
+
+    def snapshot(self) -> dict[str, Any]:
+        return {
+            "person_id": self.person_id,
+            "duty_role_id": self.duty_role_id,
+            "valid_from": self.valid_from,
+            "valid_to": self.valid_to,
+            "overrides_requirements": self.overrides_requirements,
+            "override_comment": self.override_comment,
+            "revoked": self.revoked_at is not None,
+        }
+
+
+# --- локальная копия ролей нарядов из scheduling -------------------------------------------------
+
+
+class DutyTypeProjection(Base):
+    """Тип наряда (только то, что нужно для допусков): владелец определяет, чьим людям можно
+    выдавать допуск к его ролям. Заполняется событиями `duty_type.changed`."""
+
+    __tablename__ = "duty_type_projection"
+
+    duty_type_id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(200))
+    short_name: Mapped[str | None] = mapped_column(String(50))
+    owner_unit_id: Mapped[uuid.UUID]
+    is_active: Mapped[bool] = mapped_column(Boolean)
+    source_version: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class DutyRoleProjection(Base):
+    """Роль и её требования. Проверка при выдаче допуска не зависит от доступности scheduling
+    (план фазы 2, шаг 2b). Заполняется событиями `duty_role.changed`."""
+
+    __tablename__ = "duty_role_projection"
+
+    duty_role_id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    duty_type_id: Mapped[uuid.UUID] = mapped_column(index=True)
+    code: Mapped[str] = mapped_column(String(50))
+    name: Mapped[str] = mapped_column(String(200))
+    sort_order: Mapped[int] = mapped_column(SmallInteger, default=0)
+    min_rank_order: Mapped[int | None] = mapped_column(SmallInteger)
+    allowed_position_ids: Mapped[list[uuid.UUID] | None] = mapped_column(ARRAY(Uuid()))
+    attribute_requirements: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
+    is_active: Mapped[bool] = mapped_column(Boolean)
+    source_version: Mapped[int] = mapped_column(Integer, default=0)

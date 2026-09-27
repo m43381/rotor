@@ -201,6 +201,9 @@ class PeopleBatchPerson(BaseModel):
     attributes: dict[str, Any]
     # Освобождения, пересекающие период, как пары [from, to] включительно
     exemptions: list[tuple[dt.date, dt.date]]
+    # Неотозванные допуски, действующие хотя бы в часть периода: [роль, с, по] (NULL — без границы).
+    # Требования ролей здесь не проверяются: допуск важнее требований (ADR-0009).
+    clearances: list[tuple[uuid.UUID, dt.date | None, dt.date | None]]
 
 
 class AvailabilityIn(BaseModel):
@@ -229,3 +232,123 @@ class AuditEntryOut(BaseModel):
     before: dict[str, object] | None
     after: dict[str, object] | None
     comment: str | None
+
+
+# --- допуски (ADR-0009) -----------------------------------------------------------------------
+
+ClearanceStatus = Literal["active", "future", "expired", "revoked", "role_inactive"]
+
+
+class ClearanceDates(BaseModel):
+    valid_from: dt.date | None = None
+    valid_to: dt.date | None = None
+
+    @model_validator(mode="after")
+    def _dates(self) -> "ClearanceDates":
+        if self.valid_from and self.valid_to and self.valid_to < self.valid_from:
+            raise ValueError("Дата окончания допуска раньше даты начала")
+        return self
+
+
+class OverrideIn(BaseModel):
+    """Подтверждение выдачи вопреки требованиям роли: без комментария не принимается."""
+
+    confirm_override: bool = False
+    override_comment: str | None = Field(default=None, max_length=2000)
+
+    @model_validator(mode="after")
+    def _comment(self) -> "OverrideIn":
+        if self.confirm_override and not (self.override_comment or "").strip():
+            raise ValueError("Укажите, почему допуск выдаётся вопреки требованиям роли")
+        return self
+
+
+class ClearanceIn(ClearanceDates, OverrideIn):
+    duty_role_id: uuid.UUID
+
+
+class ClearanceUpdate(ClearanceDates):
+    version: int
+
+
+class RevokeIn(BaseModel):
+    comment: str | None = Field(default=None, max_length=2000)
+
+
+class BulkClearanceIn(ClearanceDates, OverrideIn):
+    person_ids: list[uuid.UUID] = Field(min_length=1, max_length=1000)
+    duty_role_ids: list[uuid.UUID] = Field(min_length=1, max_length=50)
+
+
+class ViolationOut(BaseModel):
+    kind: Literal["rank", "position", "attribute"]
+    code: str | None
+    message: str
+
+
+class RoleRef(BaseModel):
+    """Роль наряда с названием типа и подразделения-владельца — для списков и отчётов."""
+
+    duty_role_id: uuid.UUID
+    role_name: str
+    duty_type_id: uuid.UUID | None
+    duty_type_name: str
+    owner_unit_id: uuid.UUID | None
+    owner_unit_name: str | None
+
+
+class ClearanceOut(RoleRef):
+    id: uuid.UUID
+    person_id: uuid.UUID
+    valid_from: dt.date | None
+    valid_to: dt.date | None
+    status: ClearanceStatus
+    overrides_requirements: bool
+    override_comment: str | None
+    granted_by_name: str
+    granted_at: dt.datetime
+    revoked_at: dt.datetime | None
+    # Нарушения текущих требований роли (пусто — соответствует); отчёт о несоответствиях
+    violations: list[ViolationOut]
+    version: int
+
+
+class ClearanceOption(RoleRef):
+    """Роль, к которой человеку можно выдать допуск, и его соответствие требованиям."""
+
+    sort_order: int
+    has_requirements: bool
+    violations: list[ViolationOut]
+    granted: bool
+
+
+class ClearanceRoleOut(RoleRef):
+    sort_order: int
+    has_requirements: bool
+
+
+class BulkClearanceResult(BaseModel):
+    done: int
+    # Не выдано: {person_id, name, duty_role_id, role_name, reason, violations?}
+    skipped: list[dict[str, Any]] = Field(default_factory=list)
+    # Сколько пропущено только из-за несоответствия требованиям — их можно выдать с подтверждением
+    needs_override: int = 0
+
+
+class MismatchItem(RoleRef):
+    clearance_id: uuid.UUID
+    person_id: uuid.UUID
+    person_name: str
+    unit_id: uuid.UUID
+    unit_name: str | None
+    overrides_requirements: bool
+    override_comment: str | None
+    valid_to: dt.date | None
+    violations: list[ViolationOut]
+
+
+class ReferencesOut(BaseModel):
+    """Внутренний API для scheduling: справочники, на которые ссылаются требования ролей."""
+
+    positions: list[dict[str, Any]]
+    attributes: list[dict[str, Any]]
