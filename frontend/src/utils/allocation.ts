@@ -18,7 +18,19 @@ export const REJECT_LABELS: Record<string, string> = {
   limit: 'исчерпан лимит',
 }
 
+export const METHOD_LABELS: Record<string, string> = {
+  auto: 'Автоматически',
+  greedy: 'Жадный (MRV)',
+  hungarian: 'Венгерский по дням',
+  local_search: 'Локальный поиск',
+  cpsat: 'CP-SAT',
+  'local_search+cpsat': 'Локальный поиск + CP-SAT',
+  flow: 'Min-cost flow',
+}
+
 export const RUN_STATUS: Record<string, { label: string; severity: string }> = {
+  queued: { label: 'В очереди', severity: 'secondary' },
+  running: { label: 'Считается', severity: 'secondary' },
   preview_ready: { label: 'Предпросмотр', severity: 'info' },
   applied: { label: 'Применён', severity: 'success' },
   discarded: { label: 'Отменён', severity: 'secondary' },

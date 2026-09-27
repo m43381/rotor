@@ -5,20 +5,32 @@ import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
 import Message from 'primevue/message'
 import RadioButton from 'primevue/radiobutton'
+import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 import { computed, ref, watch } from 'vue'
 
 import { ApiError, scheduling, unwrap, type Run, type RunBrief } from '@/api/client'
-import { RUN_STATUS } from '@/utils/allocation'
+import { METHOD_LABELS, RUN_STATUS } from '@/utils/allocation'
 import { formatDateTime } from '@/utils/dates'
 
-const props = defineProps<{ scheduleId: string; selectedCellIds: string[]; hasChildren: boolean }>()
+const props = defineProps<{
+  scheduleId: string
+  selectedCellIds: string[]
+  hasChildren: boolean
+  // Выбор метода — только суперадминистратору (open-questions №46)
+  canChooseMethod: boolean
+}>()
 const visible = defineModel<boolean>('visible', { required: true })
 const emit = defineEmits<{ preview: [run: Run] }>()
 
 const kind = ref<'people' | 'units'>('people')
 const mode = ref<'fill' | 'rebuild'>('fill')
 const scope = ref<'month' | 'selected'>('month')
+type Method = 'auto' | 'greedy' | 'hungarian' | 'local_search' | 'cpsat'
+const method = ref<Method>('auto')
+const METHODS: { value: Method; label: string }[] = (
+  ['auto', 'greedy', 'hungarian', 'local_search', 'cpsat'] as const
+).map((m) => ({ value: m, label: METHOD_LABELS[m] ?? m }))
 const busy = ref(false)
 const error = ref<string | null>(null)
 const history = ref<RunBrief[]>([])
@@ -52,6 +64,7 @@ async function run() {
           mode: kind.value === 'people' ? mode.value : 'fill',
           cell_ids: scope.value === 'selected' ? props.selectedCellIds : null,
           seed: 1,
+          method: kind.value === 'people' ? method.value : 'auto',
           config: {},
         },
       }),
@@ -114,6 +127,13 @@ async function open(r: RunBrief) {
           <span>Выбранные ячейки ({{ selectedCellIds.length }})</span>
         </label>
       </fieldset>
+      <fieldset v-if="canChooseMethod && kind === 'people'">
+        <legend>Метод</legend>
+        <Select v-model="method" :options="METHODS" option-label="label" option-value="value" input-id="method" />
+        <small class="muted">
+          «Автоматически» выбирает по размеру задачи. CP-SAT считается в фоне с большим пределом времени.
+        </small>
+      </fieldset>
       <p class="muted">
         Расчёт ничего не меняет: откроется предпросмотр с объяснением каждого решения, применить его
         можно отдельно.
@@ -124,7 +144,10 @@ async function open(r: RunBrief) {
         <strong>Прошлые прогоны</strong>
         <div v-for="h in history.slice(0, 5)" :key="h.id" class="history-row">
           <Tag :value="RUN_STATUS[h.status]?.label" :severity="RUN_STATUS[h.status]?.severity" />
-          <span>{{ h.kind === 'people' ? 'люди' : 'подразделения' }} · {{ h.filled }} из {{ h.places }}</span>
+          <span>
+            {{ h.kind === 'people' ? 'люди' : 'подразделения' }} · {{ h.filled }} из {{ h.places }}
+            <template v-if="h.method"> · {{ METHOD_LABELS[h.method] ?? h.method }}</template>
+          </span>
           <small class="muted">{{ formatDateTime(h.created_at) }}, {{ h.created_by_name }}</small>
           <Button label="Открыть" size="small" text @click="open(h)" />
         </div>

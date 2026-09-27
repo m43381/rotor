@@ -12,7 +12,7 @@ import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import {
@@ -236,6 +236,43 @@ const proposals = computed(() => {
   }
   return byCell
 })
+// Фоновый расчёт (фаза 5b): опрос прогона, пока не готов
+const elapsed = ref(0)
+let poller: ReturnType<typeof setInterval> | undefined
+let startedAt = 0
+
+function stopPolling() {
+  clearInterval(poller)
+  poller = undefined
+}
+
+function startPolling() {
+  stopPolling()
+  startedAt = Date.now()
+  elapsed.value = 0
+  poller = setInterval(async () => {
+    const run = preview.value
+    if (!run || (run.status !== 'queued' && run.status !== 'running')) return stopPolling()
+    elapsed.value = Math.round((Date.now() - startedAt) / 1000)
+    try {
+      const fresh = await unwrap(
+        scheduling.GET('/allocation-runs/{run_id}', { params: { path: { run_id: run.id } } }),
+      )
+      if (preview.value?.id !== fresh.id) return
+      if (fresh.status === 'queued' || fresh.status === 'running') {
+        preview.value = { ...run, status: fresh.status }
+      } else {
+        stopPolling()
+        showPreview(fresh)
+      }
+    } catch (e) {
+      stopPolling()
+      showError(e)
+    }
+  }, 2000)
+}
+onBeforeUnmount(stopPolling)
+
 const focused = computed(() => (focusCell.value ? (proposals.value.get(focusCell.value) ?? []) : []))
 
 function proposalText(c: Cell): string | null {
@@ -250,6 +287,7 @@ function proposalText(c: Cell): string | null {
 
 function showPreview(run: Run) {
   preview.value = run
+  if (run.status === 'queued' || run.status === 'running') startPolling()
   stale.value = run.status === 'stale'
   focusCell.value = run.decisions[0]?.day_plan_id ?? null
   selected.value = new Set()
@@ -304,6 +342,12 @@ async function recalc() {
           body: {
             kind: run.kind as 'people' | 'units',
             mode: run.mode as 'fill' | 'rebuild',
+            method: ((run.config as { method?: string }).method ?? 'auto') as
+              | 'auto'
+              | 'greedy'
+              | 'hungarian'
+              | 'local_search'
+              | 'cpsat',
             cell_ids: cfg.cell_ids ?? null,
             seed: run.seed,
             config: {},
@@ -751,6 +795,7 @@ function archive() {
           :decisions="focused"
           :busy="busy"
           :stale="stale"
+          :elapsed="elapsed"
           @apply="applyPreview"
           @discard="discardPreview"
           @close="preview = null"
@@ -771,6 +816,7 @@ function archive() {
       :schedule-id="table.schedule.id"
       :selected-cell-ids="[...selected]"
       :has-children="table.children.length > 0"
+      :can-choose-method="isSuperadmin"
       @preview="showPreview"
     />
     <CellPanel v-model:visible="panelVisible" :cell-id="panelCell" @changed="load" />

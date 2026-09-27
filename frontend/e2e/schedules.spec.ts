@@ -27,13 +27,18 @@ test('факультет делегирует роль курсу, курс пр
   const duty = roleCells(page, 'Дежурный по факультету')
   await expect(duty.first()).toBeVisible()
 
-  // Две ячейки дежурного (25-е и 26-е, без назначенных людей) — первому курсу
+  // Две ячейки дежурного (25-е и 26-е) — первому курсу. Если на демо-стенде там уже стоят
+  // люди (например, после автораспределения), соглашаемся их снять
   await duty.nth(24).click()
   await duty.nth(25).click({ modifiers: ['Shift'] })
   await expect(page.getByText('Выбрано ячеек: 2')).toBeVisible()
   await page.locator('#executor').click()
   await page.getByRole('option', { name: '1 курс, факультет 1' }).click()
   await page.getByRole('button', { name: 'Делегировать' }).click()
+  const drop = page.getByRole('button', { name: 'Снять и продолжить' })
+  const passed = page.locator('.p-toast-message', { hasText: 'Роль передана' })
+  await expect(drop.or(passed)).toBeVisible()
+  if (await drop.isVisible()) await drop.click()
   await expect(page.locator('.p-toast-message', { hasText: 'Роль передана' })).toBeVisible()
   await expect(duty.nth(24)).toHaveClass(/delegated_pending/)
   await expect(duty.nth(24)).toHaveText('1КФ1')

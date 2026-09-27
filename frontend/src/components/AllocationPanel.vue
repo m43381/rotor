@@ -3,14 +3,21 @@
 // по выбранной ячейке (признаки, альтернативы, отсев). Применить или отменить.
 import Button from 'primevue/button'
 import Message from 'primevue/message'
+import ProgressSpinner from 'primevue/progressspinner'
 import Tag from 'primevue/tag'
 import { computed } from 'vue'
 
 import type { Decision, Run } from '@/api/client'
-import { featureRows, rejectedText, RUN_STATUS } from '@/utils/allocation'
+import { featureRows, METHOD_LABELS, rejectedText, RUN_STATUS } from '@/utils/allocation'
 import { formatDate } from '@/utils/dates'
 
-const props = defineProps<{ run: Run; decisions: Decision[]; busy: boolean; stale: boolean }>()
+const props = defineProps<{
+  run: Run
+  decisions: Decision[]
+  busy: boolean
+  stale: boolean
+  elapsed: number
+}>()
 const emit = defineEmits<{ apply: []; discard: []; close: []; recalc: [] }>()
 
 const m = computed(() => props.run.metrics as Record<string, unknown>)
@@ -20,6 +27,8 @@ const deficits = computed(() => (m.value.deficits ?? []) as { message: string }[
 const unfilled = computed(() => (m.value.unfilled ?? []) as { message: string; missing: number }[])
 const removed = computed(() => ((m.value.removed ?? []) as string[]).length)
 const pending = computed(() => props.run.status === 'preview_ready')
+const computing = computed(() => props.run.status === 'queued' || props.run.status === 'running')
+const methodInfo = computed(() => (m.value.method_info ?? {}) as Record<string, unknown>)
 </script>
 
 <template>
@@ -32,77 +41,101 @@ const pending = computed(() => props.run.status === 'preview_ready')
       <Button icon="pi pi-times" text rounded severity="secondary" aria-label="Закрыть предпросмотр" @click="emit('close')" />
     </header>
 
+    <div v-if="computing" class="computing">
+      <ProgressSpinner style="width: 2rem; height: 2rem" stroke-width="6" />
+      <div>
+        <strong>{{ run.status === 'queued' ? 'Расчёт в очереди' : 'Идёт расчёт' }}</strong>
+        <div class="muted small">
+          Большая задача считается в фоне; прошло {{ elapsed }} с. Окно можно не держать открытым —
+          результат будет в истории прогонов.
+        </div>
+      </div>
+    </div>
+    <Message v-if="run.status === 'failed'" severity="error" :closable="false">
+      Расчёт не удался: {{ run.error }}
+    </Message>
+
     <Message v-if="stale" severity="warn" :closable="false">
       После расчёта данные изменились. Применять этот предпросмотр нельзя — пересчитайте.
       <Button label="Пересчитать" size="small" class="inline" @click="emit('recalc')" />
     </Message>
 
-    <div class="summary">
-      <div>
-        <span class="big">{{ num('filled') }}</span> из {{ num('places') }}
-        <small>{{ run.kind === 'people' ? 'мест закрыто' : 'ячеек передано' }}</small>
-      </div>
-      <div v-if="num('shortage')">
-        <span class="big warn">{{ num('shortage') }}</span>
-        <small>не закрыто</small>
-      </div>
-      <div v-if="m.upper_bound !== null && m.upper_bound !== undefined">
-        <span class="big">{{ num('upper_bound') }}</span>
-        <small>можно закрыть максимум</small>
-      </div>
-      <div v-if="removed">
-        <span class="big">{{ removed }}</span>
-        <small>автоматических назначений будет заменено</small>
-      </div>
-    </div>
-    <p class="muted small">
-      Справедливость нагрузки: Джини {{ fairness.gini ?? '—' }}, Джайн {{ fairness.jain ?? '—' }},
-      размах {{ fairness.range ?? '—' }} (по {{ fairness.people ?? 0 }} допущенным).
-    </p>
-
-    <details v-if="deficits.length" open>
-      <summary>Нехватка людей ({{ deficits.length }})</summary>
-      <ul>
-        <li v-for="d in deficits.slice(0, 8)" :key="d.message">{{ d.message }}</li>
-        <li v-if="deficits.length > 8" class="muted">и ещё {{ deficits.length - 8 }}</li>
-      </ul>
-    </details>
-    <details v-if="unfilled.length">
-      <summary>Не закрыто ({{ unfilled.length }})</summary>
-      <ul>
-        <li v-for="u in unfilled.slice(0, 8)" :key="u.message">
-          {{ u.message }}<template v-if="u.missing > 1"> (×{{ u.missing }})</template>
-        </li>
-      </ul>
-    </details>
-
-    <section class="explain">
-      <strong>Почему так</strong>
-      <p v-if="!decisions.length" class="muted small">Щёлкните по подсвеченной ячейке в таблице.</p>
-      <div v-for="d in decisions" :key="d.chosen_id" class="decision">
+    <template v-if="!computing && run.status !== 'failed'">
+      <p v-if="run.method" class="muted small">
+        Метод: {{ METHOD_LABELS[run.method] ?? run.method }}.
+        <template v-if="run.filled_optimal">Закрыто максимально возможное число мест — это доказано.</template>
+        <template v-else-if="methodInfo.optimal === false">Оптимальность решения не доказана.</template>
+      </p>
+      <div class="summary">
         <div>
-          {{ d.date ? formatDate(d.date) : '' }} · {{ d.role_name }}:
-          <strong>{{ d.chosen_name }}</strong>
-          <small class="muted"> — лучший из {{ d.candidates }} допустимых, стоимость {{ d.cost.toFixed(2) }}</small>
+          <span class="big">{{ num('filled') }}</span> из {{ num('places') }}
+          <small>{{ run.kind === 'people' ? 'мест закрыто' : 'ячеек передано' }}</small>
         </div>
-        <table class="features">
-          <tr v-for="f in featureRows(d.features)" :key="f.label">
-            <td>{{ f.label }}</td>
-            <td>{{ f.value }}</td>
-          </tr>
-        </table>
-        <div v-if="d.alternatives.length" class="small">
-          Следующие:
-          <span v-for="(a, i) in d.alternatives" :key="i">
-            {{ a.name }} ({{ Number(a.cost).toFixed(2) }})<template v-if="i < d.alternatives.length - 1">, </template>
-          </span>
+        <div v-if="num('shortage')">
+          <span class="big warn">{{ num('shortage') }}</span>
+          <small>не закрыто</small>
         </div>
-        <div v-if="run.kind === 'people' && rejectedText(d.rejected)" class="small muted">
-          Отсеяны: {{ rejectedText(d.rejected) }}
+        <div v-if="m.upper_bound !== null && m.upper_bound !== undefined">
+          <span class="big">{{ num('upper_bound') }}</span>
+          <small>можно закрыть максимум</small>
+        </div>
+        <div v-if="removed">
+          <span class="big">{{ removed }}</span>
+          <small>автоматических назначений будет заменено</small>
         </div>
       </div>
-    </section>
+      <p class="muted small">
+        Справедливость нагрузки: Джини {{ fairness.gini ?? '—' }}, Джайн {{ fairness.jain ?? '—' }},
+        размах {{ fairness.range ?? '—' }} (по {{ fairness.people ?? 0 }} допущенным).
+      </p>
 
+      <details v-if="deficits.length" open>
+        <summary>Нехватка людей ({{ deficits.length }})</summary>
+        <ul>
+          <li v-for="d in deficits.slice(0, 8)" :key="d.message">{{ d.message }}</li>
+          <li v-if="deficits.length > 8" class="muted">и ещё {{ deficits.length - 8 }}</li>
+        </ul>
+      </details>
+      <details v-if="unfilled.length">
+        <summary>Не закрыто ({{ unfilled.length }})</summary>
+        <ul>
+          <li v-for="u in unfilled.slice(0, 8)" :key="u.message">
+            {{ u.message }}<template v-if="u.missing > 1"> (×{{ u.missing }})</template>
+          </li>
+        </ul>
+      </details>
+
+      <section class="explain">
+        <strong>Почему так</strong>
+        <p v-if="!decisions.length" class="muted small">Щёлкните по подсвеченной ячейке в таблице.</p>
+        <div v-for="d in decisions" :key="d.chosen_id" class="decision">
+          <div>
+            {{ d.date ? formatDate(d.date) : '' }} · {{ d.role_name }}:
+            <strong>{{ d.chosen_name }}</strong>
+            <small class="muted"> — лучший из {{ d.candidates }} допустимых, стоимость {{ d.cost.toFixed(2) }}</small>
+          </div>
+          <table class="features">
+            <tr v-for="f in featureRows(d.features)" :key="f.label">
+              <td>{{ f.label }}</td>
+              <td>{{ f.value }}</td>
+            </tr>
+          </table>
+          <div v-if="d.alternatives.length" class="small">
+            Следующие:
+            <span v-for="(a, i) in d.alternatives" :key="i">
+              {{ a.name }} ({{ Number(a.cost).toFixed(2) }})<template v-if="i < d.alternatives.length - 1">, </template>
+            </span>
+          </div>
+          <div v-if="run.kind === 'people' && rejectedText(d.rejected)" class="small muted">
+            Отсеяны: {{ rejectedText(d.rejected) }}
+          </div>
+        </div>
+      </section>
+    </template>
+
+    <footer v-if="computing">
+      <Button label="Отменить расчёт" severity="secondary" text @click="emit('discard')" />
+    </footer>
     <footer v-if="pending && !stale">
       <Button label="Отменить" severity="secondary" text @click="emit('discard')" />
       <Button label="Применить" icon="pi pi-check" :loading="busy" @click="emit('apply')" />
@@ -131,6 +164,11 @@ header {
 header > div {
   display: flex;
   gap: 0.5rem;
+  align-items: center;
+}
+.computing {
+  display: flex;
+  gap: 0.75rem;
   align-items: center;
 }
 .summary {

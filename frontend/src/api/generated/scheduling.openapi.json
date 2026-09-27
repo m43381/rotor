@@ -1728,6 +1728,18 @@
             "title": "Seed",
             "default": 1
           },
+          "method": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "greedy",
+              "hungarian",
+              "local_search",
+              "cpsat"
+            ],
+            "title": "Method",
+            "default": "auto"
+          },
           "config": {
             "additionalProperties": true,
             "type": "object",
@@ -3455,6 +3467,8 @@
           "status": {
             "type": "string",
             "enum": [
+              "queued",
+              "running",
               "preview_ready",
               "applied",
               "discarded",
@@ -3466,6 +3480,39 @@
           "seed": {
             "type": "integer",
             "title": "Seed"
+          },
+          "method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Method"
+          },
+          "filled_optimal": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filled Optimal"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
           },
           "created_by_name": {
             "type": "string",
@@ -3516,6 +3563,9 @@
           "mode",
           "status",
           "seed",
+          "method",
+          "filled_optimal",
+          "error",
           "created_by_name",
           "created_at",
           "applied_at",
@@ -3548,6 +3598,8 @@
           "status": {
             "type": "string",
             "enum": [
+              "queued",
+              "running",
               "preview_ready",
               "applied",
               "discarded",
@@ -3559,6 +3611,39 @@
           "seed": {
             "type": "integer",
             "title": "Seed"
+          },
+          "method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Method"
+          },
+          "filled_optimal": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filled Optimal"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
           },
           "created_by_name": {
             "type": "string",
@@ -3626,6 +3711,9 @@
           "mode",
           "status",
           "seed",
+          "method",
+          "filled_optimal",
+          "error",
           "created_by_name",
           "created_at",
           "applied_at",

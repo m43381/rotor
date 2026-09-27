@@ -483,6 +483,12 @@ export interface components {
              * @default 1
              */
             seed: number;
+            /**
+             * Method
+             * @default auto
+             * @enum {string}
+             */
+            method: "auto" | "greedy" | "hungarian" | "local_search" | "cpsat";
             /** Config */
             config?: {
                 [key: string]: unknown;
@@ -1159,9 +1165,15 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "preview_ready" | "applied" | "discarded" | "stale" | "failed";
+            status: "queued" | "running" | "preview_ready" | "applied" | "discarded" | "stale" | "failed";
             /** Seed */
             seed: number;
+            /** Method */
+            method: string | null;
+            /** Filled Optimal */
+            filled_optimal: boolean | null;
+            /** Error */
+            error: string | null;
             /** Created By Name */
             created_by_name: string;
             /**
@@ -1198,9 +1210,15 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "preview_ready" | "applied" | "discarded" | "stale" | "failed";
+            status: "queued" | "running" | "preview_ready" | "applied" | "discarded" | "stale" | "failed";
             /** Seed */
             seed: number;
+            /** Method */
+            method: string | null;
+            /** Filled Optimal */
+            filled_optimal: boolean | null;
+            /** Error */
+            error: string | null;
             /** Created By Name */
             created_by_name: string;
             /**
