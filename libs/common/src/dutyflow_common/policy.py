@@ -137,6 +137,12 @@ DEFAULT_RULES: dict[RuleKey, Scope] = {
         for action in ("read", "grant", "update", "revoke")
     },
     **_rules(Role.VIEWER, "clearance", read=SUBTREE),
+    # Реквизиты печатных форм (open-questions №52): видят все в своём поддереве, задаёт
+    # администратор подразделения. Шаблоны форм меняет только суперадминистратор (№51) —
+    # правил для других ролей нет.
+    **_rules(Role.UNIT_ADMIN, "document_settings", read=SUBTREE, update=SUBTREE),
+    **_rules(Role.OPERATOR, "document_settings", read=SUBTREE),
+    **_rules(Role.VIEWER, "document_settings", read=SUBTREE),
     # Журнал аудита: оператор видит записи своего поддерева (ADR-0010).
     **_rules(Role.UNIT_ADMIN, "audit", read=SUBTREE),
     **_rules(Role.OPERATOR, "audit", read=SUBTREE),

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+{# Ведомость суточного наряда на дату. #}
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Ведомость суточного наряда на {{ date_text }}</title>
+<style>
+  @page { size: A4; margin: 15mm 12mm 15mm 20mm; @bottom-right { content: "Лист " counter(page) " из " counter(pages); font-size: 8pt; } }
+  body { font-family: "Liberation Serif", "Times New Roman", serif; font-size: 11pt; color: #000; }
+  .head { display: flex; justify-content: space-between; align-items: flex-start; }
+  .approve { width: 80mm; text-align: center; line-height: 1.35; }
+  .draft { font-size: 16pt; font-weight: bold; letter-spacing: 3pt; border: 2px solid #000; padding: 1mm 4mm; }
+  h1 { text-align: center; font-size: 13pt; margin: 6mm 0 1mm; }
+  .sub { text-align: center; margin-bottom: 4mm; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { border: 0.6pt solid #000; padding: 1mm 1.5mm; vertical-align: top; }
+  th { text-align: center; font-size: 10pt; }
+  td.n { width: 8mm; text-align: center; }
+  tr.duty td { font-weight: bold; background: #eee; }
+  .missing { color: #b00; font-style: italic; }
+  thead { display: table-header-group; }
+  tr { page-break-inside: avoid; }
+  .sign { margin-top: 8mm; }
+</style>
+</head>
+<body>
+  <div class="head">
+    <div>{% if draft %}<span class="draft">ПРОЕКТ</span>{% endif %}</div>
+    {% if not draft %}
+    <div class="approve">
+      УТВЕРЖДАЮ<br>
+      {{ requisites.approver_position or "" }}<br>
+      {{ requisites.approver_rank or "" }} ____________ {{ requisites.approver_name or "" }}<br>
+      «____» ______________ {{ date.year }} г.
+    </div>
+    {% endif %}
+  </div>
+  <h1>Ведомость суточного наряда</h1>
+  <div class="sub">{{ unit.name }} на {{ date_text }} ({{ weekday }}{% if day_name %}, {{ day_name }}{% endif %})</div>
+  <table>
+    <thead>
+      <tr><th>№</th><th>Наряд, роль</th><th>Воинское звание</th><th>Фамилия, имя, отчество</th><th>Подразделение</th></tr>
+    </thead>
+    <tbody>
+      {% set n = namespace(i=0) %}
+      {% for duty in duties %}
+      <tr class="duty"><td colspan="5">{{ duty.name }} — с {{ duty.start }} до {{ duty.end }}{% if duty.executor %} ({{ duty.executor }}){% endif %}</td></tr>
+        {% for role in duty.roles %}
+          {% for p in role.people %}
+            {% set n.i = n.i + 1 %}
+            <tr><td class="n">{{ n.i }}</td><td>{{ role.name }}</td><td>{{ p.rank or "" }}</td><td>{{ p.full_name }}</td><td>{{ p.unit or "" }}</td></tr>
+          {% endfor %}
+          {% for _ in range(role.missing) %}
+            <tr><td class="n"></td><td>{{ role.name }}</td><td colspan="3" class="missing">не назначен</td></tr>
+          {% endfor %}
+        {% endfor %}
+      {% else %}
+      <tr><td colspan="5" class="missing">Нарядов на эту дату нет</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div class="sign">
+    Составил: {{ requisites.compiler_position or "" }} {{ requisites.compiler_rank or "" }} ____________ {{ requisites.compiler_name or "" }}
+  </div>
+</body>
+</html>

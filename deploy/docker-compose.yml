@@ -258,15 +258,30 @@ services:
       args:
         SERVICE: documents
     image: dutyflow/documents:dev
-    environment:
+    environment: &documents-env
       <<: *service-env
       SERVICE_NAME: documents
       DATABASE_URL: postgresql+asyncpg://documents:${DOCUMENTS_DB_PASSWORD}@postgres:5432/documents_db
       PERSONNEL_URL: http://personnel:8000
+      SCHEDULING_URL: http://scheduling:8000
+      ORG_URL: http://org:8000
     depends_on:
       db-init:
         condition: service_completed_successfully
       personnel:
+        condition: service_healthy
+      scheduling:
+        condition: service_healthy
+    restart: unless-stopped
+
+  documents-relay:
+    image: dutyflow/documents:dev
+    command: ["python", "-m", "documents.relay"]
+    healthcheck:
+      disable: true
+    environment: *documents-env
+    depends_on:
+      documents:
         condition: service_healthy
     restart: unless-stopped
 

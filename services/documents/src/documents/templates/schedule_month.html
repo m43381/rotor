@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+{# График нарядов на месяц. Переменные — см. «Доступные данные» на странице шаблонов. #}
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>{{ title }}</title>
+<style>
+  @page { size: A4 landscape; margin: 12mm 10mm 14mm; @bottom-right { content: "Лист " counter(page) " из " counter(pages); font-size: 8pt; } }
+  body { font-family: "Liberation Serif", "Times New Roman", serif; font-size: 9pt; color: #000; }
+  .head { display: flex; justify-content: space-between; align-items: flex-start; }
+  .approve { width: 75mm; text-align: center; font-size: 10pt; line-height: 1.35; }
+  .draft { font-size: 16pt; font-weight: bold; letter-spacing: 3pt; border: 2px solid #000; padding: 1mm 4mm; }
+  h1 { text-align: center; font-size: 13pt; margin: 4mm 0 1mm; }
+  .sub { text-align: center; font-size: 11pt; margin-bottom: 3mm; }
+  table { width: 100%; border-collapse: collapse; page-break-inside: auto; }
+  th, td { border: 0.6pt solid #000; padding: 0.6mm 1mm; vertical-align: top; }
+  th { font-weight: bold; text-align: center; font-size: 8.5pt; }
+  td.day { width: 13mm; text-align: center; white-space: nowrap; }
+  tr.off td.day { font-weight: bold; }
+  tr.off td { background: #eee; }
+  .line { display: block; }
+  .exec { font-style: italic; }
+  .missing { color: #b00; }
+  thead { display: table-header-group; }
+  tr { page-break-inside: avoid; }
+  .page { page-break-after: always; }
+  .page:last-of-type { page-break-after: auto; }
+  .sign { margin-top: 6mm; font-size: 10pt; }
+</style>
+</head>
+<body>
+{% for page in pages %}
+<section class="page">
+  <div class="head">
+    <div>{% if draft %}<span class="draft">ПРОЕКТ</span>{% endif %}</div>
+    {% if not draft %}
+    <div class="approve">
+      УТВЕРЖДАЮ<br>
+      {{ requisites.approver_position or "" }}<br>
+      {{ requisites.approver_rank or "" }} ____________ {{ requisites.approver_name or "" }}<br>
+      «____» ______________ {{ month.year }} г.
+    </div>
+    {% endif %}
+  </div>
+  <h1>{{ title }}</h1>
+  <div class="sub">{{ unit.name }} на {{ month_name }}{% if pages|length > 1 %} (лист {{ loop.index }} из {{ pages|length }}){% endif %}</div>
+  <table>
+    <thead>
+      <tr>
+        <th rowspan="2">Дата</th>
+        {% for group in page.groups %}<th colspan="{{ group.span }}">{{ group.duty_type }}<br><small>{{ group.start }}</small></th>{% endfor %}
+      </tr>
+      <tr>
+        {% for col in page.columns %}<th>{{ col.role }}{% if col.headcount > 1 %} ×{{ col.headcount }}{% endif %}</th>{% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in page.rows %}
+      <tr class="{{ 'off' if row.kind in ('weekend', 'holiday') else '' }}">
+        <td class="day">{{ row.day }} {{ row.weekday }}</td>
+        {% for cell in row.cells %}
+        <td>
+          {% if cell is none %}
+          {% elif cell.executor %}<span class="exec">{{ cell.executor }}</span>
+          {% else %}
+            {% for line in cell.lines %}<span class="line">{{ line }}</span>{% endfor %}
+            {% if cell.missing %}<span class="line missing">не назначено: {{ cell.missing }}</span>{% endif %}
+          {% endif %}
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if loop.last %}
+  <div class="sign">
+    Составил: {{ requisites.compiler_position or "" }} {{ requisites.compiler_rank or "" }} ____________ {{ requisites.compiler_name or "" }}
+  </div>
+  {% endif %}
+</section>
+{% endfor %}
+</body>
+</html>

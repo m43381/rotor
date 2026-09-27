@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+{# Приказ о назначении суточного наряда — те же данные, что у ведомости (open-questions №53). #}
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Приказ о назначении суточного наряда на {{ date_text }}</title>
+<style>
+  @page { size: A4; margin: 20mm 15mm 20mm 25mm; }
+  body { font-family: "Liberation Serif", "Times New Roman", serif; font-size: 13pt; line-height: 1.4; color: #000; }
+  .draft { font-size: 16pt; font-weight: bold; letter-spacing: 3pt; border: 2px solid #000; padding: 1mm 4mm; }
+  .center { text-align: center; }
+  h1 { font-size: 14pt; margin: 4mm 0 0; letter-spacing: 2pt; }
+  .meta { display: flex; justify-content: space-between; margin: 4mm 0; }
+  p { text-align: justify; text-indent: 12mm; margin: 0 0 2mm; }
+  p.item { text-indent: 12mm; }
+  .missing { font-style: italic; }
+  .sign { margin-top: 12mm; }
+  .sign td { padding: 0 2mm; vertical-align: bottom; }
+</style>
+</head>
+<body>
+  {% if draft %}<div><span class="draft">ПРОЕКТ</span></div>{% endif %}
+  <div class="center"><h1>ПРИКАЗ</h1>{{ unit.name }}</div>
+  <div class="meta"><span>«____» ______________ {{ date.year }} г.</span><span>№ ________</span></div>
+  <div class="center"><b>О назначении суточного наряда на {{ date_text }}</b></div>
+  <p>В целях поддержания внутреннего порядка и несения службы суточным нарядом</p>
+  <p><b>ПРИКАЗЫВАЮ:</b></p>
+  <p>1. Назначить в суточный наряд на {{ date_text }} ({{ weekday }}):</p>
+  {% for duty in duties %}
+    <p class="item">1.{{ loop.index }}. {{ duty.name }} (с {{ duty.start }} до {{ duty.end }}):
+      {% for role in duty.roles %}
+        {{ role.name|lower }} —
+        {% for p in role.people %}{{ p.rank|lower if p.rank else "" }} {{ p.full_name }}{% if p.unit %} ({{ p.unit }}){% endif %}{% if not loop.last %}, {% endif %}{% endfor %}
+        {% if role.missing %}<span class="missing">{{ "," if role.people else "" }} не назначено: {{ role.missing }}</span>{% endif %}{{ ";" if not loop.last else "." }}
+      {% endfor %}
+    </p>
+  {% endfor %}
+  <p>2. Контроль за выполнением приказа оставляю за собой.</p>
+  <table class="sign">
+    <tr>
+      <td>{{ requisites.approver_position or "" }}<br>{{ requisites.approver_rank or "" }}</td>
+      <td>____________</td>
+      <td>{{ requisites.approver_name or "" }}</td>
+    </tr>
+  </table>
+</body>
+</html>
