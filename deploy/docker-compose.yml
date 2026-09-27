@@ -16,18 +16,32 @@ services:
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      ORG_DB_PASSWORD: ${ORG_DB_PASSWORD}
-      PERSONNEL_DB_PASSWORD: ${PERSONNEL_DB_PASSWORD}
-      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./postgres/init-databases.sh:/docker-entrypoint-initdb.d/10-init-databases.sh:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d postgres"]
       interval: 5s
       timeout: 3s
       retries: 20
     restart: unless-stopped
+
+  # Одноразово создаёт недостающие БД и роли сервисов (в том числе на уже существующем томе).
+  db-init:
+    image: postgres:16-alpine
+    command: ["sh", "/ensure-databases.sh"]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      ORG_DB_PASSWORD: ${ORG_DB_PASSWORD}
+      PERSONNEL_DB_PASSWORD: ${PERSONNEL_DB_PASSWORD}
+      SCHEDULING_DB_PASSWORD: ${SCHEDULING_DB_PASSWORD}
+      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+    volumes:
+      - ./postgres/ensure-databases.sh:/ensure-databases.sh:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
 
   redis:
     image: redis:7-alpine
@@ -64,8 +78,8 @@ services:
     volumes:
       - ./keycloak/dutyflow-realm.json:/opt/keycloak/data/import/dutyflow-realm.json:ro
     depends_on:
-      postgres:
-        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
     healthcheck:
       # В образе нет curl — проверяем management-порт средствами bash.
       test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /auth/health/ready HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q UP <&3"]
@@ -89,8 +103,8 @@ services:
       ROOT_UNIT_ID: ${ROOT_UNIT_ID}
       ROOT_UNIT_NAME: ${ROOT_UNIT_NAME}
     depends_on:
-      postgres:
-        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
     restart: unless-stopped
@@ -121,9 +135,10 @@ services:
       SERVICE_NAME: personnel
       DATABASE_URL: postgresql+asyncpg://personnel:${PERSONNEL_DB_PASSWORD}@postgres:5432/personnel_db
       ORG_URL: http://org:8000
+      SCHEDULING_URL: http://scheduling:8000
     depends_on:
-      postgres:
-        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
     restart: unless-stopped
@@ -151,6 +166,53 @@ services:
         condition: service_healthy
       org:
         condition: service_healthy
+      scheduling:
+        condition: service_healthy
+    restart: unless-stopped
+
+  scheduling:
+    build:
+      context: ..
+      dockerfile: services/Dockerfile
+      args:
+        SERVICE: scheduling
+    image: dutyflow/scheduling:dev
+    environment: &scheduling-env
+      <<: *service-env
+      SERVICE_NAME: scheduling
+      DATABASE_URL: postgresql+asyncpg://scheduling:${SCHEDULING_DB_PASSWORD}@postgres:5432/scheduling_db
+      ORG_URL: http://org:8000
+      PERSONNEL_URL: http://personnel:8000
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  scheduling-relay:
+    image: dutyflow/scheduling:dev
+    command: ["python", "-m", "scheduling.relay"]
+    healthcheck:
+      disable: true
+    environment: *scheduling-env
+    depends_on:
+      scheduling:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Один экземпляр: проекции чувствительны к порядку событий (ADR-0011).
+  scheduling-consumer:
+    image: dutyflow/scheduling:dev
+    command: ["python", "-m", "scheduling.consumer"]
+    healthcheck:
+      disable: true
+    environment: *scheduling-env
+    depends_on:
+      scheduling:
+        condition: service_healthy
+      org:
+        condition: service_healthy
     restart: unless-stopped
 
   gateway:
@@ -165,6 +227,8 @@ services:
       org:
         condition: service_healthy
       personnel:
+        condition: service_healthy
+      scheduling:
         condition: service_healthy
       keycloak:
         condition: service_healthy

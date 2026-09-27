@@ -38,7 +38,7 @@ logs service="":
 lint:
     uv run ruff check .
     uv run ruff format --check .
-    uv run mypy libs/common/src services/org/src services/personnel/src tools
+    uv run mypy libs/common/src services/org/src services/personnel/src services/scheduling/src tools
     cd frontend; npm run lint; npm run typecheck; npm run check:licenses
 
 # Автоисправление форматирования
@@ -52,6 +52,7 @@ test *args:
     uv run pytest libs/common {{args}}
     uv run pytest services/org {{args}}
     uv run pytest services/personnel {{args}}
+    uv run pytest services/scheduling {{args}}
     cd frontend; npm test
 
 # E2E-тесты UI против стенда (после up и seed); браузер системный, PW_CHANNEL=msedge|chrome
@@ -82,7 +83,8 @@ bench:
 bench-people:
     uv run python tools/bench/people_snapshot.py
 
-# Демо-данные стенда: дерево, учётки операторов, личный состав (~1000 человек)
+# Демо-данные стенда: дерево, учётки операторов, личный состав (~1000 человек), наряды и допуски
 seed:
     uv run python tools/gen/seed_org.py
     uv run python tools/gen/seed_people.py
+    uv run python tools/gen/seed_duties.py

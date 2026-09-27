@@ -11,9 +11,14 @@ OUT = ROOT / "frontend" / "src" / "api" / "generated"
 def main() -> int:
     from org.main import create_app as org_app
     from personnel.main import create_app as personnel_app
+    from scheduling.main import create_app as scheduling_app
 
     OUT.mkdir(parents=True, exist_ok=True)
-    for name, factory in (("org", org_app), ("personnel", personnel_app)):
+    for name, factory in (
+        ("org", org_app),
+        ("personnel", personnel_app),
+        ("scheduling", scheduling_app),
+    ):
         schema = factory().openapi()
         text = json.dumps(schema, ensure_ascii=False, indent=2) + "\n"
         (OUT / f"{name}.openapi.json").write_text(text, encoding="utf-8", newline="\n")
