@@ -8,5 +8,9 @@ class SchedulingSettings(ServiceSettings):
     allocation_url: str = "http://allocation:8000"
     # Сколько дней хранить сжатые снимки прогонов движка (для разбора «почему так»)
     allocation_snapshot_days: int = 90
+    # Фоновый расчёт (очередь arq): снимки больше стольких людей и явный CP-SAT; предел
+    # времени фонового расчёта (open-questions №47)
+    allocation_async_people: int = 3_000
+    allocation_async_time_limit_s: float = 60.0
     # Время нарядов — местное время инсталляции (ADR-0008), то же значение, что у org
     timezone: str = "Europe/Moscow"

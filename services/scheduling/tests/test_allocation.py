@@ -4,7 +4,7 @@ import datetime as dt
 import uuid
 from typing import Any
 
-from conftest import FAKE_PEOPLE, ClientFactory, Org, add_type, role
+from conftest import FAKE_JOBS, FAKE_PEOPLE, ClientFactory, Org, add_type, role
 from httpx import AsyncClient
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -189,3 +189,54 @@ async def test_scope_deficits_discard_history(
     assert (await admin.post(f"/allocation-runs/{run['id']}/apply")).status_code == 422
     history = (await admin.get(f"/schedules/{s['id']}/allocation-runs")).json()
     assert [h["status"] for h in history] == ["discarded"]
+
+
+async def test_background_run_with_chosen_method(
+    client_for: ClientFactory,
+    admin: AsyncClient,
+    org: Org,
+    sessionmaker: async_sessionmaker[AsyncSession],
+) -> None:
+    _, s = await setup(admin, org)
+    # Выбирать метод может только суперадминистратор (open-questions №46)
+    fac_op = client_for(org.fac_a, "operator")
+    assert (await allocate(fac_op, s["id"], method="greedy")).status_code == 403
+
+    # Явный CP-SAT — в фоне, с увеличенным пределом времени
+    r = await allocate(admin, s["id"], method="cpsat")
+    assert r.status_code == 201, r.text
+    run = r.json()
+    assert (run["status"], run["decisions"]) == ("queued", [])
+    assert run["config"]["cpsat_time_limit_s"] == 1.0  # фоновый предел из настроек
+    assert (await admin.post(f"/allocation-runs/{run['id']}/apply")).status_code == 422
+
+    first = (await admin.get(f"/allocation-runs/{run['id']}")).json()
+    assert first["status"] == "running"
+    ready = (await admin.get(f"/allocation-runs/{run['id']}")).json()
+    assert ready["status"] == "preview_ready"
+    assert ready["method"] == "cpsat"
+    assert ready["filled"] == ready["metrics"]["places"] == len(ready["decisions"])
+    assert ready["filled_optimal"] is True  # все места закрыты и совпали с границей max-flow
+    r = await admin.post(f"/allocation-runs/{run['id']}/apply")
+    assert r.status_code == 200, r.text
+    assert await count_assignments(sessionmaker, source="auto") == ready["filled"]
+
+
+async def test_background_failure_and_discard(admin: AsyncClient, org: Org, app: Any) -> None:
+    _, s = await setup(admin, org)
+    FAKE_JOBS.fail = True
+    run = (await allocate(admin, s["id"], method="cpsat")).json()
+    await admin.get(f"/allocation-runs/{run['id']}")
+    failed = (await admin.get(f"/allocation-runs/{run['id']}")).json()
+    assert (failed["status"], failed["error"]) == ("failed", "Движок упал")
+
+    # Большой снимок — тоже в фоне; пока считается, прогон можно отменить
+    FAKE_JOBS.fail = False
+    app.state.settings.allocation_async_people = 0
+    try:
+        queued = (await allocate(admin, s["id"])).json()
+    finally:
+        app.state.settings.allocation_async_people = 3_000
+    assert queued["status"] == "queued"
+    r = await admin.post(f"/allocation-runs/{queued['id']}/discard")
+    assert r.json()["status"] == "discarded"

@@ -18,7 +18,7 @@ router = APIRouter(tags=["allocation"])
 )
 async def allocate(schedule_id: uuid.UUID, data: AllocateIn, svc: RunServiceDep) -> RunOut:
     run = await svc.allocate(schedule_id, data)
-    return await svc.get(run.id)
+    return await svc.get(run.id, poll=False)
 
 
 @router.get("/schedules/{schedule_id}/allocation-runs", response_model=list[RunBrief])

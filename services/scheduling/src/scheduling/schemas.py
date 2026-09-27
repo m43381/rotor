@@ -393,6 +393,8 @@ class AllocateIn(BaseModel):
     # Область: ячейки графика; None — весь месяц
     cell_ids: list[uuid.UUID] | None = Field(default=None, max_length=10_000)
     seed: int = Field(default=1, ge=0, le=2**31 - 1)
+    # Метод уровня 4; не «auto» — только суперадминистратору (open-questions №46)
+    method: Literal["auto", "greedy", "hungarian", "local_search", "cpsat"] = "auto"
     # Переопределение настроек движка (веса, затухание) — см. allocation/config/default.yaml
     config: dict[str, Any] = Field(default_factory=dict)
 
@@ -416,8 +418,12 @@ class RunBrief(BaseModel):
     schedule_id: uuid.UUID
     kind: str
     mode: str
-    status: Literal["preview_ready", "applied", "discarded", "stale", "failed"]
+    status: Literal["queued", "running", "preview_ready", "applied", "discarded", "stale", "failed"]
     seed: int
+    # Каким методом получено решение и доказано ли, что закрыто максимум мест
+    method: str | None
+    filled_optimal: bool | None
+    error: str | None
     created_by_name: str
     created_at: dt.datetime
     applied_at: dt.datetime | None

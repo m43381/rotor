@@ -37,11 +37,17 @@ class InternalClient:
 
     async def post(self, path: str, body: dict[str, Any]) -> Any:
         """POST с повторами при сетевых ошибках и 5xx. Ошибки 4xx не повторяются."""
+        return await self._request("POST", path, body)
+
+    async def get(self, path: str) -> Any:
+        return await self._request("GET", path, None)
+
+    async def _request(self, method: str, path: str, body: dict[str, Any] | None) -> Any:
         delay = 0.5
         for attempt in range(1, self._retries + 1):
             try:
-                resp = await self._client.post(
-                    path, json=body, headers={"X-Request-Id": current_request_id.get()}
+                resp = await self._client.request(
+                    method, path, json=body, headers={"X-Request-Id": current_request_id.get()}
                 )
                 if resp.status_code < 500:
                     resp.raise_for_status()

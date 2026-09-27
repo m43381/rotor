@@ -63,6 +63,9 @@ def run_service(
         state.solver,
         state.settings.timezone,
         state.settings.allocation_snapshot_days,
+        jobs=state.jobs,
+        async_people=state.settings.allocation_async_people,
+        async_time_limit_s=state.settings.allocation_async_time_limit_s,
     )
 
 

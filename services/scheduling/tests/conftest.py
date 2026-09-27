@@ -45,7 +45,12 @@ def database_url() -> Iterator[str]:
 
 @pytest.fixture(scope="session")
 def settings(database_url: str) -> SchedulingSettings:
-    return SchedulingSettings(database_url=database_url, internal_token=INTERNAL_TOKEN)
+    # Фоновый предел CP-SAT в тестах короткий — проверяется поведение, а не качество
+    return SchedulingSettings(
+        database_url=database_url,
+        internal_token=INTERNAL_TOKEN,
+        allocation_async_time_limit_s=1.0,
+    )
 
 
 @pytest.fixture(scope="session")
@@ -116,6 +121,32 @@ async def local_solver(
     return solve(snapshot, make_config(config), seed)
 
 
+class FakeJobs:
+    """Очередь allocation в процессе: первый опрос — «считается», второй — результат."""
+
+    def __init__(self) -> None:
+        self.jobs: dict[str, dict[str, object]] = {}
+        self.fail = False
+
+    async def submit(
+        self, snapshot: dict[str, object], config: dict[str, object], seed: int
+    ) -> str:
+        job_id = f"job-{len(self.jobs) + 1}"
+        self.jobs[job_id] = {"args": (snapshot, config, seed), "polls": 0}
+        return job_id
+
+    async def fetch(self, job_id: str) -> dict[str, object]:
+        job = self.jobs[job_id]
+        job["polls"] = int(str(job["polls"])) + 1
+        if job["polls"] == 1:
+            return {"status": "running"}
+        if self.fail:
+            return {"status": "failed", "error": "Движок упал"}
+        snapshot, config, seed = job["args"]  # type: ignore[misc]
+        return {"status": "done", "result": await local_solver(snapshot, config, seed)}
+
+
+FAKE_JOBS = FakeJobs()
 FAKE_PEOPLE = FakePeople()
 UNIT_PATHS: dict[uuid.UUID, str] = {}
 
@@ -135,6 +166,7 @@ async def app(
         refs_loader=load_refs,
         people_loader=FAKE_PEOPLE,
         solver=local_solver,
+        jobs=FAKE_JOBS,
     )
     async with LifespanManager(application):
         yield application
@@ -211,6 +243,8 @@ async def org(app: FastAPI, settings: SchedulingSettings) -> Org:
         await emit(maker, "unit.created", uid, unit_payload(uid, parent, path, name))
         UNIT_PATHS[uid] = path
     FAKE_PEOPLE.people.clear()
+    FAKE_JOBS.jobs.clear()
+    FAKE_JOBS.fail = False
     for rid, name, order in [(o.rank_private, "Рядовой", 10), (o.rank_major, "Майор", 100)]:
         await emit(maker, "rank.changed", rid, {"name": name, "order": order, "is_active": True})
     return o

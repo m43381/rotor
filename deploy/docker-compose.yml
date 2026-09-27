@@ -228,9 +228,24 @@ services:
       args:
         SERVICE: allocation
     image: dutyflow/allocation:dev
-    environment:
+    environment: &allocation-env
       <<: *service-env
       SERVICE_NAME: allocation
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Фоновые расчёты движка (очередь arq, фаза 5b): CP-SAT с большим пределом, большие снимки
+  allocation-worker:
+    image: dutyflow/allocation:dev
+    command: ["arq", "allocation.worker.WorkerSettings"]
+    healthcheck:
+      disable: true
+    environment: *allocation-env
+    depends_on:
+      allocation:
+        condition: service_healthy
     restart: unless-stopped
 
   gateway:

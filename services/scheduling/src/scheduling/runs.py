@@ -7,6 +7,8 @@
   транзакции снимаются пересматриваемые автоматические назначения и ставятся новые
   (`source = auto`) либо делегируются ячейки — тем же механизмом, что вручную.
 - Запускать и применять может тот, кто может менять график (№44).
+- Большие снимки и явный CP-SAT считаются в фоне (очередь arq в allocation, фаза 5b): прогон
+  создаётся со статусом «в очереди», а результат забирается при следующем запросе прогона.
 """
 
 import datetime as dt
@@ -25,7 +27,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dutyflow_common import audit
 from dutyflow_common.context import Operator
-from dutyflow_common.errors import AppError, ConflictError, NotFoundError, ValidationFailedError
+from dutyflow_common.errors import (
+    AppError,
+    ConflictError,
+    ForbiddenError,
+    NotFoundError,
+    ValidationFailedError,
+)
 from dutyflow_common.ids import uuid7
 from dutyflow_common.outbox import add_event
 from dutyflow_common.projections import UnitProjection
@@ -42,7 +50,7 @@ from scheduling.people import PeopleLoader
 from scheduling.schedules import ScheduleService
 from scheduling.schemas import AllocateIn, DecisionOut, RunBrief, RunOut
 from scheduling.snapshot import build_snapshot
-from scheduling.solver import Solver
+from scheduling.solver import Jobs, Solver
 
 
 class RunStaleError(AppError):
@@ -67,6 +75,9 @@ class AllocationRunService:
         solver: Solver,
         timezone: str,
         snapshot_days: int = 90,
+        jobs: Jobs | None = None,
+        async_people: int = 3_000,
+        async_time_limit_s: float = 60.0,
     ) -> None:
         self.session = session
         self.operator = operator
@@ -74,48 +85,58 @@ class AllocationRunService:
         self.solver = solver
         self.timezone = timezone
         self.snapshot_days = snapshot_days
+        self.jobs = jobs
+        self.async_people = async_people
+        self.async_time_limit_s = async_time_limit_s
         self.schedules = ScheduleService(session, operator)
 
     # --- предпросмотр ------------------------------------------------------------------------
 
     async def allocate(self, schedule_id: uuid.UUID, data: AllocateIn) -> AllocationRun:
+        if data.method != "auto" and not self.operator.is_superadmin:
+            raise ForbiddenError("Выбирать метод распределения может только суперадминистратор")
         schedule, unit = await self.schedules.access(schedule_id, "update")
         snapshot = _normalize(
             await build_snapshot(self.session, self.people, schedule, unit, timezone=self.timezone)
         )
-        config = {
+        config: dict[str, Any] = {
             **data.config,
             "kind": data.kind,
             "mode": data.mode,
+            "method": data.method,
             "cell_ids": [str(c) for c in data.cell_ids] if data.cell_ids else None,
         }
-        solution = await self.solver(snapshot, config, data.seed)
-
+        background = (
+            self.jobs is not None
+            and data.kind == "people"
+            and (len(snapshot["people"]) > self.async_people or data.method == "cpsat")
+        )
+        if background:
+            # В фоне точному методу даётся больше времени (open-questions №47)
+            config["cpsat_time_limit_s"] = self.async_time_limit_s
+            config["cpsat_deterministic_time"] = self.async_time_limit_s * 2
         run = AllocationRun(
             id=uuid7(),
             schedule_id=schedule.id,
             kind=data.kind,
             mode=data.mode,
-            config=solution["config"],
+            config=config,
             seed=data.seed,
             snapshot_hash=snapshot["hash"],
             snapshot=zlib.compress(to_json(snapshot), 6),
-            solution_hash=solution["solution_hash"],
-            status="preview_ready",
-            metrics={
-                **solution["metrics"],
-                "deficits": solution["deficits"],
-                "unfilled": solution["unfilled"],
-                "removed": solution["removed"],
-                "engine_version": solution["engine_version"],
-                "solver": solution["solver"],
-            },
+            solution_hash=None,
+            status="queued",
+            metrics={},
             created_by=self.operator.subject,
             created_by_name=self.operator.full_name or self.operator.username,
         )
         self.session.add(run)
-        await self.session.flush()
-        await self._save_decisions(run, solution)
+        if background:
+            assert self.jobs is not None
+            run.job_id = await self.jobs.submit(snapshot, config, data.seed)
+        else:
+            await self.session.flush()
+            await self._finish(run, await self.solver(snapshot, config, data.seed))
         await self._purge_old_snapshots()
         audit.record(
             self.session,
@@ -126,13 +147,59 @@ class AllocationRunService:
             after={
                 "kind": run.kind,
                 "mode": run.mode,
+                "method": data.method,
                 "seed": run.seed,
-                "filled": run.metrics["filled"],
-                "places": run.metrics["places"],
+                "background": background,
             },
         )
         await self.session.commit()
         return run
+
+    async def _finish(self, run: AllocationRun, solution: dict[str, Any]) -> None:
+        """Решение готово: сохранить метрики и объяснения, прогон — предпросмотр."""
+        run.config = solution["config"]
+        run.solution_hash = solution["solution_hash"]
+        run.status = "preview_ready"
+        run.metrics = {
+            **solution["metrics"],
+            "method": solution.get("method"),
+            "method_info": solution.get("method_info", {}),
+            "deficits": solution["deficits"],
+            "unfilled": solution["unfilled"],
+            "removed": solution["removed"],
+            "engine_version": solution["engine_version"],
+            "solver": solution["solver"],
+        }
+        await self.session.flush()
+        await self._save_decisions(run, solution)
+
+    async def refresh(self, run: AllocationRun) -> None:
+        """Фоновый прогон: узнать статус задачи и, если готово, забрать результат. Завершает
+        прогон ровно один раз — под блокировкой строки, даже при параллельных опросах."""
+        if run.status not in ("queued", "running") or not run.job_id or self.jobs is None:
+            return
+        try:
+            state = await self.jobs.fetch(run.job_id)
+        except Exception as exc:  # задача пропала из Redis, allocation недоступен и т. п.
+            state = {"status": "unavailable", "error": str(exc)}
+        locked = await self.session.get(
+            AllocationRun, run.id, with_for_update=True, populate_existing=True
+        )
+        if locked is None or locked.status not in ("queued", "running"):
+            await self.session.commit()
+            return
+        match state["status"]:
+            case "done":
+                await self._finish(locked, state["result"])
+            case "failed":
+                locked.status = "failed"
+                locked.metrics = {"error": state.get("error") or "Расчёт завершился ошибкой"}
+            case "running" | "queued":
+                locked.status = state["status"]
+            case _:
+                # Движок недоступен — задача ждёт в очереди, статус не меняется
+                pass
+        await self.session.commit()
 
     async def _save_decisions(self, run: AllocationRun, solution: dict[str, Any]) -> None:
         items = solution["assignments"] if run.kind == "people" else solution["delegations"]
@@ -213,6 +280,9 @@ class AllocationRunService:
             mode=run.mode,
             status=run.status,
             seed=run.seed,
+            method=run.metrics.get("method"),
+            filled_optimal=(run.metrics.get("method_info") or {}).get("filled_optimal"),
+            error=run.metrics.get("error"),
             created_by_name=run.created_by_name,
             created_at=run.created_at,
             applied_at=run.applied_at,
@@ -221,8 +291,12 @@ class AllocationRunService:
             places=int(run.metrics.get("places", 0)),
         )
 
-    async def get(self, run_id: uuid.UUID) -> RunOut:
+    async def get(self, run_id: uuid.UUID, *, poll: bool = True) -> RunOut:
+        """Прогон с объяснениями. `poll` — узнать у очереди, готов ли фоновый расчёт."""
         run = await self._run(run_id, "read")
+        if poll:
+            await self.refresh(run)
+            await self.session.refresh(run)
         rows = await self.session.execute(
             select(AllocationDecision, DayPlan.date, DutyType.name, DutyRole.name)
             .outerjoin(DayPlan, DayPlan.id == AllocationDecision.day_plan_id)
@@ -267,7 +341,7 @@ class AllocationRunService:
 
     async def discard(self, run_id: uuid.UUID) -> AllocationRun:
         run = await self._run(run_id, "update")
-        if run.status != "preview_ready":
+        if run.status not in ("preview_ready", "queued", "running"):
             raise ValidationFailedError("Отменить можно только непримененный предпросмотр")
         run.status = "discarded"
         await self.session.commit()
@@ -278,6 +352,8 @@ class AllocationRunService:
         if run is None:
             raise NotFoundError("Прогон не найден")
         schedule, unit = await self.schedules.access(run.schedule_id, "update")
+        if run.status in ("queued", "running"):
+            raise ValidationFailedError("Расчёт ещё не закончен")
         if run.status != "preview_ready":
             raise ValidationFailedError("Этот прогон уже применён, отменён или устарел")
         fresh = _normalize(

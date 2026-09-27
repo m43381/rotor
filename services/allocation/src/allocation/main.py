@@ -2,7 +2,7 @@
 
 from fastapi import FastAPI
 
-from allocation.api import internal
+from allocation.api import internal, jobs
 from allocation.settings import AllocationSettings
 from dutyflow_common.app import create_service_app
 from dutyflow_common.auth import TokenVerifier
@@ -14,6 +14,7 @@ def create_app(
     settings = settings or AllocationSettings()
     app = create_service_app(settings, title="DutyFlow allocation", token_verifier=token_verifier)
     app.include_router(internal.router)
+    app.include_router(jobs.router)
     return app
 
 

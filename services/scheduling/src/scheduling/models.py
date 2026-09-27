@@ -313,7 +313,9 @@ class AllocationRun(UuidPkMixin, TimestampMixin, Base):
         CheckConstraint("kind IN ('people', 'units')", name="kind"),
         CheckConstraint("mode IN ('fill', 'rebuild')", name="mode"),
         CheckConstraint(
-            "status IN ('preview_ready', 'applied', 'discarded', 'stale', 'failed')", name="status"
+            "status IN ('queued', 'running', 'preview_ready', 'applied', 'discarded', 'stale',"
+            " 'failed')",
+            name="status",
         ),
         Index("ix_allocation_run_schedule", "schedule_id", "created_at"),
     )
@@ -325,7 +327,9 @@ class AllocationRun(UuidPkMixin, TimestampMixin, Base):
     seed: Mapped[int] = mapped_column(Integer)
     snapshot_hash: Mapped[str] = mapped_column(String(64))
     snapshot: Mapped[bytes] = mapped_column(BYTEA)  # zlib(JSON)
-    solution_hash: Mapped[str] = mapped_column(String(64))
+    # Пусто, пока фоновый расчёт не готов (фаза 5b)
+    solution_hash: Mapped[str | None] = mapped_column(String(64))
+    job_id: Mapped[str | None] = mapped_column(String(64))
     status: Mapped[str] = mapped_column(String(20), default="preview_ready")
     # Сводка решения: метрики, дефициты, незакрытые места, снимаемые назначения
     metrics: Mapped[dict[str, Any]] = mapped_column(JSONB)
