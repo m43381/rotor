@@ -132,11 +132,18 @@ Scope-фильтр: `JOIN unit_projection up ON up.unit_id = person.unit_id WHER
 | valid_from, valid_to | date NULL | NULL = без ограничения |
 | overrides_requirements | bool | Выдан вопреки требованиям роли |
 | override_comment | text NULL | Обязателен, если флаг установлен (CHECK) |
-| granted_by | uuid | Оператор (subject из JWT) |
+| granted_by, granted_by_name | text | Оператор (subject из JWT) и его имя на момент выдачи — для карточки без обращения к Keycloak |
 | granted_at | timestamptz | |
 | revoked_at, revoked_by | NULL | Отзыв не удаляет строку |
+| version | int | Меняется только срок действия |
 
 Ограничения: UNIQUE(`person_id`, `duty_role_id`) WHERE `revoked_at IS NULL`; CHECK(`valid_to >= valid_from`).
+Допуск выдаётся только к роли наряда подразделения человека или вышестоящего (ADR-0009, уточнения шага 2b).
+
+### `duty_type_projection`, `duty_role_projection` — копия требований ролей из scheduling
+`duty_type_projection(duty_type_id PK, name, short_name, owner_unit_id, is_active, source_version)`,
+`duty_role_projection(duty_role_id PK, duty_type_id, code, name, sort_order, min_rank_order, allowed_position_ids uuid[], attribute_requirements jsonb, is_active, source_version)`.
+Заполняются событиями `duty_type.changed` / `duty_role.changed`, при пустой копии — через `POST /internal/duty-roles/batch`. Нужны, чтобы проверка требований при выдаче допуска и отчёт о несоответствиях не зависели от доступности scheduling (ADR-0009).
 
 ### `exemption_reason`
 `id`, `code UNIQUE` (`illness`, `leave`, `trip`, `other` + пользовательские), `name`, `is_active`.
@@ -159,6 +166,9 @@ CHECK(`date_to >= date_from`); GiST(`person_id`, `daterange(date_from, date_to, 
 | rest_hours | int | По умолчанию 48 |
 | load_weight | numeric(4,2) | Множитель нагрузки, по умолчанию 1.0 |
 | is_active | bool | |
+| version | int | |
+
+UNIQUE(`owner_unit_id`, `name`) WHERE `is_active`. `assigned_unit_id` — внутри поддерева владельца.
 
 ### `duty_role` (ADR-0009)
 | Колонка | Тип | Примечание |
@@ -170,8 +180,9 @@ CHECK(`date_to >= date_from`); GiST(`person_id`, `daterange(date_from, date_to, 
 | sort_order | smallint | |
 | min_rank_order | smallint NULL | Мин. звание (по `rank.order`) |
 | allowed_position_ids | uuid[] NULL | NULL = любая должность |
-| attribute_requirements | jsonb | `[{"code":"category","op":"in","value":["курсант"]}]` |
+| attribute_requirements | jsonb | `[{"code":"category","op":"in","value":["курсант"]}]`; операторы `eq`, `in`, `gte`, `lte` |
 | is_active | bool | |
+| version | int | |
 
 Требования используются только при выдаче допуска и в отчёте о несоответствиях. Движок их не видит.
 
