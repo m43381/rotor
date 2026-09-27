@@ -200,7 +200,10 @@ UNIQUE(`owner_unit_id`, `name`) WHERE `is_active`. `assigned_unit_id` — вну
 Разрешение: к человеку применяется **самое специфичное** правило — ближайшее по дереву подразделение, затем наличие `rank_id`/`position_id`. Правило разрешается при сборке снимка, движок получает уже готовый лимит на человека.
 
 ### `schedule`
-`id`, `unit_id`, `month date` (первое число), `status` (`draft`/`published`/`archived`), `published_at`, `published_by`, `version`. UNIQUE(`unit_id`, `month`).
+`id`, `unit_id`, `month date` (первое число, CHECK), `status` (`draft`/`published`/`archived`), `published_at`, `published_by`, `version`. UNIQUE(`unit_id`, `month`). Опубликованный график можно менять с аудитом, архивный — только читать (open-questions №36).
+
+### `calendar_projection`
+Копия исключений производственного календаря org (`date PK`, `kind`, `name`) из событий `calendar.changed` и `POST /internal/calendar` — для выходных и праздников в таблице месяца и праздничных лимитов.
 
 ### `day_plan` — ячейка «дата × наряд × роль»
 | Колонка | Тип | Примечание |
@@ -216,7 +219,8 @@ UNIQUE(`owner_unit_id`, `name`) WHERE `is_active`. `assigned_unit_id` — вну
 | is_pinned | bool | Выбор исполнителя закреплён вручную, автораспределение его не трогает |
 | version | int | |
 
-Ограничения: UNIQUE(`schedule_id`, `date`, `duty_role_id`); `parent_day_plan_id` ON DELETE CASCADE — смена решения родителем рекурсивно удаляет цепочку вниз (как в legacy).
+Ограничения: UNIQUE(`schedule_id`, `date`, `duty_role_id`); UNIQUE(`parent_day_plan_id`) — у ячейки не больше одной дочерней; `parent_day_plan_id` ON DELETE CASCADE — смена решения родителем рекурсивно удаляет цепочку вниз (как в legacy); CHECK: у `own` нет родителя, у `incoming` есть.
+Свои ячейки материализуются при создании графика (даты месяца × действующие роли своих нарядов) и следуют за составом ролей в неархивных графиках с текущего месяца. `executor_unit_id` — само подразделение графика или его прямое дочернее (open-questions №35). Делегировать входящую ячейку дальше — значит принять её. График подразделения создаётся автоматически при первом делегировании ему в этом месяце (фаза 3a).
 Состояние «делегировано и принято ниже» (legacy `child_status`) не хранится, а вычисляется по дочерней ячейке одним JOIN.
 
 ### `assignment` — человек в ячейке
