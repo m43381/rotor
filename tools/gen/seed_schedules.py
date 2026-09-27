@@ -3,7 +3,8 @@
 Каждый факультет создаёт график, а роль «Помощник дежурного по факультету» делегирует
 курсам по очереди (день 1 — 1-му курсу, день 2 — 2-му …). 1-й курс факультета 1 принимает
 входящие, остальные курсы оставляют их непринятыми — видно в таблице и при публикации.
-Повторный запуск ничего не меняет: график факультета уже есть.
+На первые 10 дней в график факультета 1 и 1-го курса назначаются люди — первые пригодные
+кандидаты без нарушений. Повторный запуск ничего не дублирует.
 
     just seed
 """
@@ -65,6 +66,29 @@ def main() -> int:
                 first = get("/api/scheduling/schedules", month=str(month), unit_id=courses[0])[0]
                 post(f"/api/scheduling/schedules/{first['id']}/accept", {})
         print(f"Графиков факультетов на {month:%m.%Y}: создано {created}")
+
+        # Назначения: факультет 1 (свои роли) и его 1-й курс (принятые входящие)
+        assigned = 0
+        for unit_name in (FACULTIES[0], "1 курс, факультет 1"):
+            [schedule] = get(
+                "/api/scheduling/schedules", month=str(month), unit_id=units[unit_name]["id"]
+            )
+            table = get(f"/api/scheduling/schedules/{schedule['id']}/table")
+            for row in table["rows"]:
+                for cell in row["cells"][:10]:
+                    if not cell or cell["state"] not in ("own", "incoming_active"):
+                        continue
+                    for _ in range(row["headcount"] - cell["filled"]):
+                        data = get(f"/api/scheduling/day-plans/{cell['id']}/candidates")
+                        clean = [c for c in data["candidates"] if not c["violations"]]
+                        if not clean:
+                            break
+                        post(
+                            f"/api/scheduling/day-plans/{cell['id']}/assignments",
+                            {"person_id": clean[0]["person_id"]},
+                        )
+                        assigned += 1
+        print(f"Назначено людей: {assigned}")
     return 0
 
 
