@@ -38,7 +38,7 @@ logs service="":
 lint:
     uv run ruff check .
     uv run ruff format --check .
-    uv run mypy libs/common/src services/org/src services/personnel/src services/scheduling/src services/allocation/src tools
+    uv run mypy libs/common/src services/org/src services/personnel/src services/scheduling/src services/allocation/src services/documents/src tools
     cd frontend; npm run lint; npm run typecheck; npm run check:licenses
 
 # Автоисправление форматирования
@@ -54,6 +54,7 @@ test *args:
     uv run pytest services/personnel {{args}}
     uv run pytest services/scheduling {{args}}
     uv run pytest services/allocation {{args}}
+    uv run pytest services/documents {{args}}
     cd frontend; npm test
 
 # E2E-тесты UI против стенда (после up и seed); браузер системный, PW_CHANNEL=msedge|chrome
@@ -91,6 +92,10 @@ bench-schedule:
 # Бенчмарк движка распределения (фаза 4) → docs/benchmarks/allocation.md
 bench-allocation:
     uv run python tools/bench/engine.py
+
+# Бенчмарк импорта: разбор файла и проверка / применение до 20 000 строк (фаза 6a) → docs/benchmarks/import.md
+bench-import:
+    uv run python tools/bench/imports.py
 
 # Экспериментальный стенд (фаза 5): legacy и методы движка на оргструктурах 1k–50k,
 # затухание, пороги auto → docs/experiments.md (десятки минут; `--report` — только отчёт)

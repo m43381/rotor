@@ -47,7 +47,7 @@ ignore = [
 "services/allocation/src/allocation/synthetic.py" = ["S311"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["allocation", "dutyflow_common", "org", "personnel", "scheduling"]
+known-first-party = ["allocation", "documents", "dutyflow_common", "org", "personnel", "scheduling"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -62,10 +62,11 @@ mypy_path = [
     "services/personnel/src",
     "services/scheduling/src",
     "services/allocation/src",
+    "services/documents/src",
 ]
 
 [[tool.mypy.overrides]]
-module = ["testcontainers.*", "asgi_lifespan.*", "asyncpg.*", "scipy.*", "yaml.*", "ortools.graph.*"]
+module = ["testcontainers.*", "asgi_lifespan.*", "asyncpg.*", "scipy.*", "yaml.*", "ortools.graph.*", "openpyxl.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
