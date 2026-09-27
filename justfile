@@ -83,6 +83,10 @@ bench:
 bench-people:
     uv run python tools/bench/people_snapshot.py
 
+# Бенчмарк графика: таблица месяца и снимок задачи (фаза 3) → docs/benchmarks/schedule.md
+bench-schedule:
+    uv run python tools/bench/schedule_snapshot.py
+
 # Демо-данные стенда: дерево, учётки операторов, личный состав (~1000 человек), наряды, допуски и графики на следующий месяц
 seed:
     uv run python tools/gen/seed_org.py
