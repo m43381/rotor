@@ -3,6 +3,7 @@
 // прямым дочерним подразделениям, принятие входящих, закрепление, публикация (ADR-0009).
 // Выделение: клик — ячейка, Shift+клик — прямоугольник, клик по роли или дню — строка/столбец.
 // Двойной клик по ячейке — панель назначения людей (фаза 3b).
+// «Распределить…» — автораспределение с предпросмотром и применением (фаза 4b).
 import Button from 'primevue/button'
 import DatePicker from 'primevue/datepicker'
 import Dialog from 'primevue/dialog'
@@ -19,11 +20,15 @@ import {
   scheduling,
   unwrap,
   type Cell,
+  type Decision,
   type PendingWarning,
+  type Run,
   type Schedule,
   type ScheduleTable,
   type TableRow,
 } from '@/api/client'
+import AllocateDialog from '@/components/AllocateDialog.vue'
+import AllocationPanel from '@/components/AllocationPanel.vue'
 import CellPanel from '@/components/CellPanel.vue'
 import UnitTreeSelect from '@/components/UnitTreeSelect.vue'
 import { useUnitsStore } from '@/stores/units'
@@ -86,6 +91,7 @@ async function load() {
 }
 
 watch([unitId, month], () => {
+  preview.value = null
   selected.value = new Set()
   anchor.value = null
   void router.replace({ query: { unit: unitId.value ?? undefined, month: month.value } })
@@ -130,6 +136,10 @@ function toggle(ids: string[], on?: boolean) {
 
 function clickCell(pos: CellPos, event: MouseEvent) {
   const cell = cellAt(pos)
+  if (cell && preview.value) {
+    focusCell.value = cell.id  // в предпросмотре щелчок показывает объяснение
+    return
+  }
   if (!cell || !editable.value) return
   if (event.shiftKey && anchor.value) {
     const ids = rect(anchor.value, pos)
@@ -211,6 +221,101 @@ ${people}` : ''}${filled}`
 function fillClass(c: Cell, headcount: number): string | undefined {
   if (!c.filled) return undefined
   return c.filled >= headcount ? 'full' : 'partial'
+}
+
+// --- автораспределение: предпросмотр → применение (фаза 4b) -----------------------------------
+const allocateVisible = ref(false)
+const preview = ref<Run | null>(null)
+const stale = ref(false)
+const focusCell = ref<string | null>(null)
+
+const proposals = computed(() => {
+  const byCell = new Map<string, Decision[]>()
+  for (const d of preview.value?.decisions ?? []) {
+    byCell.set(d.day_plan_id, [...(byCell.get(d.day_plan_id) ?? []), d])
+  }
+  return byCell
+})
+const focused = computed(() => (focusCell.value ? (proposals.value.get(focusCell.value) ?? []) : []))
+
+function proposalText(c: Cell): string | null {
+  const items = proposals.value.get(c.id)
+  if (!items?.length || !preview.value) return null
+  if (preview.value.kind === 'units') {
+    const name = items[0]?.chosen_name ?? ''
+    return abbr(name)
+  }
+  return `+${items.length}`
+}
+
+function showPreview(run: Run) {
+  preview.value = run
+  stale.value = run.status === 'stale'
+  focusCell.value = run.decisions[0]?.day_plan_id ?? null
+  selected.value = new Set()
+}
+
+async function applyPreview() {
+  const run = preview.value
+  if (!run) return
+  busy.value = true
+  try {
+    const result = await unwrap(
+      scheduling.POST('/allocation-runs/{run_id}/apply', { params: { path: { run_id: run.id } } }),
+    )
+    toast.add({
+      severity: 'success',
+      summary: 'Распределение применено',
+      detail: `${result.filled} ${result.kind === 'people' ? 'назначений' : 'ячеек передано'}`,
+      life: 4000,
+    })
+    preview.value = null
+    await load()
+  } catch (e) {
+    if (e instanceof ApiError && e.code === 'run_stale') stale.value = true
+    else showError(e)
+  } finally {
+    busy.value = false
+  }
+}
+
+async function discardPreview() {
+  const run = preview.value
+  if (!run) return
+  try {
+    await unwrap(scheduling.POST('/allocation-runs/{run_id}/discard', { params: { path: { run_id: run.id } } }))
+  } catch (e) {
+    showError(e)
+  }
+  preview.value = null
+}
+
+async function recalc() {
+  const run = preview.value
+  const s = table.value?.schedule
+  if (!run || !s) return
+  busy.value = true
+  try {
+    const cfg = run.config as { cell_ids?: string[] | null }
+    showPreview(
+      await unwrap(
+        scheduling.POST('/schedules/{schedule_id}/allocate', {
+          params: { path: { schedule_id: s.id } },
+          body: {
+            kind: run.kind as 'people' | 'units',
+            mode: run.mode as 'fill' | 'rebuild',
+            cell_ids: cfg.cell_ids ?? null,
+            seed: run.seed,
+            config: {},
+          },
+        }),
+      ),
+    )
+  } catch (e) {
+    showError(e)
+  } finally {
+    busy.value = false
+  }
 }
 
 // --- панель назначения людей ------------------------------------------------------------------
@@ -451,6 +556,13 @@ function archive() {
           @click="publish"
         />
         <Button
+          v-if="editable && table && !preview"
+          label="Распределить…"
+          icon="pi pi-bolt"
+          :loading="busy"
+          @click="allocateVisible = true"
+        />
+        <Button
           v-if="isSuperadmin && table"
           label="Снимок задачи"
           icon="pi pi-download"
@@ -505,7 +617,7 @@ function archive() {
     </Message>
 
     <template v-if="table">
-      <div v-if="editable" class="selection-bar">
+      <div v-if="editable && !preview" class="selection-bar">
         <span class="muted">
           <template v-if="selected.size">Выбрано ячеек: {{ selected.size }}</template>
           <template v-else>
@@ -562,66 +674,88 @@ function archive() {
         </template>
       </div>
 
-      <div class="grid-wrap">
-        <table class="grid">
-          <thead>
-            <tr>
-              <th class="sticky role-col">Наряд / роль</th>
-              <th
-                v-for="(d, col) in table.days"
-                :key="d.date"
-                :class="['day', d.kind]"
-                :title="d.name ?? undefined"
-                @click="selectColumn(col)"
-              >
-                <div>{{ Number(d.date.slice(8)) }}</div>
-                <small>{{ weekday(d.date) }}</small>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <template v-for="g in groups" :key="g.key">
-              <tr class="type-row">
-                <td class="sticky role-col">
-                  <strong>{{ g.row.duty_type_name }}</strong>
-                  <small class="muted">
-                    · {{ g.row.owner_unit_name }} · {{ formatInterval(g.row.start_time, g.row.duration_minutes) }}
-                  </small>
-                </td>
-                <td :colspan="table.days.length" />
-              </tr>
-              <tr v-for="r in g.roles" :key="r.row.duty_role_id">
-                <td class="sticky role-col role" :class="{ inactive: !r.row.is_active }" @click="selectRow(r.index)">
-                  {{ r.row.role_name }} <small class="muted">×{{ r.row.headcount }}</small>
-                </td>
-                <td
-                  v-for="(c, col) in r.row.cells"
-                  :key="col"
-                  :class="[
-                    'cell',
-                    table.days[col]?.kind,
-                    c?.state,
-                    c && fillClass(c, r.row.headcount),
-                    { selected: c && selected.has(c.id), empty: !c, clickable: !!c, conflict: c?.has_conflict },
-                  ]"
-                  :title="c ? cellTitle(c, table.days[col]?.date ?? '') : undefined"
-                  :data-cell="c?.id"
-                  @click="clickCell({ row: r.index, col }, $event)"
-                  @dblclick="c && openPanel(c.id)"
+      <div class="work">
+        <div class="grid-wrap">
+          <table class="grid">
+            <thead>
+              <tr>
+                <th class="sticky role-col">Наряд / роль</th>
+                <th
+                  v-for="(d, col) in table.days"
+                  :key="d.date"
+                  :class="['day', d.kind]"
+                  :title="d.name ?? undefined"
+                  @click="selectColumn(col)"
                 >
-                  <template v-if="c">
-                    {{ cellText(c, r.row.headcount) }}<i v-if="c.is_pinned" class="pi pi-lock pin" />
-                  </template>
+                  <div>{{ Number(d.date.slice(8)) }}</div>
+                  <small>{{ weekday(d.date) }}</small>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <template v-for="g in groups" :key="g.key">
+                <tr class="type-row">
+                  <td class="sticky role-col">
+                    <strong>{{ g.row.duty_type_name }}</strong>
+                    <small class="muted">
+                      · {{ g.row.owner_unit_name }} · {{ formatInterval(g.row.start_time, g.row.duration_minutes) }}
+                    </small>
+                  </td>
+                  <td :colspan="table.days.length" />
+                </tr>
+                <tr v-for="r in g.roles" :key="r.row.duty_role_id">
+                  <td class="sticky role-col role" :class="{ inactive: !r.row.is_active }" @click="selectRow(r.index)">
+                    {{ r.row.role_name }} <small class="muted">×{{ r.row.headcount }}</small>
+                  </td>
+                  <td
+                    v-for="(c, col) in r.row.cells"
+                    :key="col"
+                    :class="[
+                      'cell',
+                      table.days[col]?.kind,
+                      c?.state,
+                      c && fillClass(c, r.row.headcount),
+                      {
+                        selected: c && selected.has(c.id),
+                        empty: !c,
+                        clickable: !!c,
+                        conflict: c?.has_conflict,
+                        proposed: c && proposals.has(c.id),
+                        focused: c && preview && focusCell === c.id,
+                      },
+                    ]"
+                    :title="c ? cellTitle(c, table.days[col]?.date ?? '') : undefined"
+                    :data-cell="c?.id"
+                    @click="clickCell({ row: r.index, col }, $event)"
+                    @dblclick="c && openPanel(c.id)"
+                  >
+                    <template v-if="c">
+                      {{ proposalText(c) ?? cellText(c, r.row.headcount)
+                      }}<i v-if="c.is_pinned" class="pi pi-lock pin" />
+                    </template>
+                  </td>
+                </tr>
+              </template>
+              <tr v-if="!table.rows.length">
+                <td class="sticky role-col muted" :colspan="table.days.length + 1">
+                  В графике нет ролей: у подразделения нет своих нарядов и входящих ролей.
                 </td>
               </tr>
-            </template>
-            <tr v-if="!table.rows.length">
-              <td class="sticky role-col muted" :colspan="table.days.length + 1">
-                В графике нет ролей: у подразделения нет своих нарядов и входящих ролей.
-              </td>
-            </tr>
-          </tbody>
-        </table>
+            </tbody>
+          </table>
+        </div>
+
+        <AllocationPanel
+          v-if="preview"
+          :run="preview"
+          :decisions="focused"
+          :busy="busy"
+          :stale="stale"
+          @apply="applyPreview"
+          @discard="discardPreview"
+          @close="preview = null"
+          @recalc="recalc"
+        />
       </div>
 
       <div class="legend">
@@ -631,6 +765,14 @@ function archive() {
       </div>
     </template>
 
+    <AllocateDialog
+      v-if="table"
+      v-model:visible="allocateVisible"
+      :schedule-id="table.schedule.id"
+      :selected-cell-ids="[...selected]"
+      :has-children="table.children.length > 0"
+      @preview="showPreview"
+    />
     <CellPanel v-model:visible="panelVisible" :cell-id="panelCell" @changed="load" />
     <Dialog v-model:visible="warningsVisible" header="График опубликован" modal :style="{ width: '32rem' }">
       <p>В поддереве остались непринятые ячейки. Публикацию это не блокирует, но их стоит проверить:</p>
@@ -699,8 +841,15 @@ h1 {
 .executor {
   width: 16rem;
 }
+.work {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 0.75rem;
+}
 .grid-wrap {
   flex: 1;
+  min-width: 0;
   min-height: 0;
   overflow: auto;
   border: 1px solid var(--p-content-border-color);
@@ -821,6 +970,14 @@ thead .sticky {
   left: 0;
   border-top: 7px solid var(--p-red-500);
   border-right: 7px solid transparent;
+}
+.cell.proposed {
+  background-color: var(--p-violet-100);
+  color: var(--p-violet-800);
+}
+.cell.focused {
+  outline: 2px solid var(--p-violet-500);
+  outline-offset: -2px;
 }
 .cell.selected {
   outline: 2px solid var(--p-primary-color);

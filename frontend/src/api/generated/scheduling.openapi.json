@@ -1266,6 +1266,261 @@
         }
       }
     },
+    "/schedules/{schedule_id}/allocate": {
+      "post": {
+        "tags": [
+          "allocation"
+        ],
+        "summary": "Рассчитать распределение (предпросмотр, график не меняется)",
+        "operationId": "allocate_schedules__schedule_id__allocate_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "schedule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Schedule Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AllocateIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/schedules/{schedule_id}/allocation-runs": {
+      "get": {
+        "tags": [
+          "allocation"
+        ],
+        "summary": "List Runs",
+        "operationId": "list_runs_schedules__schedule_id__allocation_runs_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "schedule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Schedule Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RunBrief"
+                  },
+                  "title": "Response List Runs Schedules  Schedule Id  Allocation Runs Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/allocation-runs/{run_id}": {
+      "get": {
+        "tags": [
+          "allocation"
+        ],
+        "summary": "Get Run",
+        "operationId": "get_run_allocation_runs__run_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/allocation-runs/{run_id}/apply": {
+      "post": {
+        "tags": [
+          "allocation"
+        ],
+        "summary": "Применить предпросмотр",
+        "description": "409 `run_stale` — после расчёта данные изменились, нужен пересчёт (№45).",
+        "operationId": "apply_allocation_runs__run_id__apply_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/allocation-runs/{run_id}/discard": {
+      "post": {
+        "tags": [
+          "allocation"
+        ],
+        "summary": "Discard",
+        "operationId": "discard_allocation_runs__run_id__discard_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/audit": {
       "get": {
         "tags": [
@@ -1429,6 +1684,58 @@
         },
         "type": "object",
         "title": "AcceptIn"
+      },
+      "AllocateIn": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "people",
+              "units"
+            ],
+            "title": "Kind",
+            "default": "people"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "fill",
+              "rebuild"
+            ],
+            "title": "Mode",
+            "default": "fill"
+          },
+          "cell_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "type": "array",
+                "maxItems": 10000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cell Ids"
+          },
+          "seed": {
+            "type": "integer",
+            "maximum": 2147483647.0,
+            "minimum": 0.0,
+            "title": "Seed",
+            "default": 1
+          },
+          "config": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Config"
+          }
+        },
+        "type": "object",
+        "title": "AllocateIn"
       },
       "AssignIn": {
         "properties": {
@@ -1907,6 +2214,106 @@
           "changed"
         ],
         "title": "ChangedOut"
+      },
+      "DecisionOut": {
+        "properties": {
+          "day_plan_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Day Plan Id"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "duty_type_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duty Type Name"
+          },
+          "role_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role Name"
+          },
+          "chosen_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chosen Id"
+          },
+          "chosen_name": {
+            "type": "string",
+            "title": "Chosen Name"
+          },
+          "cost": {
+            "type": "number",
+            "title": "Cost"
+          },
+          "candidates": {
+            "type": "integer",
+            "title": "Candidates"
+          },
+          "features": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Features"
+          },
+          "alternatives": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Alternatives"
+          },
+          "rejected": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rejected"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day_plan_id",
+          "date",
+          "duty_type_name",
+          "role_name",
+          "chosen_id",
+          "chosen_name",
+          "cost",
+          "candidates",
+          "features",
+          "alternatives",
+          "rejected"
+        ],
+        "title": "DecisionOut"
       },
       "DelegateIn": {
         "properties": {
@@ -3024,6 +3431,212 @@
           "warnings"
         ],
         "title": "PublishOut"
+      },
+      "RunBrief": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "schedule_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Schedule Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "mode": {
+            "type": "string",
+            "title": "Mode"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "preview_ready",
+              "applied",
+              "discarded",
+              "stale",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "seed": {
+            "type": "integer",
+            "title": "Seed"
+          },
+          "created_by_name": {
+            "type": "string",
+            "title": "Created By Name"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "applied_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applied At"
+          },
+          "applied_by_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applied By Name"
+          },
+          "filled": {
+            "type": "integer",
+            "title": "Filled"
+          },
+          "places": {
+            "type": "integer",
+            "title": "Places"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "schedule_id",
+          "kind",
+          "mode",
+          "status",
+          "seed",
+          "created_by_name",
+          "created_at",
+          "applied_at",
+          "applied_by_name",
+          "filled",
+          "places"
+        ],
+        "title": "RunBrief"
+      },
+      "RunOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "schedule_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Schedule Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "mode": {
+            "type": "string",
+            "title": "Mode"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "preview_ready",
+              "applied",
+              "discarded",
+              "stale",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "seed": {
+            "type": "integer",
+            "title": "Seed"
+          },
+          "created_by_name": {
+            "type": "string",
+            "title": "Created By Name"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "applied_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applied At"
+          },
+          "applied_by_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applied By Name"
+          },
+          "filled": {
+            "type": "integer",
+            "title": "Filled"
+          },
+          "places": {
+            "type": "integer",
+            "title": "Places"
+          },
+          "config": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Config"
+          },
+          "metrics": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metrics"
+          },
+          "decisions": {
+            "items": {
+              "$ref": "#/components/schemas/DecisionOut"
+            },
+            "type": "array",
+            "title": "Decisions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "schedule_id",
+          "kind",
+          "mode",
+          "status",
+          "seed",
+          "created_by_name",
+          "created_at",
+          "applied_at",
+          "applied_by_name",
+          "filled",
+          "places",
+          "config",
+          "metrics",
+          "decisions"
+        ],
+        "title": "RunOut"
       },
       "ScheduleCreate": {
         "properties": {

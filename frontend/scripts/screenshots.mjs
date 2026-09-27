@@ -88,5 +88,16 @@ await page.waitForSelector('.cell-panel .p-datatable-tbody tr')
 await page.waitForTimeout(500)
 await shot('13-cell-panel')
 
+// Фаза 4b: предпросмотр автораспределения с объяснением решения
+await page.goto(`${base}/schedules?month=${nextMonth}`)
+await page.waitForSelector('.grid td.cell')
+await page.getByRole('button', { name: 'Распределить…' }).click()
+await page.getByRole('button', { name: 'Рассчитать' }).click()
+await page.waitForSelector('.panel')
+if ((await page.locator('td.cell.proposed').count()) > 0) await page.locator('td.cell.proposed').first().click()
+await page.waitForTimeout(500)
+await shot('14-allocation-preview')
+await page.getByRole('button', { name: 'Отменить' }).click()
+
 await browser.close()
 console.log(`Скриншоты: ${out.pathname}`)

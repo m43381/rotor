@@ -26,3 +26,17 @@ describe('таблица месяца', () => {
     ])
   })
 })
+
+describe('объяснения движка', async () => {
+  const { rejectedText, featureRows } = await import('./allocation')
+  it('сводка отсева без нулей', () => {
+    expect(rejectedText({ no_clearance: 12, exempt: 0, busy: 3 })).toBe('нет допуска: 12, заняты в эти сутки: 3')
+    expect(rejectedText(null)).toBe('')
+  })
+  it('признаки с подписями', () => {
+    expect(featureRows({ load: 1.5, recency: 0 })).toEqual([
+      { label: 'Нагрузка с затуханием', value: '1.50' },
+      { label: 'Близость к другому наряду', value: '0.00' },
+    ])
+  })
+})

@@ -65,6 +65,7 @@ test('факультет делегирует роль курсу, курс пр
 test('курс создаёт и публикует график', async ({ page }) => {
   await login(page, 'course_operator', `/schedules?month=${month(2)}`)
   const create = page.getByRole('button', { name: 'Создать график' })
+  await expect(page.locator('.grid').or(create)).toBeVisible()
   if (await create.isVisible()) {
     await create.click()
     await expect(page.locator('.p-toast-message', { hasText: 'График создан' })).toBeVisible()

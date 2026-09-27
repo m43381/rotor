@@ -331,6 +331,94 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/schedules/{schedule_id}/allocate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Рассчитать распределение (предпросмотр, график не меняется) */
+        post: operations["allocate_schedules__schedule_id__allocate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/schedules/{schedule_id}/allocation-runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Runs */
+        get: operations["list_runs_schedules__schedule_id__allocation_runs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/allocation-runs/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Run */
+        get: operations["get_run_allocation_runs__run_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/allocation-runs/{run_id}/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Применить предпросмотр
+         * @description 409 `run_stale` — после расчёта данные изменились, нужен пересчёт (№45).
+         */
+        post: operations["apply_allocation_runs__run_id__apply_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/allocation-runs/{run_id}/discard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Discard */
+        post: operations["discard_allocation_runs__run_id__discard_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/audit": {
         parameters: {
             query?: never;
@@ -373,6 +461,32 @@ export interface components {
         AcceptIn: {
             /** Cell Ids */
             cell_ids?: string[] | null;
+        };
+        /** AllocateIn */
+        AllocateIn: {
+            /**
+             * Kind
+             * @default people
+             * @enum {string}
+             */
+            kind: "people" | "units";
+            /**
+             * Mode
+             * @default fill
+             * @enum {string}
+             */
+            mode: "fill" | "rebuild";
+            /** Cell Ids */
+            cell_ids?: string[] | null;
+            /**
+             * Seed
+             * @default 1
+             */
+            seed: number;
+            /** Config */
+            config?: {
+                [key: string]: unknown;
+            };
         };
         /** AssignIn */
         AssignIn: {
@@ -581,6 +695,43 @@ export interface components {
         ChangedOut: {
             /** Changed */
             changed: number;
+        };
+        /** DecisionOut */
+        DecisionOut: {
+            /**
+             * Day Plan Id
+             * Format: uuid
+             */
+            day_plan_id: string;
+            /** Date */
+            date: string | null;
+            /** Duty Type Name */
+            duty_type_name: string | null;
+            /** Role Name */
+            role_name: string | null;
+            /**
+             * Chosen Id
+             * Format: uuid
+             */
+            chosen_id: string;
+            /** Chosen Name */
+            chosen_name: string;
+            /** Cost */
+            cost: number;
+            /** Candidates */
+            candidates: number;
+            /** Features */
+            features: {
+                [key: string]: unknown;
+            };
+            /** Alternatives */
+            alternatives: {
+                [key: string]: unknown;
+            }[];
+            /** Rejected */
+            rejected: {
+                [key: string]: unknown;
+            } | null;
         };
         /** DelegateIn */
         DelegateIn: {
@@ -987,6 +1138,94 @@ export interface components {
             schedule: components["schemas"]["ScheduleOut"];
             /** Warnings */
             warnings: components["schemas"]["PendingWarning"][];
+        };
+        /** RunBrief */
+        RunBrief: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Schedule Id
+             * Format: uuid
+             */
+            schedule_id: string;
+            /** Kind */
+            kind: string;
+            /** Mode */
+            mode: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "preview_ready" | "applied" | "discarded" | "stale" | "failed";
+            /** Seed */
+            seed: number;
+            /** Created By Name */
+            created_by_name: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Applied At */
+            applied_at: string | null;
+            /** Applied By Name */
+            applied_by_name: string | null;
+            /** Filled */
+            filled: number;
+            /** Places */
+            places: number;
+        };
+        /** RunOut */
+        RunOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Schedule Id
+             * Format: uuid
+             */
+            schedule_id: string;
+            /** Kind */
+            kind: string;
+            /** Mode */
+            mode: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "preview_ready" | "applied" | "discarded" | "stale" | "failed";
+            /** Seed */
+            seed: number;
+            /** Created By Name */
+            created_by_name: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Applied At */
+            applied_at: string | null;
+            /** Applied By Name */
+            applied_by_name: string | null;
+            /** Filled */
+            filled: number;
+            /** Places */
+            places: number;
+            /** Config */
+            config: {
+                [key: string]: unknown;
+            };
+            /** Metrics */
+            metrics: {
+                [key: string]: unknown;
+            };
+            /** Decisions */
+            decisions: components["schemas"]["DecisionOut"][];
         };
         /** ScheduleCreate */
         ScheduleCreate: {
@@ -1923,6 +2162,165 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    allocate_schedules__schedule_id__allocate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                schedule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AllocateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_runs_schedules__schedule_id__allocation_runs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                schedule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunBrief"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_run_allocation_runs__run_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    apply_allocation_runs__run_id__apply_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    discard_allocation_runs__run_id__discard_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunOut"];
+                };
             };
             /** @description Validation Error */
             422: {

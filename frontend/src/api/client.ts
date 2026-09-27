@@ -46,6 +46,9 @@ export type Assigned = SC['schemas']['AssignedOut']
 export type SchedViolation = SC['schemas']['ViolationOut']
 export type DutyLimit = SC['schemas']['DutyLimitOut']
 export type DutyLimitIn = SC['schemas']['DutyLimitIn']
+export type Run = SC['schemas']['RunOut']
+export type RunBrief = SC['schemas']['RunBrief']
+export type Decision = SC['schemas']['DecisionOut']
 
 /** Ошибка API в формате сервисов: `{code, message, details?}`. */
 export class ApiError extends Error {
