@@ -33,6 +33,7 @@ from dutyflow_common.requirements import validate_requirement
 from dutyflow_common.scope import in_scope, scope_clause
 from scheduling.models import DutyRole, DutyType
 from scheduling.refs import PersonnelRefs, RefsLoader
+from scheduling.schedules import sync_owner_cells
 from scheduling.schemas import (
     DutyRoleIn,
     DutyRoleOut,
@@ -199,6 +200,7 @@ class DutyTypeService:
             if role_in.sort_order == 0:
                 role_in.sort_order = order
             await self._new_role(duty_type, owner, role_in, codes)
+        await self._sync(duty_type)
         await self._commit()
         return duty_type
 
@@ -211,6 +213,8 @@ class DutyTypeService:
             setattr(duty_type, key, value)
         await self._flush()
         self._record_type("duty_type.update", duty_type, before=before)
+        if before["is_active"] != duty_type.is_active:
+            await self._sync(duty_type)
         await self._commit()
         return duty_type
 
@@ -301,6 +305,7 @@ class DutyTypeService:
     async def add_role(self, type_id: uuid.UUID, data: DutyRoleIn) -> DutyRole:
         duty_type, owner = await self._type_for_update(type_id)
         role = await self._new_role(duty_type, owner, data, set())
+        await self._sync(duty_type, [role.id])
         await self._commit()
         return role
 
@@ -308,7 +313,7 @@ class DutyTypeService:
         role = await self.session.get(DutyRole, role_id)
         if role is None:
             raise NotFoundError("Роль не найдена")
-        _, owner = await self._type_for_update(role.duty_type_id)
+        duty_type, owner = await self._type_for_update(role.duty_type_id)
         _check_version(role.version, data.version)
         await self._validate_role(data, role)
         before = role.snapshot()
@@ -318,6 +323,8 @@ class DutyTypeService:
             setattr(role, key, value)
         await self._flush()
         self._record_role("duty_role.update", role, owner, before=before)
+        if before["is_active"] != role.is_active:
+            await self._sync(duty_type, [role.id])
         await self._commit()
         return role
 
@@ -341,6 +348,17 @@ class DutyTypeService:
                 role.id,
                 {"id": role.id, **role.snapshot(), "version": role.version},
             )
+
+    async def _sync(self, duty_type: DutyType, role_ids: list[uuid.UUID] | None = None) -> None:
+        """Ячейки графиков владельца следуют за составом ролей (фаза 3a)."""
+        await self.session.flush()
+        if role_ids is None:
+            role_ids = list(
+                await self.session.scalars(
+                    select(DutyRole.id).where(DutyRole.duty_type_id == duty_type.id)
+                )
+            )
+        await sync_owner_cells(self.session, duty_type.owner_unit_id, role_ids)
 
     # --- вспомогательное -----------------------------------------------------------------------
 

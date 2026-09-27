@@ -141,8 +141,8 @@ async def org(app: FastAPI, settings: SchedulingSettings) -> Org:
     async with engine.begin() as conn:
         await conn.execute(
             text(
-                "TRUNCATE duty_role, duty_type, unit_projection, rank_projection, audit_log,"
-                " outbox, processed_event CASCADE"
+                "TRUNCATE day_plan, schedule, duty_role, duty_type, unit_projection,"
+                " rank_projection, calendar_projection, audit_log, outbox, processed_event CASCADE"
             )
         )
     await engine.dispose()

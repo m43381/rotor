@@ -9,6 +9,7 @@ from dutyflow_common.auth import get_operator
 from dutyflow_common.context import Operator
 from dutyflow_common.db import get_session
 from scheduling.duty_types import DutyTypeService
+from scheduling.schedules import ScheduleService
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 OperatorDep = Annotated[Operator, Depends(get_operator)]
@@ -21,3 +22,10 @@ def duty_type_service(
 
 
 DutyTypeServiceDep = Annotated[DutyTypeService, Depends(duty_type_service)]
+
+
+def schedule_service(session: SessionDep, operator: OperatorDep) -> ScheduleService:
+    return ScheduleService(session, operator)
+
+
+ScheduleServiceDep = Annotated[ScheduleService, Depends(schedule_service)]

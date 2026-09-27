@@ -115,6 +115,14 @@ DEFAULT_RULES: dict[RuleKey, Scope] = {
         for action in ("read", "create", "update")
     },
     **_rules(Role.VIEWER, "duty_type", read=SUBTREE),
+    # Графики: подразделение ведёт свой график, вышестоящие операторы могут вмешаться
+    # в графики своего поддерева. Делегирование, принятие и закрепление — «update».
+    **{
+        (role, "schedule", action): SUBTREE
+        for role in (Role.UNIT_ADMIN, Role.OPERATOR)
+        for action in ("read", "create", "update", "publish")
+    },
+    **_rules(Role.VIEWER, "schedule", read=SUBTREE),
     # Допуски выдаёт оператор, в чей scope входит подразделение человека (ADR-0009).
     **{
         (role, "clearance", action): SUBTREE

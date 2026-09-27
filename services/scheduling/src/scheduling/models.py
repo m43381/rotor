@@ -1,7 +1,7 @@
 """Модели БД сервиса scheduling (`docs/data-model.md` §5).
 
-Фаза 2b — только справочная часть: типы нарядов с шаблоном времени (ADR-0008) и роли
-с требованиями (ADR-0009). Графики, ячейки и назначения появятся в фазе 3.
+Типы нарядов с шаблоном времени (ADR-0008) и роли с требованиями (ADR-0009); графики
+подразделений на месяц и ячейки «дата × роль» с делегированием вниз по дереву.
 """
 
 import datetime as dt
@@ -12,6 +12,8 @@ from sqlalchemy import (
     ARRAY,
     Boolean,
     CheckConstraint,
+    Date,
+    DateTime,
     ForeignKey,
     Index,
     Integer,
@@ -27,6 +29,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from dutyflow_common.audit import AuditLog
+from dutyflow_common.calendar import CalendarProjection
 from dutyflow_common.db import Base, TimestampMixin, UuidPkMixin, VersionedMixin
 from dutyflow_common.outbox import OutboxEvent, ProcessedEvent
 from dutyflow_common.projections import RankProjection, UnitProjection
@@ -34,11 +37,14 @@ from dutyflow_common.projections import RankProjection, UnitProjection
 __all__ = [
     "AuditLog",
     "Base",
+    "CalendarProjection",
+    "DayPlan",
     "DutyRole",
     "DutyType",
     "OutboxEvent",
     "ProcessedEvent",
     "RankProjection",
+    "Schedule",
     "UnitProjection",
 ]
 
@@ -133,6 +139,64 @@ class DutyRole(UuidPkMixin, TimestampMixin, VersionedMixin, Base):
             "attribute_requirements": self.attribute_requirements,
             "is_active": self.is_active,
         }
+
+
+class Schedule(UuidPkMixin, TimestampMixin, VersionedMixin, Base):
+    """График подразделения на месяц: draft → published → archived."""
+
+    __tablename__ = "schedule"
+    __table_args__ = (
+        UniqueConstraint("unit_id", "month"),
+        CheckConstraint("status IN ('draft', 'published', 'archived')", name="status"),
+        CheckConstraint("extract(day FROM month) = 1", name="month_first_day"),
+    )
+
+    unit_id: Mapped[uuid.UUID]
+    month: Mapped[dt.date] = mapped_column(Date)  # первое число месяца
+    status: Mapped[str] = mapped_column(String(20), default="draft")
+    published_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+    published_by: Mapped[str | None] = mapped_column(String(200))
+
+
+class DayPlan(UuidPkMixin, TimestampMixin, VersionedMixin, Base):
+    """Ячейка «дата начала × роль наряда» в графике подразделения (ADR-0008, ADR-0009).
+
+    `own` — роль наряда самого подразделения, `incoming` — пришла от родителя по делегированию
+    (`parent_day_plan_id`). `executor_unit_id` — кто закрывает роль: само подразделение
+    графика или его прямое дочернее; во втором случае у ячейки есть дочерняя ячейка в графике
+    исполнителя. Смена решения удаляет цепочку вниз каскадом (как в legacy).
+    """
+
+    __tablename__ = "day_plan"
+    __table_args__ = (
+        UniqueConstraint("schedule_id", "date", "duty_role_id"),
+        CheckConstraint("origin IN ('own', 'incoming')", name="origin"),
+        CheckConstraint(
+            "delegation_status IN ('none', 'pending', 'accepted')", name="delegation_status"
+        ),
+        CheckConstraint(
+            "(origin = 'own') = (parent_day_plan_id IS NULL)", name="incoming_has_parent"
+        ),
+        # Непринятые входящие: счётчики в списке графиков и предупреждения при публикации
+        Index(
+            "ix_day_plan_pending",
+            "schedule_id",
+            postgresql_where=text("delegation_status = 'pending'"),
+        ),
+    )
+
+    # Индекс по schedule_id не нужен: его покрывает UNIQUE(schedule_id, date, duty_role_id)
+    schedule_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("schedule.id", ondelete="CASCADE"))
+    date: Mapped[dt.date] = mapped_column(Date)
+    duty_type_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("duty_type.id"))
+    duty_role_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("duty_role.id"), index=True)
+    origin: Mapped[str] = mapped_column(String(10))
+    parent_day_plan_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("day_plan.id", ondelete="CASCADE"), unique=True
+    )
+    executor_unit_id: Mapped[uuid.UUID]
+    delegation_status: Mapped[str] = mapped_column(String(10), default="none")
+    is_pinned: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
 def include_object(

@@ -48,3 +48,10 @@ def test_duty_type_and_clearance_rules() -> None:
     assert default_policy.scope_for({Role.UNIT_ADMIN}, "clearance", "grant") is subtree
     assert default_policy.scope_for({Role.VIEWER}, "clearance", "read") is subtree
     assert default_policy.scope_for({Role.VIEWER}, "clearance", "revoke") is Scope.NONE
+
+
+def test_schedule_rules() -> None:
+    subtree = Scope.OWN_AND_ALL_DESCENDANTS
+    assert default_policy.scope_for({Role.OPERATOR}, "schedule", "publish") is subtree
+    assert default_policy.scope_for({Role.VIEWER}, "schedule", "read") is subtree
+    assert default_policy.scope_for({Role.VIEWER}, "schedule", "update") is Scope.NONE

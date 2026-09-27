@@ -2,7 +2,7 @@
 
 import datetime as dt
 import uuid
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -156,3 +156,120 @@ class AuditEntryOut(BaseModel):
     before: dict[str, object] | None
     after: dict[str, object] | None
     comment: str | None
+
+
+# --- графики и ячейки (фаза 3a) ------------------------------------------------------------------
+
+CellState = Literal[
+    "own",  # своя роль, закрывает само подразделение
+    "delegated_pending",  # своя роль передана дочернему, ещё не принята
+    "delegated_accepted",  # своя роль передана дочернему и принята
+    "incoming_pending",  # пришла сверху, ждёт принятия
+    "incoming_active",  # пришла сверху и принята, закрывает само подразделение
+    "incoming_delegated_pending",  # пришла сверху и передана дальше, ниже не принята
+    "incoming_delegated_accepted",  # пришла сверху и передана дальше, ниже принята
+    "inactive",  # роль или наряд выведены из действия
+]
+ScheduleStatus = Literal["draft", "published", "archived"]
+
+
+class ScheduleCreate(BaseModel):
+    unit_id: uuid.UUID
+    month: dt.date  # любой день месяца; хранится первое число
+
+
+class ScheduleOut(BaseModel):
+    id: uuid.UUID
+    unit_id: uuid.UUID
+    unit_name: str | None
+    month: dt.date
+    status: ScheduleStatus
+    published_at: dt.datetime | None
+    published_by: str | None
+    version: int
+    can_edit: bool
+    # Входящие ячейки, ожидающие принятия этим подразделением
+    pending_incoming: int
+
+
+class CellOut(BaseModel):
+    id: uuid.UUID
+    state: CellState
+    executor_unit_id: uuid.UUID
+    is_pinned: bool
+
+
+class TableDay(BaseModel):
+    date: dt.date
+    kind: Literal["workday", "weekend", "holiday", "preholiday"]
+    name: str | None
+
+
+class TableRow(BaseModel):
+    duty_type_id: uuid.UUID
+    duty_type_name: str
+    duty_type_short_name: str | None
+    owner_unit_id: uuid.UUID
+    owner_unit_name: str | None
+    start_time: dt.time
+    duration_minutes: int
+    duty_role_id: uuid.UUID
+    role_name: str
+    headcount: int
+    is_active: bool
+    # По дням месяца, в порядке `days`; null — ячейки в этот день нет
+    cells: list[CellOut | None]
+
+
+class UnitRef(BaseModel):
+    id: uuid.UUID
+    name: str
+    short_name: str | None
+
+
+class TableOut(BaseModel):
+    schedule: ScheduleOut
+    days: list[TableDay]
+    rows: list[TableRow]
+    # Кому можно делегировать: прямые действующие дочерние подразделения
+    children: list[UnitRef]
+    # Имена исполнителей, встречающихся в ячейках
+    units: dict[uuid.UUID, UnitRef]
+
+
+class CellsIn(BaseModel):
+    cell_ids: list[uuid.UUID] = Field(min_length=1, max_length=10_000)
+
+
+class DelegateIn(CellsIn):
+    # Само подразделение графика — вернуть себе; прямое дочернее — делегировать
+    executor_unit_id: uuid.UUID
+
+
+class AcceptIn(BaseModel):
+    # None — принять все входящие ячейки графика
+    cell_ids: list[uuid.UUID] | None = Field(default=None, max_length=10_000)
+
+
+class PinIn(CellsIn):
+    pinned: bool
+
+
+class ChangedOut(BaseModel):
+    changed: int
+
+
+class VersionIn(BaseModel):
+    version: int
+
+
+class PendingWarning(BaseModel):
+    unit_id: uuid.UUID
+    unit_name: str | None
+    count: int
+
+
+class PublishOut(BaseModel):
+    schedule: ScheduleOut
+    # Непринятые ячейки в поддереве — публикацию не блокируют (ADR-0009)
+    warnings: list[PendingWarning]

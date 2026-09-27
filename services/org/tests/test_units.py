@@ -313,3 +313,9 @@ async def test_internal_ranks(admin: AsyncClient, anon: AsyncClient) -> None:
     await admin.post("/ranks", json={"name": "Рядовой", "order": 1})
     r = await anon.post("/internal/ranks", json={}, headers={"X-Internal-Token": INTERNAL_TOKEN})
     assert [x["name"] for x in r.json()] == ["Рядовой"]
+
+
+async def test_internal_calendar(admin: AsyncClient, anon: AsyncClient) -> None:
+    await admin.put("/calendar/2026-11-04", json={"date": "2026-11-04", "kind": "holiday"})
+    r = await anon.post("/internal/calendar", json={}, headers={"X-Internal-Token": INTERNAL_TOKEN})
+    assert [(d["date"], d["kind"]) for d in r.json()] == [("2026-11-04", "holiday")]

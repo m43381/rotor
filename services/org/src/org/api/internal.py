@@ -10,8 +10,8 @@ from sqlalchemy import func, or_, select
 from dutyflow_common.auth import require_internal
 from dutyflow_common.ltree import is_descendant_or_self
 from org.api.deps import SessionDep
-from org.models import Rank, Unit
-from org.schemas import RankOut, UnitBrief, UnitsBatchIn
+from org.models import CalendarDay, Rank, Unit
+from org.schemas import CalendarDayModel, RankOut, UnitBrief, UnitsBatchIn
 
 router = APIRouter(prefix="/internal", tags=["internal"], dependencies=[Depends(require_internal)])
 
@@ -47,3 +47,9 @@ async def descendants_batch(data: UnitsBatchIn, session: SessionDep) -> list[Uni
 async def ranks(session: SessionDep) -> list[Rank]:
     """Все звания, включая неактивные: у людей может остаться снятое с учёта звание."""
     return list((await session.scalars(select(Rank).order_by(Rank.order))).all())
+
+
+@router.post("/calendar", response_model=list[CalendarDayModel])
+async def calendar(session: SessionDep) -> list[CalendarDay]:
+    """Все исключения производственного календаря — для пересинхронизации проекций."""
+    return list((await session.scalars(select(CalendarDay).order_by(CalendarDay.date))).all())

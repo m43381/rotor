@@ -1,7 +1,7 @@
 """Консьюмер событий org для проекций scheduling: `python -m scheduling.consumer`.
 
 При первом запуске (проекция пуста) выполняет полную синхронизацию через batch-API org,
-затем слушает `events:unit` и `events:rank` (ADR-0011).
+затем слушает `events:unit`, `events:rank` и `events:calendar` (ADR-0011).
 """
 
 import asyncio
@@ -12,6 +12,7 @@ import signal
 from redis.asyncio import Redis
 
 from dutyflow_common.app import setup_logging
+from dutyflow_common.calendar import handle_calendar_event, resync_calendar
 from dutyflow_common.db import Database
 from dutyflow_common.events import EventConsumer
 from dutyflow_common.internal import InternalClient
@@ -35,13 +36,18 @@ async def main(settings: SchedulingSettings) -> None:
         "scheduling",
         db.sessionmaker,
         redis,
-        {"events:unit": handle_unit_event, "events:rank": handle_rank_event},
+        {
+            "events:unit": handle_unit_event,
+            "events:rank": handle_rank_event,
+            "events:calendar": handle_calendar_event,
+        },
     )
     try:
         # Группа создаётся до пересинхронизации: события, пришедшие во время неё, не потеряются
         # и будут применены после (проекция сравнивает версии узлов).
         await consumer.ensure_groups()
-        await resync_org(db.sessionmaker, org, only_if_empty=True)
+        if await resync_org(db.sessionmaker, org, only_if_empty=True):
+            await resync_calendar(db.sessionmaker, org)
         await consumer.run(stop)
     finally:
         await org.aclose()
