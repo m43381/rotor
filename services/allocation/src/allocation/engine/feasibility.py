@@ -22,25 +22,33 @@ class StaticCandidates:
     exempt: int
 
 
+def cleared_people(problem: Problem, role: int) -> IntArray:
+    """Номера людей с допуском к роли (без учёта срока) — кэш на задачу. Дальнейшие проверки
+    идут только по ним, а не по всем людям снимка: к роли допущена малая доля людей."""
+    cache: dict[int, IntArray] = problem.extra.setdefault("cleared_people", {})
+    people = cache.get(role)
+    if people is None:
+        people = np.flatnonzero(problem.clearance[:, role]).astype(np.int32)
+        cache[role] = people
+    return people
+
+
 def static_candidates(problem: Problem, cell: Cell, scope: np.ndarray) -> StaticCandidates:
     """`scope` — маска людей, из которых вообще выбирают (поддерево исполнителя)."""
     r, d = cell.role, cell.day
-    cleared = (
-        scope
-        & problem.clearance[:, r]
-        & (problem.valid_from[:, r] <= d)
-        & (problem.valid_to[:, r] >= d)
-    )
+    people = cleared_people(problem, r)
+    people = people[
+        scope[people] & (problem.valid_from[people, r] <= d) & (problem.valid_to[people, r] >= d)
+    ]
     last = min(problem.width - 1, cell.last_day)
-    free = problem.available[:, d : last + 1].all(axis=1)
-    ok = cleared & free
+    free = problem.available[people, d : last + 1].all(axis=1)
     in_scope = int(scope.sum())
-    n_cleared = int(cleared.sum())
+    n_cleared = len(people)
     return StaticCandidates(
-        people=np.flatnonzero(ok).astype(np.int32),
+        people=people[free],
         in_scope=in_scope,
         no_clearance=in_scope - n_cleared,
-        exempt=n_cleared - int(ok.sum()),
+        exempt=n_cleared - int(free.sum()),
     )
 
 

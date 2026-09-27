@@ -35,6 +35,12 @@ class PeopleState:
         # Опорная точка затухания для счётчиков по типам и праздникам — середина месяца
         self.mid = (problem.month_start + problem.month_end) / 2
         self._kernels: dict[int, FloatArray] = {}
+        # Окно проверки отдыха «до»: наряд, закончившийся раньше, чем за самый длинный отдых
+        # задачи, помешать не может — окно короче 31 суток ускоряет проверку в разы
+        longest = max(
+            [r.rest for r in problem.roles] + [e.rest for e in problem.existing], default=0
+        )
+        self.rest_window = min(REST_WINDOW_DAYS, longest // DAY + 1)
 
     def copy(self) -> "PeopleState":
         """Независимая копия массивов — методы экспериментируют, не портя исходное состояние."""
@@ -43,6 +49,7 @@ class PeopleState:
         other.holiday_weight = self.holiday_weight
         other.decay = self.decay
         other.mid = self.mid
+        other.rest_window = self.rest_window
         other._kernels = self._kernels
         for name in (
             "busy",
@@ -115,7 +122,7 @@ class PeopleState:
     def rested(self, people: IntArray, start: int, end: int, rest: int) -> np.ndarray:
         w = self.problem.width
         day = start // DAY
-        lo = max(0, day - REST_WINDOW_DAYS)
+        lo = max(0, day - self.rest_window)
         before_ok = self.rest_until[people, lo : day + 1].max(axis=1) <= start
         end_day = min(w - 1, (end - 1) // DAY)
         hi = min(w - 1, (end + rest - 1) // DAY) if rest > 0 else end_day

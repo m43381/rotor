@@ -1,6 +1,6 @@
 # Настройки движка распределения по умолчанию (allocation.engine.config.EngineConfig).
 # Прогон может переопределить любое поле. Значения — утверждённые ответы open-questions
-# №42–43; точные веса подбираются в экспериментах фазы 5.
+# №42–43; пороги и пределы — по экспериментам фазы 5 (docs/experiments.md).
 
 half_life_days: 30      # нагрузка месячной давности весит вдвое меньше свежей
 holiday_weight: 1.5     # наряд в выходной или праздник тяжелее обычного
@@ -23,9 +23,9 @@ strict_feasibility_max_edges: 5000000
 
 # Уровень 4 (фаза 5): метод выбирается по размеру задачи (open-questions №46)
 method: auto
-auto_cpsat_max_pairs: 60000
+auto_cpsat_max_pairs: 10000     # CP-SAT добавлял места только на малых задачах (E4)
 auto_local_search_max_pairs: 2000000
-ls_iterations: 20000
+ls_iterations: 50000            # σ до 17 % ниже, чем при 20 тыс., курс ≤ 7 с (E4)
 ls_temperature: 0.5
 cpsat_deterministic_time: 20.0   # детерминированное время решателя — одинаковый результат
 cpsat_time_limit_s: 10.0         # настенный предел — страховка (open-questions №47)

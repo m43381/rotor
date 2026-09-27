@@ -4,6 +4,14 @@
 ёмкости (сколько его людей могут закрыть роль в эти дни) с поправкой на прошлую нагрузку
 («долг»), метод наибольшего остатка (Гамильтона). Затем жадная расстановка по дням в порядке
 MRV. Точные методы — Сент-Лагю и min-cost flow — фаза 5.
+
+Ёмкость (фаза 5c, по итогам эксперимента): передавая ячейку, движок резервирует под неё
+конкретных людей подразделения — «свидетелей» того, что его люди могут её закрыть, — в общем
+состоянии с отдыхом, многосуточностью и лимитами. Ёмкость следующих ячеек считается по этому
+состоянию. Прежняя оценка «допущенные к роли минус все, кого подразделение уже отдало в эти
+сутки» вычитала и людей других ролей и теряла до 5 % мест, которые подразделения могли бы
+закрыть (`docs/experiments.md`). Свидетели — не назначение: людей потом выбирает само
+подразделение, но полное закрытие переданного ему заведомо возможно.
 """
 
 from typing import Any
@@ -69,7 +77,7 @@ def _place_by_flow(
     problem: Problem,
     targets: list[Cell],
     quota: dict[int, np.ndarray],
-    capacity: dict[int, np.ndarray],
+    free_capacity: Any,
     taken: np.ndarray,
     w: Any,
     place: Any,
@@ -94,7 +102,7 @@ def _place_by_flow(
                 net.add_arc_with_capacity_and_unit_cost(0, 1 + k, int(quota[r][k]), 0)
         for n, c in enumerate(cells_r):
             node = 1 + g + n
-            free = capacity[c.index] - taken[:, c.day : c.last_day + 1].max(axis=1)
+            free = free_capacity(c)
             top = max(1, int(free.max(initial=0)))
             for k in range(g):
                 if free[k] >= head:
@@ -155,16 +163,29 @@ def solve_units(problem: Problem, config: EngineConfig, seed: int) -> dict[str, 
     timer.lap("level0")
 
     # --- уровень 1–2: ёмкость подразделений по ячейкам ----------------------------------
-    in_scope = problem.person_unit >= 0
-    capacity: dict[int, np.ndarray] = {}
-    for c in targets:
+    in_scope = person_group >= 0
+    static: dict[int, np.ndarray] = {
+        c.index: static_candidates(problem, c, in_scope).people for c in targets
+    }
+
+    def feasible(c: Cell) -> np.ndarray:
+        """Люди, которые могут закрыть ячейку при текущем состоянии (с резервами)."""
+        people = static[c.index]
         role = problem.roles[c.role]
-        sc = static_candidates(problem, c, in_scope)
-        people = sc.people
         ok = state.free(people, c.day, c.last_day) & state.rested(people, c.start, c.end, role.rest)
         ok &= state.within_limits(people, c.day)
-        member = person_group[people[ok]]
-        capacity[c.index] = np.bincount(member[member >= 0], minlength=g) if g else np.zeros(0)
+        result: np.ndarray = people[ok]
+        return result
+
+    def free_capacity(c: Cell, people: np.ndarray | None = None) -> np.ndarray:
+        member = person_group[feasible(c) if people is None else people]
+        return np.bincount(member, minlength=g) if g else np.zeros(0, dtype=np.int64)
+
+    capacity = {c.index: free_capacity(c) for c in targets}
+    # Гибкость человека — к скольким ролям задачи он допущен: в свидетели берём наименее
+    # гибких, чтобы не занимать тех, кто нужен редким ролям
+    target_roles = sorted({c.role for c in targets})
+    flexibility = problem.clearance[:, target_roles].sum(axis=1) if target_roles else None
     timer.lap("level1")
     deficits = []
     for c in targets:
@@ -218,11 +239,13 @@ def solve_units(problem: Problem, config: EngineConfig, seed: int) -> dict[str, 
     delegations: list[dict[str, Any]] = []
     unfilled: list[dict[str, Any]] = []
 
-    def options(c: Cell) -> tuple[np.ndarray, dict[str, np.ndarray], np.ndarray]:
-        """Кому можно отдать ячейку сейчас, признаки и стоимость (уровень 3)."""
+    def options(
+        c: Cell,
+    ) -> tuple[np.ndarray, dict[str, np.ndarray], np.ndarray, np.ndarray]:
+        """Кому можно отдать ячейку сейчас, признаки, стоимость (уровень 3) и допустимые люди."""
         role = problem.roles[c.role]
-        days = slice(c.day, min(width, c.last_day + 1))
-        free_cap = capacity[c.index] - taken[:, days].max(axis=1)
+        people = feasible(c)
+        free_cap = free_capacity(c, people)
         cand = np.flatnonzero(free_cap >= role.headcount)
         q = quota[c.role][cand]
         feats = {
@@ -235,13 +258,13 @@ def solve_units(problem: Problem, config: EngineConfig, seed: int) -> dict[str, 
             + w.same_day * feats["same_day"]
             - w.capacity * feats["capacity"]
         )
-        return cand, feats, cost
+        return cand, feats, cost, people
 
     def place(c: Cell, chosen: int | None = None) -> bool:
         """Отдаёт ячейку: выбранному заранее (min-cost flow) или лучшему сейчас (жадно).
         Квота соблюдается, пока есть подразделения, не выбравшие её."""
         role = problem.roles[c.role]
-        cand, feats, cost = options(c)
+        cand, feats, cost, people = options(c)
         if not len(cand):
             if chosen is None:
                 unfilled.append(
@@ -270,6 +293,22 @@ def solve_units(problem: Problem, config: EngineConfig, seed: int) -> dict[str, 
             }
 
         best = int(cand[pick])
+        # Свидетели: наименее гибкие, затем наименее загруженные люди подразделения
+        people = people[person_group[people] == best]
+        assert flexibility is not None
+        order = np.lexsort((people, state.month_total[people], flexibility[people]))
+        for person in people[order[: role.headcount]]:
+            state.add(
+                int(person),
+                day=c.day,
+                start=c.start,
+                end=c.end,
+                rest=role.rest,
+                first_day=c.day,
+                last_day=c.last_day,
+                type_index=role.type_index,
+                load=(c.last_day - c.day + 1) * role.weight,
+            )
         delegations.append(
             {
                 "cell": c.id,
@@ -293,7 +332,7 @@ def solve_units(problem: Problem, config: EngineConfig, seed: int) -> dict[str, 
     method = "flow" if config.units_method in ("auto", "flow") else "greedy"
     info: dict[str, Any] = {}
     if g and method == "flow":
-        info = _place_by_flow(problem, targets, quota, capacity, taken, w, place, g)
+        info = _place_by_flow(problem, targets, quota, free_capacity, taken, w, place, g)
     elif g:
         order = sorted(
             targets,

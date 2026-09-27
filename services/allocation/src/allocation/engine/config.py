@@ -53,10 +53,10 @@ class EngineConfig(BaseModel):
     # --- уровень 4 (фаза 5): метод и его пределы -------------------------------------------
     # auto — по размеру задачи (open-questions №46); остальные — принудительно
     method: Literal["auto", "greedy", "hungarian", "local_search", "cpsat"] = "auto"
-    # Пороги auto по числу допустимых пар «человек × место» (уточняются бенчмарком)
-    auto_cpsat_max_pairs: int = 60_000
+    # Пороги auto по числу допустимых пар «человек × место» (эксперимент E4)
+    auto_cpsat_max_pairs: int = 10_000
     auto_local_search_max_pairs: int = 2_000_000
-    ls_iterations: int = Field(default=20_000, ge=0)
+    ls_iterations: int = Field(default=50_000, ge=0)
     ls_temperature: float = Field(default=0.5, ge=0)
     # CP-SAT: детерминированное время (одинаковый результат) и настенный предел (страховка,
     # open-questions №47); число потоков решателя

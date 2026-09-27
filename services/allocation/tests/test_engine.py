@@ -199,6 +199,34 @@ def test_units_quota_proportional_to_capacity() -> None:
     assert d["keep"] is False
 
 
+def test_units_capacity_counts_people_not_places() -> None:
+    """Регрессия фазы 5c: у курса разные люди допущены к разным ролям одних суток. Прежняя
+    оценка «допущенные минус все отданные в эти сутки» считала курс занятым после первой
+    роли и теряла вторую; резерв конкретных людей передаёт обе."""
+    units = [
+        {"id": "fac", "parent": None, "name": "Факультет"},
+        {"id": "course", "parent": 0, "name": "Курс"},
+        {"id": "empty", "parent": 0, "name": "Пустой курс"},
+    ]
+    people = [person(f"a{i}", [0], unit=1) for i in range(2)] + [
+        person(f"b{i}", [1], unit=1) for i in range(2)
+    ]
+    snap = snapshot(
+        roles=[role("Первая", headcount=2, rest=0), role("Вторая", headcount=2, rest=0)],
+        people=people,
+        cells=[cell("first", M + 3, 0), cell("second", M + 3, 1)],
+        units=units,
+    )
+    sol = run(snap, kind="units")
+    assert sorted(d["cell"] for d in sol["delegations"]) == ["first", "second"]
+    assert {d["unit"] for d in sol["delegations"]} == {"course"}
+    # А третьих людей нет: вторая ячейка той же роли в те же сутки — уже некому
+    snap["cells"].append(cell("third", M + 3, 0))
+    sol = run(snap, kind="units")
+    assert sol["metrics"]["filled"] == 2
+    assert [u["cell"] for u in sol["unfilled"]] == ["third"]
+
+
 def test_units_skip_occupied_and_pinned_cells() -> None:
     snap = units_snapshot(3, 3)
     snap["cells"][0]["pinned"] = True
