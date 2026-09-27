@@ -83,8 +83,9 @@ bench:
 bench-people:
     uv run python tools/bench/people_snapshot.py
 
-# Демо-данные стенда: дерево, учётки операторов, личный состав (~1000 человек), наряды и допуски
+# Демо-данные стенда: дерево, учётки операторов, личный состав (~1000 человек), наряды, допуски и графики на следующий месяц
 seed:
     uv run python tools/gen/seed_org.py
     uv run python tools/gen/seed_people.py
     uv run python tools/gen/seed_duties.py
+    uv run python tools/gen/seed_schedules.py
