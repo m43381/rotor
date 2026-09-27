@@ -30,6 +30,7 @@ import {
 import AllocateDialog from '@/components/AllocateDialog.vue'
 import AllocationPanel from '@/components/AllocationPanel.vue'
 import CellPanel from '@/components/CellPanel.vue'
+import PrintDialog from '@/components/PrintDialog.vue'
 import UnitTreeSelect from '@/components/UnitTreeSelect.vue'
 import { useUnitsStore } from '@/stores/units'
 import { formatDateTime } from '@/utils/dates'
@@ -225,6 +226,7 @@ function fillClass(c: Cell, headcount: number): string | undefined {
 
 // --- автораспределение: предпросмотр → применение (фаза 4b) -----------------------------------
 const allocateVisible = ref(false)
+const printVisible = ref(false)
 const preview = ref<Run | null>(null)
 const stale = ref(false)
 const focusCell = ref<string | null>(null)
@@ -607,6 +609,13 @@ function archive() {
           @click="allocateVisible = true"
         />
         <Button
+          v-if="table"
+          label="Печать…"
+          icon="pi pi-print"
+          severity="secondary"
+          @click="printVisible = true"
+        />
+        <Button
           v-if="isSuperadmin && table"
           label="Снимок задачи"
           icon="pi pi-download"
@@ -818,6 +827,14 @@ function archive() {
       :has-children="table.children.length > 0"
       :can-choose-method="isSuperadmin"
       @preview="showPreview"
+    />
+    <PrintDialog
+      v-if="table"
+      v-model:visible="printVisible"
+      :schedule-id="table.schedule.id"
+      :unit-id="table.schedule.unit_id"
+      :month="table.schedule.month"
+      :status="table.schedule.status"
     />
     <CellPanel v-model:visible="panelVisible" :cell-id="panelCell" @changed="load" />
     <Dialog v-model:visible="warningsVisible" header="График опубликован" modal :style="{ width: '32rem' }">

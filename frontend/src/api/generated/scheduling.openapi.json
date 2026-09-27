@@ -1521,6 +1521,112 @@
         }
       }
     },
+    "/schedules/{schedule_id}/print": {
+      "get": {
+        "tags": [
+          "printing"
+        ],
+        "summary": "График на месяц для печати: люди со званиями или подразделение-исполнитель",
+        "operationId": "schedule_print_schedules__schedule_id__print_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "schedule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Schedule Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintScheduleOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rosters/daily": {
+      "get": {
+        "tags": [
+          "printing"
+        ],
+        "summary": "Суточный наряд подразделения и его поддерева на дату",
+        "operationId": "daily_roster_rosters_daily_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "unit_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Unit Id"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "title": "Date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DailyRosterOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/audit": {
       "get": {
         "tags": [
@@ -2226,6 +2332,75 @@
           "changed"
         ],
         "title": "ChangedOut"
+      },
+      "DailyRosterOut": {
+        "properties": {
+          "unit_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Unit Id"
+          },
+          "unit_name": {
+            "type": "string",
+            "title": "Unit Name"
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "day_kind": {
+            "type": "string",
+            "enum": [
+              "workday",
+              "weekend",
+              "holiday",
+              "preholiday"
+            ],
+            "title": "Day Kind"
+          },
+          "day_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Day Name"
+          },
+          "statuses": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "draft",
+                "published",
+                "archived"
+              ]
+            },
+            "type": "array",
+            "title": "Statuses"
+          },
+          "duties": {
+            "items": {
+              "$ref": "#/components/schemas/RosterDuty"
+            },
+            "type": "array",
+            "title": "Duties"
+          }
+        },
+        "type": "object",
+        "required": [
+          "unit_id",
+          "unit_name",
+          "date",
+          "day_kind",
+          "day_name",
+          "statuses",
+          "duties"
+        ],
+        "title": "DailyRosterOut"
       },
       "DecisionOut": {
         "properties": {
@@ -3424,6 +3599,212 @@
         ],
         "title": "PinIn"
       },
+      "PrintCell": {
+        "properties": {
+          "executor_unit_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Executor Unit Name"
+          },
+          "people": {
+            "items": {
+              "$ref": "#/components/schemas/PrintPerson"
+            },
+            "type": "array",
+            "title": "People"
+          },
+          "missing": {
+            "type": "integer",
+            "title": "Missing",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "PrintCell"
+      },
+      "PrintPerson": {
+        "properties": {
+          "person_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Person Id"
+          },
+          "rank_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rank Name"
+          },
+          "last_name": {
+            "type": "string",
+            "title": "Last Name"
+          },
+          "first_name": {
+            "type": "string",
+            "title": "First Name"
+          },
+          "middle_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Middle Name"
+          },
+          "short_name": {
+            "type": "string",
+            "title": "Short Name"
+          },
+          "unit_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Name"
+          },
+          "conflict": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conflict"
+          }
+        },
+        "type": "object",
+        "required": [
+          "person_id",
+          "rank_name",
+          "last_name",
+          "first_name",
+          "middle_name",
+          "short_name",
+          "unit_name"
+        ],
+        "title": "PrintPerson"
+      },
+      "PrintRow": {
+        "properties": {
+          "duty_type_name": {
+            "type": "string",
+            "title": "Duty Type Name"
+          },
+          "duty_type_short_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duty Type Short Name"
+          },
+          "owner_unit_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Unit Name"
+          },
+          "role_name": {
+            "type": "string",
+            "title": "Role Name"
+          },
+          "start_time": {
+            "type": "string",
+            "format": "time",
+            "title": "Start Time"
+          },
+          "duration_minutes": {
+            "type": "integer",
+            "title": "Duration Minutes"
+          },
+          "headcount": {
+            "type": "integer",
+            "title": "Headcount"
+          },
+          "cells": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/PrintCell"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Cells"
+          }
+        },
+        "type": "object",
+        "required": [
+          "duty_type_name",
+          "duty_type_short_name",
+          "owner_unit_name",
+          "role_name",
+          "start_time",
+          "duration_minutes",
+          "headcount",
+          "cells"
+        ],
+        "title": "PrintRow"
+      },
+      "PrintScheduleOut": {
+        "properties": {
+          "schedule": {
+            "$ref": "#/components/schemas/ScheduleOut"
+          },
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/TableDay"
+            },
+            "type": "array",
+            "title": "Days"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/PrintRow"
+            },
+            "type": "array",
+            "title": "Rows"
+          }
+        },
+        "type": "object",
+        "required": [
+          "schedule",
+          "days",
+          "rows"
+        ],
+        "title": "PrintScheduleOut"
+      },
       "PublishOut": {
         "properties": {
           "schedule": {
@@ -3443,6 +3824,94 @@
           "warnings"
         ],
         "title": "PublishOut"
+      },
+      "RosterDuty": {
+        "properties": {
+          "duty_type_name": {
+            "type": "string",
+            "title": "Duty Type Name"
+          },
+          "owner_unit_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Unit Name"
+          },
+          "executor_unit_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Executor Unit Name"
+          },
+          "start_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start At"
+          },
+          "end_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "End At"
+          },
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/RosterRole"
+            },
+            "type": "array",
+            "title": "Roles"
+          }
+        },
+        "type": "object",
+        "required": [
+          "duty_type_name",
+          "owner_unit_name",
+          "executor_unit_name",
+          "start_at",
+          "end_at",
+          "roles"
+        ],
+        "title": "RosterDuty"
+      },
+      "RosterRole": {
+        "properties": {
+          "role_name": {
+            "type": "string",
+            "title": "Role Name"
+          },
+          "headcount": {
+            "type": "integer",
+            "title": "Headcount"
+          },
+          "people": {
+            "items": {
+              "$ref": "#/components/schemas/PrintPerson"
+            },
+            "type": "array",
+            "title": "People"
+          },
+          "missing": {
+            "type": "integer",
+            "title": "Missing"
+          }
+        },
+        "type": "object",
+        "required": [
+          "role_name",
+          "headcount",
+          "people",
+          "missing"
+        ],
+        "title": "RosterRole"
       },
       "RunBrief": {
         "properties": {

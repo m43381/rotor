@@ -14,6 +14,7 @@ import App from './App.vue'
 import { ensureSignedIn } from './auth'
 import { ru } from './locale/ru'
 import ClearanceMismatchesView from './views/ClearanceMismatchesView.vue'
+import DocumentsView from './views/DocumentsView.vue'
 import DutyLimitsView from './views/DutyLimitsView.vue'
 import DutyTypesView from './views/DutyTypesView.vue'
 import ImportView from './views/ImportView.vue'
@@ -41,6 +42,7 @@ async function bootstrap() {
       { path: '/reports/clearance-mismatches', component: ClearanceMismatchesView },
       { path: '/references', component: ReferencesView },
       { path: '/import', component: ImportView },
+      { path: '/documents', component: DocumentsView },
       { path: '/:pathMatch(.*)*', redirect: '/units' },
     ],
   })

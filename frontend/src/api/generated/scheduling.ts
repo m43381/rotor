@@ -419,6 +419,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/schedules/{schedule_id}/print": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** График на месяц для печати: люди со званиями или подразделение-исполнитель */
+        get: operations["schedule_print_schedules__schedule_id__print_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/rosters/daily": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Суточный наряд подразделения и его поддерева на дату */
+        get: operations["daily_roster_rosters_daily_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/audit": {
         parameters: {
             query?: never;
@@ -701,6 +735,32 @@ export interface components {
         ChangedOut: {
             /** Changed */
             changed: number;
+        };
+        /** DailyRosterOut */
+        DailyRosterOut: {
+            /**
+             * Unit Id
+             * Format: uuid
+             */
+            unit_id: string;
+            /** Unit Name */
+            unit_name: string;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /**
+             * Day Kind
+             * @enum {string}
+             */
+            day_kind: "workday" | "weekend" | "holiday" | "preholiday";
+            /** Day Name */
+            day_name: string | null;
+            /** Statuses */
+            statuses: ("draft" | "published" | "archived")[];
+            /** Duties */
+            duties: components["schemas"]["RosterDuty"][];
         };
         /** DecisionOut */
         DecisionOut: {
@@ -1139,11 +1199,107 @@ export interface components {
             /** Pinned */
             pinned: boolean;
         };
+        /** PrintCell */
+        PrintCell: {
+            /** Executor Unit Name */
+            executor_unit_name?: string | null;
+            /** People */
+            people?: components["schemas"]["PrintPerson"][];
+            /**
+             * Missing
+             * @default 0
+             */
+            missing: number;
+        };
+        /** PrintPerson */
+        PrintPerson: {
+            /**
+             * Person Id
+             * Format: uuid
+             */
+            person_id: string;
+            /** Rank Name */
+            rank_name: string | null;
+            /** Last Name */
+            last_name: string;
+            /** First Name */
+            first_name: string;
+            /** Middle Name */
+            middle_name: string | null;
+            /** Short Name */
+            short_name: string;
+            /** Unit Name */
+            unit_name: string | null;
+            /** Conflict */
+            conflict?: string | null;
+        };
+        /** PrintRow */
+        PrintRow: {
+            /** Duty Type Name */
+            duty_type_name: string;
+            /** Duty Type Short Name */
+            duty_type_short_name: string | null;
+            /** Owner Unit Name */
+            owner_unit_name: string | null;
+            /** Role Name */
+            role_name: string;
+            /**
+             * Start Time
+             * Format: time
+             */
+            start_time: string;
+            /** Duration Minutes */
+            duration_minutes: number;
+            /** Headcount */
+            headcount: number;
+            /** Cells */
+            cells: (components["schemas"]["PrintCell"] | null)[];
+        };
+        /** PrintScheduleOut */
+        PrintScheduleOut: {
+            schedule: components["schemas"]["ScheduleOut"];
+            /** Days */
+            days: components["schemas"]["TableDay"][];
+            /** Rows */
+            rows: components["schemas"]["PrintRow"][];
+        };
         /** PublishOut */
         PublishOut: {
             schedule: components["schemas"]["ScheduleOut"];
             /** Warnings */
             warnings: components["schemas"]["PendingWarning"][];
+        };
+        /** RosterDuty */
+        RosterDuty: {
+            /** Duty Type Name */
+            duty_type_name: string;
+            /** Owner Unit Name */
+            owner_unit_name: string | null;
+            /** Executor Unit Name */
+            executor_unit_name: string | null;
+            /**
+             * Start At
+             * Format: date-time
+             */
+            start_at: string;
+            /**
+             * End At
+             * Format: date-time
+             */
+            end_at: string;
+            /** Roles */
+            roles: components["schemas"]["RosterRole"][];
+        };
+        /** RosterRole */
+        RosterRole: {
+            /** Role Name */
+            role_name: string;
+            /** Headcount */
+            headcount: number;
+            /** People */
+            people: components["schemas"]["PrintPerson"][];
+            /** Missing */
+            missing: number;
         };
         /** RunBrief */
         RunBrief: {
@@ -2338,6 +2494,69 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RunOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    schedule_print_schedules__schedule_id__print_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                schedule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrintScheduleOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    daily_roster_rosters_daily_get: {
+        parameters: {
+            query: {
+                unit_id: string;
+                date: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DailyRosterOut"];
                 };
             };
             /** @description Validation Error */

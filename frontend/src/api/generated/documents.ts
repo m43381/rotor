@@ -156,6 +156,148 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/print/schedules/{schedule_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** График нарядов на месяц: PDF или XLSX */
+        get: operations["print_schedule_print_schedules__schedule_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/print/daily": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Суточный наряд подразделения и поддерева на дату: ведомость или приказ */
+        get: operations["print_daily_print_daily_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/print/html/{form}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** HTML формы до перевода в PDF — для проверки шаблона */
+        get: operations["print_html_print_html__form__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/document-settings/{unit_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Settings */
+        get: operations["get_settings_document_settings__unit_id__get"];
+        /** Put Settings */
+        put: operations["put_settings_document_settings__unit_id__put"];
+        post?: never;
+        /** Удалить свои реквизиты — действуют реквизиты вышестоящего */
+        delete: operations["delete_settings_document_settings__unit_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Печатные формы и шаблоны */
+        get: operations["list_templates_templates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/templates/{form}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Template */
+        get: operations["get_template_templates__form__get"];
+        /**
+         * Загрузить свой HTML-шаблон PDF-формы (суперадминистратор)
+         * @description Шаблон проверяется отрисовкой на демо-данных; при ошибке — 422 с номером строки. Предыдущие версии сохраняются.
+         */
+        put: operations["put_template_templates__form__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/templates/{form}/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Вернуть встроенный шаблон */
+        post: operations["reset_template_templates__form__reset_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/templates/{form}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** PDF шаблона на демо-данных (без сохранения) */
+        post: operations["preview_template_templates__form__preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -266,6 +408,106 @@ export interface components {
             limit: number;
             /** Offset */
             offset: number;
+        };
+        /** PreviewIn */
+        PreviewIn: {
+            /** Body */
+            body?: string | null;
+        };
+        /** Requisites */
+        Requisites: {
+            /** Approver Position */
+            approver_position?: string | null;
+            /** Approver Rank */
+            approver_rank?: string | null;
+            /** Approver Name */
+            approver_name?: string | null;
+            /** Compiler Position */
+            compiler_position?: string | null;
+            /** Compiler Rank */
+            compiler_rank?: string | null;
+            /** Compiler Name */
+            compiler_name?: string | null;
+        };
+        /** SettingsIn */
+        SettingsIn: {
+            /** Approver Position */
+            approver_position?: string | null;
+            /** Approver Rank */
+            approver_rank?: string | null;
+            /** Approver Name */
+            approver_name?: string | null;
+            /** Compiler Position */
+            compiler_position?: string | null;
+            /** Compiler Rank */
+            compiler_rank?: string | null;
+            /** Compiler Name */
+            compiler_name?: string | null;
+            /** Version */
+            version?: number | null;
+        };
+        /** SettingsOut */
+        SettingsOut: {
+            /**
+             * Unit Id
+             * Format: uuid
+             */
+            unit_id: string;
+            /** Unit Name */
+            unit_name: string;
+            own: components["schemas"]["Requisites"] | null;
+            /** Version */
+            version: number | null;
+            effective: components["schemas"]["Requisites"] | null;
+            /** Inherited From */
+            inherited_from: string | null;
+            /** Can Edit */
+            can_edit: boolean;
+        };
+        /** TemplateBrief */
+        TemplateBrief: {
+            /**
+             * Form
+             * @enum {string}
+             */
+            form: "schedule_month" | "daily_roster" | "daily_order";
+            /** Title */
+            title: string;
+            /** Formats */
+            formats: string[];
+            /** Custom */
+            custom: boolean;
+            /** Updated At */
+            updated_at: string | null;
+            /** Updated By Name */
+            updated_by_name: string | null;
+            /** Comment */
+            comment: string | null;
+        };
+        /** TemplateIn */
+        TemplateIn: {
+            /** Body */
+            body: string;
+            /** Comment */
+            comment?: string | null;
+        };
+        /** TemplateOut */
+        TemplateOut: {
+            /**
+             * Form
+             * @enum {string}
+             */
+            form: "schedule_month" | "daily_roster" | "daily_order";
+            /** Title */
+            title: string;
+            /** Body */
+            body: string;
+            /** Builtin */
+            builtin: string;
+            /** Custom */
+            custom: boolean;
+            /** Variables */
+            variables: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -557,6 +799,357 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ImportJobOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    print_schedule_print_schedules__schedule_id__get: {
+        parameters: {
+            query?: {
+                format?: "pdf" | "xlsx";
+            };
+            header?: never;
+            path: {
+                schedule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    print_daily_print_daily_get: {
+        parameters: {
+            query: {
+                unit_id: string;
+                date: string;
+                form?: "daily_roster" | "daily_order";
+                format?: "pdf" | "docx";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    print_html_print_html__form__get: {
+        parameters: {
+            query?: {
+                schedule_id?: string | null;
+                unit_id?: string | null;
+                date?: string | null;
+            };
+            header?: never;
+            path: {
+                form: "schedule_month" | "daily_roster" | "daily_order";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/html": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_settings_document_settings__unit_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                unit_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_settings_document_settings__unit_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                unit_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SettingsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_settings_document_settings__unit_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                unit_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_templates_templates_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateBrief"][];
+                };
+            };
+        };
+    };
+    get_template_templates__form__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                form: "schedule_month" | "daily_roster" | "daily_order";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_template_templates__form__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                form: "schedule_month" | "daily_roster" | "daily_order";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TemplateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reset_template_templates__form__reset_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                form: "schedule_month" | "daily_roster" | "daily_order";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_template_templates__form__preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                form: "schedule_month" | "daily_roster" | "daily_order";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreviewIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": unknown;
                 };
             };
             /** @description Validation Error */

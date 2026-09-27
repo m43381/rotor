@@ -46,6 +46,7 @@ const roleLabel = computed(() =>
         <RouterLink to="/duty-types" :class="{ 'router-link-active': route.path === '/duty-limits' }">
           Наряды
         </RouterLink>
+        <RouterLink to="/documents">Документы</RouterLink>
         <RouterLink v-if="canImport" to="/import">Импорт</RouterLink>
         <RouterLink v-if="isSuperadmin" to="/references">Справочники</RouterLink>
       </nav>
