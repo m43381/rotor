@@ -1,3 +1,5 @@
+import uuid
+
 from conftest import Org, add_person
 from httpx import AsyncClient
 
@@ -92,3 +94,17 @@ async def test_people_batch_by_ids_with_names(
     assert people["Ушедший"]["is_active"] is False  # исключённые тоже — по id
     bad = await internal.post("/internal/people/batch", json=period)
     assert bad.status_code == 422
+
+
+async def test_availability_for_50k_ids(
+    admin: AsyncClient, internal: AsyncClient, org: Org
+) -> None:
+    """Список id длиннее лимита параметров asyncpg (32 767) — передаётся одним массивом."""
+    a = await add_person(admin, org.course_a1, "Массовый")
+    ids = [a["id"], *(str(uuid.uuid4()) for _ in range(49_999))]
+    r = await internal.post(
+        "/internal/people/availability-batch",
+        json={"person_ids": ids, "date_from": "2026-10-01", "date_to": "2026-10-03"},
+    )
+    assert r.status_code == 200, r.text[:300]
+    assert r.json()["masks"] == {a["id"]: "111"}

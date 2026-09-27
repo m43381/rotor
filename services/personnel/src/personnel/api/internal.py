@@ -17,6 +17,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.dialects.postgresql import aggregate_order_by
 
 from dutyflow_common.auth import require_internal
+from dutyflow_common.db import in_array
 from dutyflow_common.errors import ValidationFailedError
 from dutyflow_common.ltree import is_descendant_or_self
 from dutyflow_common.projections import RankProjection, UnitProjection
@@ -47,11 +48,11 @@ def _json(content: Any) -> Response:
 @router.post("/people/batch", response_model=list[PeopleBatchPerson])
 async def people_batch(data: PeopleBatchIn, session: SessionDep) -> Response:
     if data.person_ids:
-        people_q = select(Person.id).where(Person.id.in_(data.person_ids))
+        people_q = select(Person.id).where(in_array(Person.id, data.person_ids))
     elif data.include_descendants:
         roots = (
             await session.scalars(
-                select(UnitProjection.path).where(UnitProjection.unit_id.in_(data.unit_ids))
+                select(UnitProjection.path).where(in_array(UnitProjection.unit_id, data.unit_ids))
             )
         ).all()
         if not roots:
@@ -65,7 +66,9 @@ async def people_batch(data: PeopleBatchIn, session: SessionDep) -> Response:
             )
         )
     else:
-        people_q = select(Person.id).where(Person.is_active, Person.unit_id.in_(data.unit_ids))
+        people_q = select(Person.id).where(
+            Person.is_active, in_array(Person.unit_id, data.unit_ids)
+        )
     ids = people_q.subquery()
 
     people = await session.execute(
@@ -153,13 +156,13 @@ async def availability_batch(data: AvailabilityIn, session: SessionDep) -> Respo
         raise ValidationFailedError("Период должен быть от 1 до 366 дней")
     masks: dict[uuid.UUID, bytearray] = {}
     active = await session.execute(
-        select(Person.id, Person.is_active).where(Person.id.in_(data.person_ids))
+        select(Person.id, Person.is_active).where(in_array(Person.id, data.person_ids))
     )
     for pid, is_active in active:
         masks[pid] = bytearray(b"1" * days if is_active else b"0" * days)
     for pid, date_from, date_to in await session.execute(
         select(Exemption.person_id, Exemption.date_from, Exemption.date_to).where(
-            Exemption.person_id.in_(data.person_ids),
+            in_array(Exemption.person_id, data.person_ids),
             Exemption.date_to >= data.date_from,
             Exemption.date_from <= data.date_to,
         )

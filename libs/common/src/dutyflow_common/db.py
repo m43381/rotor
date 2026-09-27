@@ -1,11 +1,13 @@
 """Подключение к БД сервиса, базовый класс моделей и общие колонки."""
 
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterable
 from datetime import datetime
+from typing import Any, cast
 
 from fastapi import Request
-from sqlalchemy import DateTime, Integer, MetaData, func
+from sqlalchemy import ColumnElement, DateTime, Integer, MetaData, any_, bindparam, func
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -69,3 +71,15 @@ async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
     db: Database = request.app.state.db
     async with db.sessionmaker() as session:
         yield session
+
+
+def in_array(column: Any, values: Iterable[Any]) -> ColumnElement[bool]:
+    """`column = ANY(:array)` — один параметр вместо развёрнутого IN.
+
+    Для списков в десятки тысяч id (снимки на 50 тыс. человек): обычный `in_()` передаёт
+    каждый элемент отдельным параметром и упирается в лимит asyncpg (32 767).
+    """
+    return cast(
+        ColumnElement[bool],
+        column == any_(bindparam(None, list(values), type_=ARRAY(column.type))),
+    )
