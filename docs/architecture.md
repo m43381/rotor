@@ -187,6 +187,11 @@ Consumer, не producer домена — если недоступен, оста
 - **Применение.** `personnel` проверяет строки заново и сравнивает хэш с предпросмотром; при расхождении — 409, и задача перепроверяется автоматически.
 - **Вызовы.** Все обращения к `personnel` — его публичный API с токеном оператора.
 
+**Реализация печати (фаза 6b, ADR-0015):**
+- **Формы:** `GET /print/schedules/{id}?format=pdf|xlsx` и `GET /print/daily?unit_id&date&form=daily_roster|daily_order&format=pdf|docx`. Данные — у `scheduling` (`/schedules/{id}/print`, `/rosters/daily`) от имени оператора.
+- **Реквизиты:** `GET|PUT|DELETE /document-settings/{unit_id}`. Своих нет — действуют реквизиты ближайшего вышестоящего (цепочку отдаёт `org`).
+- **Шаблоны:** `GET /templates`, `GET|PUT /templates/{form}`, `POST /templates/{form}/preview`, `POST /templates/{form}/reset` — только суперадминистратор.
+
 ### 3.7 `auth` / `auth-admin`
 
 Keycloak — аутентификация, грубые роли (`superadmin`, `unit_admin`, `operator`, `viewer`), JWT с `unit_id`. `auth-admin` — тонкий FastAPI-сервис для создания операторов из UI поверх Keycloak Admin REST API (регистрация отключена, операторов создаёт администратор — см. ADR-0002).

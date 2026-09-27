@@ -260,7 +260,9 @@ UNIQUE(`owner_unit_id`, `name`) WHERE `is_active`. `assigned_unit_id` — вну
 
 - **`allocation_db`**: состояние задач, если не хватит arq/Redis — `job(id, run_id, status, started_at, finished_at, error)`. Предметных данных нет.
 - **`documents_db`**:
-  - `print_template(id, code, name, format pdf/docx/xlsx, body, version, is_active)` — шаблоны в БД, заменяются без релиза (`open-questions` №15), шаг 6b;
+  - `print_template(id, form, body, comment, is_active, created_by_name, created_at)` — загруженные HTML-шаблоны PDF-форм, версии не удаляются, действует последняя активная (шаг 6b, ADR-0015);
+  - `document_settings(unit_id PK, approver_position, approver_rank, approver_name, compiler_position, compiler_rank, compiler_name, version, updated_by_name, updated_at)` — реквизиты подразделения, наследуются нижестоящими (шаг 6b);
+  - `audit_log`, `outbox` — общие таблицы (изменения реквизитов и шаблонов);
   - `import_job` (шаг 6a):
     - поля: `id`, `kind` (`people` / `clearances` / `exemptions`), `status` (`preview` / `applied` / `discarded`), `filename`, `content` (файл), `columns`, `rows` (разобранные строки), `report` (результат проверки владельцем по строкам), `summary`, `state_hash`, `notes` (предупреждения разбора), `applied_rows`, `created_by`, `created_by_name`, `created_at`, `applied_at`;
     - видна только создателю, удаляется через 7 дней;
