@@ -9,6 +9,7 @@ import datetime as dt
 import hashlib
 import uuid
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from pydantic_core import to_json
 from sqlalchemy import or_, select
@@ -162,7 +163,14 @@ async def build_snapshot(
     # --- назначения людей за горизонт ---------------------------------------------------------
     assignments = (
         await session.execute(
-            select(Assignment, DayPlan.date, DayPlan.duty_role_id, DutyType.load_weight)
+            select(
+                Assignment,
+                DayPlan.date,
+                DayPlan.duty_role_id,
+                DutyType.load_weight,
+                DutyType.id,
+                DutyType.rest_hours,
+            )
             .join(DayPlan, DayPlan.id == Assignment.day_plan_id)
             .join(DutyType, DutyType.id == DayPlan.duty_type_id)
             .where(
@@ -174,20 +182,32 @@ async def build_snapshot(
         )
     ).all()
 
+    origin = dt.datetime.combine(first, dt.time(0), tzinfo=ZoneInfo(timezone))
+
+    def minutes(moment: dt.datetime) -> int:
+        """Местное время от полуночи первого дня горизонта, в минутах."""
+        return int((moment - origin).total_seconds() // 60)
+
     def assignment_out(
-        a: Assignment, date: dt.date, role: uuid.UUID, weight: float
+        a: Assignment, date: dt.date, role: uuid.UUID, weight: float, type_id: uuid.UUID, rest: int
     ) -> dict[str, Any]:
         occ_first, occ_last = _occupied_days(a)
         occupied = (occ_last - occ_first).days + 1
         return {
+            "id": a.id,
             "p": person_index[a.person_id],
             "cell": cell_index.get(a.day_plan_id),
             "d": day_index[date],
             "r": role_index.get(role),
+            "dt": type_id,
+            # Интервал и отдых — для нарядов вне ролей снимка (история других нарядов)
+            "t": [minutes(a.start_at), minutes(a.end_at)],
+            "rest": rest,
             # Занятые сутки могут выходить за конец горизонта (наряд 30-го до 1-го)
             "days": [day_index[date], day_index[date] + occupied - 1],
             "load": round(occupied * weight, 2),
             "pinned": a.is_pinned,
+            "auto": a.source == "auto",
             "override": a.rest_override or a.limit_override,
         }
 
@@ -240,7 +260,7 @@ async def build_snapshot(
             }
             for c in cells
         ],
-        "assignments": [assignment_out(a, d, r, w) for a, d, r, w in assignments],
+        "assignments": [assignment_out(*row) for row in assignments],
     }
     digest = hashlib.sha256(to_json(content)).hexdigest()
     return {

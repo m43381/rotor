@@ -87,6 +87,10 @@ async def test_snapshot(client_for: ClientFactory, admin: AsyncClient, org: Org)
     assert snap["cells"][a["cell"]]["d"] == start + 9
     assert a["days"] == [start + 9, start + 10]  # 18:00 + 24 ч — двое суток
     assert a["load"] == 2.0
+    assert a["auto"] is False
+    assert a["rest"] == 48
+    # 18:00 местного времени дня start+9 от полуночи первого дня горизонта
+    assert a["t"] == [(start + 9) * 1440 + 18 * 60, (start + 10) * 1440 + 18 * 60]
 
     # Тот же вход — тот же hash; изменилось назначение — другой
     again = await snapshot(admin, s["id"])
