@@ -123,6 +123,13 @@ DEFAULT_RULES: dict[RuleKey, Scope] = {
         for action in ("read", "create", "update", "publish")
     },
     **_rules(Role.VIEWER, "schedule", read=SUBTREE),
+    # Лимиты нарядов задаёт оператор для своего поддерева (open-questions №9)
+    **{
+        (role, "duty_limit", action): SUBTREE
+        for role in (Role.UNIT_ADMIN, Role.OPERATOR)
+        for action in ("read", "create", "update")
+    },
+    **_rules(Role.VIEWER, "duty_limit", read=SUBTREE),
     # Допуски выдаёт оператор, в чей scope входит подразделение человека (ADR-0009).
     **{
         (role, "clearance", action): SUBTREE

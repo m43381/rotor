@@ -197,6 +197,11 @@ class CellOut(BaseModel):
     state: CellState
     executor_unit_id: uuid.UUID
     is_pinned: bool
+    # Назначено людей по всей цепочке делегирования (для переданных — у исполнителя ниже)
+    filled: int = 0
+    # Кто назначен — если ячейку закрывает само подразделение графика
+    assigned: list["AssignedOut"] = Field(default_factory=list)
+    has_conflict: bool = False
 
 
 class TableDay(BaseModel):
@@ -244,6 +249,8 @@ class CellsIn(BaseModel):
 class DelegateIn(CellsIn):
     # Само подразделение графика — вернуть себе; прямое дочернее — делегировать
     executor_unit_id: uuid.UUID
+    # Смена решения снимает назначенных людей в ячейках и цепочке ниже — только с согласия
+    drop_assignments: bool = False
 
 
 class AcceptIn(BaseModel):
@@ -273,3 +280,101 @@ class PublishOut(BaseModel):
     schedule: ScheduleOut
     # Непринятые ячейки в поддереве — публикацию не блокируют (ADR-0009)
     warnings: list[PendingWarning]
+
+
+# --- назначения и лимиты (фаза 3b) ----------------------------------------------------------------
+
+
+class ViolationOut(BaseModel):
+    kind: str
+    message: str
+    overridable: bool
+
+
+class AssignedOut(BaseModel):
+    id: uuid.UUID
+    person_id: uuid.UUID
+    person_name: str
+    is_pinned: bool
+    rest_override: bool
+    limit_override: bool
+    override_comment: str | None
+    conflict: str | None
+    # Назначен после публикации графика (open-questions №36)
+    after_publish: bool
+
+
+class CandidateOut(BaseModel):
+    person_id: uuid.UUID
+    name: str
+    rank_name: str | None
+    unit_id: uuid.UUID
+    unit_name: str | None
+    month_total: int
+    month_holiday: int
+    last_duty: dt.date | None
+    violations: list[ViolationOut]
+    # Нет жёстких нарушений (нарушения отдыха и лимита можно подтвердить)
+    eligible: bool
+
+
+class CellInfo(BaseModel):
+    id: uuid.UUID
+    schedule_id: uuid.UUID
+    date: dt.date
+    duty_type_name: str
+    role_name: str
+    headcount: int
+    start_at: dt.datetime
+    end_at: dt.datetime
+    executor_unit_id: uuid.UUID
+    can_assign: bool
+
+
+class CandidatesOut(BaseModel):
+    cell: CellInfo
+    assigned: list[AssignedOut]
+    candidates: list[CandidateOut]
+
+
+class AssignIn(BaseModel):
+    person_id: uuid.UUID
+    # Подтверждение нарушения отдыха или лимита — только с комментарием (ADR-0008, №38)
+    confirm_override: bool = False
+    override_comment: str | None = Field(default=None, max_length=2000)
+
+    @model_validator(mode="after")
+    def _comment(self) -> "AssignIn":
+        if self.confirm_override and not (self.override_comment or "").strip():
+            raise ValueError("Укажите, почему назначение нарушает отдых или лимит")
+        return self
+
+
+class DutyLimitIn(BaseModel):
+    unit_id: uuid.UUID
+    applies_to_subtree: bool = True
+    rank_id: uuid.UUID | None = None
+    position_id: uuid.UUID | None = None
+    max_duties: int | None = Field(default=None, ge=0, le=31)
+    max_holiday_duties: int | None = Field(default=None, ge=0, le=31)
+
+    @model_validator(mode="after")
+    def _has_limit(self) -> "DutyLimitIn":
+        if self.max_duties is None and self.max_holiday_duties is None:
+            raise ValueError("Задайте лимит нарядов в месяц или в выходные и праздники")
+        return self
+
+
+class DutyLimitUpdate(DutyLimitIn):
+    version: int
+
+
+class DutyLimitOut(DutyLimitIn):
+    id: uuid.UUID
+    unit_name: str | None
+    rank_name: str | None
+    version: int
+    can_edit: bool
+
+
+CellOut.model_rebuild()

@@ -18,7 +18,7 @@ from collections import defaultdict
 from collections.abc import Iterable, Sequence
 from typing import Any
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, exists, func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,6 +29,7 @@ from dutyflow_common import audit
 from dutyflow_common.calendar import CalendarProjection, day_kind
 from dutyflow_common.context import Operator
 from dutyflow_common.errors import (
+    AppError,
     ConflictError,
     ForbiddenError,
     NotFoundError,
@@ -40,8 +41,9 @@ from dutyflow_common.outbox import add_event
 from dutyflow_common.policy import Policy, default_policy
 from dutyflow_common.projections import UnitProjection, unit_path
 from dutyflow_common.scope import in_scope, scope_clause
-from scheduling.models import DayPlan, DutyRole, DutyType, Schedule
+from scheduling.models import Assignment, DayPlan, DutyRole, DutyType, Schedule
 from scheduling.schemas import (
+    AssignedOut,
     CellOut,
     CellState,
     PendingWarning,
@@ -53,6 +55,24 @@ from scheduling.schemas import (
 )
 
 INSERT_CHUNK = 1000
+
+
+class AssignmentsExistError(AppError):
+    """Смена решения снимет назначенных людей — нужно явное согласие."""
+
+    status_code = 409
+    code = "assignments_exist"
+
+
+def chain_cte(root_filter: Any) -> Any:
+    """Рекурсивный CTE (id, root): ячейки, отобранные условием, и вся цепочка
+    делегирования под каждой из них."""
+    base = select(DayPlan.id.label("id"), DayPlan.id.label("root")).where(root_filter)
+    chain = base.cte("chain", recursive=True)
+    child = aliased(DayPlan)
+    return chain.union_all(
+        select(child.id, chain.c.root).join(chain, child.parent_day_plan_id == chain.c.id)
+    )
 
 
 def month_start(day: dt.date) -> dt.date:
@@ -176,6 +196,7 @@ async def sync_owner_cells(
             DayPlan.origin == "own",
             DayPlan.executor_unit_id == owner_unit_id,
             DayPlan.duty_role_id.in_(inactive),
+            ~exists().where(Assignment.day_plan_id == DayPlan.id),
         )
         .execution_options(synchronize_session=False)
     )
@@ -367,6 +388,24 @@ class ScheduleService:
                 .where(DutyRole.id.in_(role_ids))
             )
         }
+        chain = chain_cte(DayPlan.schedule_id == schedule.id)
+        filled: dict[uuid.UUID, int] = dict(
+            (
+                await self.session.execute(
+                    select(chain.c.root, func.count(Assignment.id))
+                    .join(Assignment, Assignment.day_plan_id == chain.c.id)
+                    .group_by(chain.c.root)
+                )
+            ).all()
+        )
+        assigned: dict[uuid.UUID, list[AssignedOut]] = defaultdict(list)
+        for a in await self.session.scalars(
+            select(Assignment)
+            .join(DayPlan, DayPlan.id == Assignment.day_plan_id)
+            .where(DayPlan.schedule_id == schedule.id)
+            .order_by(Assignment.assigned_at)
+        ):
+            assigned[a.day_plan_id].append(assigned_out(a, schedule.published_at))
         index = {d: i for i, d in enumerate(days)}
         by_role: dict[uuid.UUID, list[CellOut | None]] = {r: [None] * len(days) for r in role_ids}
         executors = {schedule.unit_id}
@@ -378,6 +417,9 @@ class ScheduleService:
                 state=cell_state(c, schedule.unit_id, child_status, active),
                 executor_unit_id=c.executor_unit_id,
                 is_pinned=c.is_pinned,
+                filled=filled.get(c.id, 0),
+                assigned=assigned.get(c.id, []),
+                has_conflict=any(a.conflict for a in assigned.get(c.id, [])),
             )
             executors.add(c.executor_unit_id)
 
@@ -453,7 +495,12 @@ class ScheduleService:
         return cells
 
     async def delegate(
-        self, schedule_id: uuid.UUID, cell_ids: Sequence[uuid.UUID], executor_unit_id: uuid.UUID
+        self,
+        schedule_id: uuid.UUID,
+        cell_ids: Sequence[uuid.UUID],
+        executor_unit_id: uuid.UUID,
+        *,
+        drop_assignments: bool = False,
     ) -> int:
         """Передать ячейки прямому дочернему подразделению или вернуть себе."""
         schedule, unit = await self._schedule(schedule_id, "update")
@@ -483,6 +530,23 @@ class ScheduleService:
         if not changed:
             return 0
 
+        ids = [c.id for c in changed]
+        chain = chain_cte(DayPlan.id.in_(ids))
+        dropped = await self.session.scalar(
+            select(func.count(Assignment.id)).join(chain, chain.c.id == Assignment.day_plan_id)
+        )
+        if dropped and not drop_assignments:
+            raise AssignmentsExistError(
+                f"В выбранных ячейках и ниже по цепочке уже назначено людей: {dropped}. "
+                "Смена решения снимет эти назначения.",
+                details={"assignments": dropped},
+            )
+        # Назначения в самих ячейках (ниже по цепочке их удалит каскад вместе с ячейками)
+        await self.session.execute(
+            delete(Assignment)
+            .where(Assignment.day_plan_id.in_(ids))
+            .execution_options(synchronize_session=False)
+        )
         before = {str(c.id): str(c.executor_unit_id) for c in changed}
         # Прежние цепочки вниз удаляются, дальше — каскадом по parent_day_plan_id
         await self.session.execute(
@@ -490,7 +554,6 @@ class ScheduleService:
             .where(DayPlan.parent_day_plan_id.in_([c.id for c in changed]))
             .execution_options(synchronize_session=False)
         )
-        ids = [c.id for c in changed]
         # Делегировать входящую ячейку дальше — значит принять её
         await self.session.execute(
             update(DayPlan)
@@ -534,7 +597,11 @@ class ScheduleService:
             entity_id=schedule.id,
             scope_unit_id=unit.unit_id,
             before={"executors": before},
-            after={"executor_unit_id": executor_unit_id, "cells": len(changed)},
+            after={
+                "executor_unit_id": executor_unit_id,
+                "cells": len(changed),
+                "dropped_assignments": dropped or None,
+            },
         )
         add_event(
             self.session,
@@ -705,3 +772,17 @@ def _check_version(current: int, given: int) -> None:
             "Данные уже изменены другим пользователем. Обновите страницу.",
             details={"current_version": current},
         )
+
+
+def assigned_out(a: Assignment, published_at: dt.datetime | None) -> AssignedOut:
+    return AssignedOut(
+        id=a.id,
+        person_id=a.person_id,
+        person_name=a.person_name,
+        is_pinned=a.is_pinned,
+        rest_override=a.rest_override,
+        limit_override=a.limit_override,
+        override_comment=a.override_comment,
+        conflict=a.conflict,
+        after_publish=published_at is not None and a.assigned_at > published_at,
+    )

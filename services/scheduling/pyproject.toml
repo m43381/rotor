@@ -7,6 +7,7 @@ dependencies = [
     "dutyflow-common",
     "alembic>=1.14",
     "uvicorn[standard]>=0.32",
+    "tzdata>=2024.1",
 ]
 
 [tool.uv.sources]

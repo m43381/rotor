@@ -57,7 +57,10 @@ async def schedule_table(schedule_id: uuid.UUID, svc: ScheduleServiceDep) -> Tab
     summary="Делегировать ячейки прямому дочернему подразделению или вернуть себе",
 )
 async def delegate(schedule_id: uuid.UUID, data: DelegateIn, svc: ScheduleServiceDep) -> ChangedOut:
-    return ChangedOut(changed=await svc.delegate(schedule_id, data.cell_ids, data.executor_unit_id))
+    changed = await svc.delegate(
+        schedule_id, data.cell_ids, data.executor_unit_id, drop_assignments=data.drop_assignments
+    )
+    return ChangedOut(changed=changed)
 
 
 @router.post("/schedules/{schedule_id}/accept", response_model=ChangedOut)

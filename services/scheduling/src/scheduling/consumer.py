@@ -2,25 +2,41 @@
 
 При первом запуске (проекция пуста) выполняет полную синхронизацию через batch-API org,
 затем слушает `events:unit`, `events:rank` и `events:calendar` (ADR-0011).
+
+События personnel (`person.*`, `exemption.*`, `clearance.*`) перепроверяют будущие назначения
+человека и помечают конфликты (open-questions №39): назначения не снимаются автоматически.
 """
 
 import asyncio
 import contextlib
 import logging
 import signal
+import uuid
 
 from redis.asyncio import Redis
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from dutyflow_common.app import setup_logging
 from dutyflow_common.calendar import handle_calendar_event, resync_calendar
 from dutyflow_common.db import Database
-from dutyflow_common.events import EventConsumer
+from dutyflow_common.events import Event, EventConsumer, Handler
 from dutyflow_common.internal import InternalClient
 from dutyflow_common.projections import handle_rank_event, handle_unit_event
 from dutyflow_common.sync import resync_org
+from scheduling.assignments import recompute_conflicts
+from scheduling.people import PeopleLoader, http_people_loader
 from scheduling.settings import SchedulingSettings
 
 log = logging.getLogger(__name__)
+
+
+def conflicts_handler(people: PeopleLoader) -> Handler:
+    async def handle(session: AsyncSession, event: Event) -> None:
+        person_id = event.payload.get("person_id")
+        if person_id:
+            await recompute_conflicts(session, people, [uuid.UUID(str(person_id))])
+
+    return handle
 
 
 async def main(settings: SchedulingSettings) -> None:
@@ -32,6 +48,7 @@ async def main(settings: SchedulingSettings) -> None:
     for sig in (signal.SIGTERM, signal.SIGINT):
         with contextlib.suppress(NotImplementedError):
             loop.add_signal_handler(sig, stop.set)
+    conflicts = conflicts_handler(http_people_loader(settings))
     consumer = EventConsumer(
         "scheduling",
         db.sessionmaker,
@@ -40,6 +57,9 @@ async def main(settings: SchedulingSettings) -> None:
             "events:unit": handle_unit_event,
             "events:rank": handle_rank_event,
             "events:calendar": handle_calendar_event,
+            "events:person": conflicts,
+            "events:exemption": conflicts,
+            "events:clearance": conflicts,
         },
     )
     try:

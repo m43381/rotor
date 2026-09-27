@@ -9,6 +9,8 @@ x-service-env: &service-env
   OIDC_AUDIENCE: dutyflow-api
   INTERNAL_TOKEN: ${INTERNAL_TOKEN}
   LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  # Часовой пояс инсталляции: время нарядов локальное (ADR-0008)
+  TIMEZONE: ${TIMEZONE:-Europe/Moscow}
 
 services:
   postgres:

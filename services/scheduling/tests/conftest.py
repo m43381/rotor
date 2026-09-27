@@ -6,7 +6,7 @@
 
 import os
 import uuid
-from collections.abc import AsyncIterator, Callable, Iterator
+from collections.abc import AsyncIterator, Callable, Iterator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -24,6 +24,7 @@ from dutyflow_common.events import Event
 from dutyflow_common.ids import uuid7
 from dutyflow_common.projections import handle_rank_event, handle_unit_event
 from dutyflow_common.testing import TestIssuer
+from scheduling.checks import PersonInfo
 from scheduling.main import create_app
 from scheduling.refs import AttributeDef, PersonnelRefs
 from scheduling.settings import SchedulingSettings
@@ -74,6 +75,41 @@ async def load_refs() -> PersonnelRefs:
     return REFS
 
 
+class FakePeople:
+    """Подмена personnel: люди с путями их подразделений. Выборка по подразделениям —
+    действующие люди поддерева, по id — любые (как `POST /internal/people/batch`)."""
+
+    def __init__(self) -> None:
+        self.people: dict[uuid.UUID, tuple[PersonInfo, str]] = {}
+        self.calls = 0
+
+    def add(self, person: PersonInfo, path: str) -> PersonInfo:
+        self.people[person.id] = (person, path)
+        return person
+
+    async def __call__(
+        self,
+        *,
+        date_from: object,
+        date_to: object,
+        unit_ids: Sequence[uuid.UUID] = (),
+        person_ids: Sequence[uuid.UUID] = (),
+    ) -> list[PersonInfo]:
+        self.calls += 1
+        if person_ids:
+            return [self.people[p][0] for p in person_ids if p in self.people]
+        roots = [UNIT_PATHS[u] for u in unit_ids if u in UNIT_PATHS]
+        return [
+            p
+            for p, path in self.people.values()
+            if p.is_active and any(path == r or path.startswith(r + ".") for r in roots)
+        ]
+
+
+FAKE_PEOPLE = FakePeople()
+UNIT_PATHS: dict[uuid.UUID, str] = {}
+
+
 @pytest.fixture(scope="session")
 def issuer(settings: SchedulingSettings) -> TestIssuer:
     return TestIssuer(settings)
@@ -83,7 +119,9 @@ def issuer(settings: SchedulingSettings) -> TestIssuer:
 async def app(
     settings: SchedulingSettings, issuer: TestIssuer, migrated: str
 ) -> AsyncIterator[FastAPI]:
-    application = create_app(settings, token_verifier=issuer.verifier, refs_loader=load_refs)
+    application = create_app(
+        settings, token_verifier=issuer.verifier, refs_loader=load_refs, people_loader=FAKE_PEOPLE
+    )
     async with LifespanManager(application):
         yield application
 
@@ -141,8 +179,9 @@ async def org(app: FastAPI, settings: SchedulingSettings) -> Org:
     async with engine.begin() as conn:
         await conn.execute(
             text(
-                "TRUNCATE day_plan, schedule, duty_role, duty_type, unit_projection,"
-                " rank_projection, calendar_projection, audit_log, outbox, processed_event CASCADE"
+                "TRUNCATE assignment, duty_limit, day_plan, schedule, duty_role, duty_type,"
+                " unit_projection, rank_projection, calendar_projection, audit_log, outbox,"
+                " processed_event CASCADE"
             )
         )
     await engine.dispose()
@@ -156,6 +195,8 @@ async def org(app: FastAPI, settings: SchedulingSettings) -> Org:
         (o.fac_b, o.root, "1.4", "Факультет B"),
     ]:
         await emit(maker, "unit.created", uid, unit_payload(uid, parent, path, name))
+        UNIT_PATHS[uid] = path
+    FAKE_PEOPLE.people.clear()
     for rid, name, order in [(o.rank_private, "Рядовой", 10), (o.rank_major, "Майор", 100)]:
         await emit(maker, "rank.changed", rid, {"name": name, "order": order, "is_active": True})
     return o

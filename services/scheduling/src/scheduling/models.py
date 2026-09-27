@@ -12,6 +12,7 @@ from sqlalchemy import (
     ARRAY,
     Boolean,
     CheckConstraint,
+    Column,
     Date,
     DateTime,
     ForeignKey,
@@ -20,12 +21,13 @@ from sqlalchemy import (
     Numeric,
     SmallInteger,
     String,
+    Text,
     Time,
     UniqueConstraint,
     Uuid,
     text,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import DATERANGE, JSONB, ExcludeConstraint, Range
 from sqlalchemy.orm import Mapped, mapped_column
 
 from dutyflow_common.audit import AuditLog
@@ -35,10 +37,12 @@ from dutyflow_common.outbox import OutboxEvent, ProcessedEvent
 from dutyflow_common.projections import RankProjection, UnitProjection
 
 __all__ = [
+    "Assignment",
     "AuditLog",
     "Base",
     "CalendarProjection",
     "DayPlan",
+    "DutyLimit",
     "DutyRole",
     "DutyType",
     "OutboxEvent",
@@ -197,6 +201,97 @@ class DayPlan(UuidPkMixin, TimestampMixin, VersionedMixin, Base):
     executor_unit_id: Mapped[uuid.UUID]
     delegation_status: Mapped[str] = mapped_column(String(10), default="none")
     is_pinned: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class Assignment(UuidPkMixin, TimestampMixin, Base):
+    """Человек в ячейке (фаза 3b). Интервал и занятые сутки денормализованы из шаблона
+    времени наряда (ADR-0008): «не больше одного наряда в сутки» проверяет сама БД."""
+
+    __tablename__ = "assignment"
+    __table_args__ = (
+        UniqueConstraint("day_plan_id", "person_id"),
+        CheckConstraint("source IN ('manual', 'auto')", name="source"),
+        CheckConstraint("end_at > start_at", name="interval"),
+        CheckConstraint(
+            "NOT (rest_override OR limit_override)"
+            " OR length(btrim(coalesce(override_comment, ''))) > 0",
+            name="override_comment",
+        ),
+        # Два наряда одного человека не делят ни одних суток — даже при гонке операторов
+        ExcludeConstraint(
+            (Column("person_id"), "="),
+            (Column("occupied_days"), "&&"),
+            name="ex_assignment_one_per_day",
+            using="gist",
+        ),
+        Index("ix_assignment_person_start", "person_id", "start_at"),
+    )
+
+    # Индекс не нужен: его покрывает UNIQUE(day_plan_id, person_id)
+    day_plan_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("day_plan.id", ondelete="CASCADE"))
+    person_id: Mapped[uuid.UUID]
+    # «Фамилия И. О.» на момент назначения — таблица месяца не ходит в personnel
+    person_name: Mapped[str] = mapped_column(String(200))
+    start_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True))
+    end_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True))
+    occupied_days: Mapped[Range[dt.date]] = mapped_column(DATERANGE)
+    source: Mapped[str] = mapped_column(String(10), default="manual")
+    is_pinned: Mapped[bool] = mapped_column(Boolean, default=False)
+    rest_override: Mapped[bool] = mapped_column(Boolean, default=False)
+    limit_override: Mapped[bool] = mapped_column(Boolean, default=False)
+    override_comment: Mapped[str | None] = mapped_column(Text)
+    # Изменения у человека после назначения (open-questions №39): не снимаем, а помечаем
+    conflict: Mapped[str | None] = mapped_column(Text)
+    assigned_by: Mapped[str] = mapped_column(String(100))
+    assigned_by_name: Mapped[str] = mapped_column(String(200))
+    assigned_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()")
+    )
+
+    def snapshot(self) -> dict[str, Any]:
+        return {
+            "day_plan_id": self.day_plan_id,
+            "person_id": self.person_id,
+            "person_name": self.person_name,
+            "start_at": self.start_at,
+            "end_at": self.end_at,
+            "rest_override": self.rest_override,
+            "limit_override": self.limit_override,
+            "override_comment": self.override_comment,
+            "is_pinned": self.is_pinned,
+        }
+
+
+class DutyLimit(UuidPkMixin, TimestampMixin, VersionedMixin, Base):
+    """Лимит нарядов на человека за календарный месяц (open-questions №9, 27).
+
+    К человеку применяется самое специфичное правило: ближайшее по дереву подразделение,
+    затем уточнение по званию и должности (`docs/data-model.md` §5).
+    """
+
+    __tablename__ = "duty_limit"
+    __table_args__ = (
+        CheckConstraint(
+            "max_duties IS NOT NULL OR max_holiday_duties IS NOT NULL", name="has_limit"
+        ),
+    )
+
+    unit_id: Mapped[uuid.UUID] = mapped_column(index=True)
+    applies_to_subtree: Mapped[bool] = mapped_column(Boolean, default=True)
+    rank_id: Mapped[uuid.UUID | None]
+    position_id: Mapped[uuid.UUID | None]
+    max_duties: Mapped[int | None] = mapped_column(SmallInteger)
+    max_holiday_duties: Mapped[int | None] = mapped_column(SmallInteger)
+
+    def snapshot(self) -> dict[str, Any]:
+        return {
+            "unit_id": self.unit_id,
+            "applies_to_subtree": self.applies_to_subtree,
+            "rank_id": self.rank_id,
+            "position_id": self.position_id,
+            "max_duties": self.max_duties,
+            "max_holiday_duties": self.max_holiday_duties,
+        }
 
 
 def include_object(
