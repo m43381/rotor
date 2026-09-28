@@ -181,6 +181,7 @@ Consumer, не producer домена — если недоступен, оста
 - **Начальное заполнение и восстановление** — `python -m analytics.rebuild` (`just analytics-rebuild`) из `GET /internal/assignments/facts` пачками; консьюмер делает это сам, если read-model пуста.
 - **API:** `GET /metrics/overview` — сводка, справедливость (те же формулы, что в движке), подразделения, гистограмма, тренд, самые и наименее загруженные; `GET /metrics/people` — нагрузка по людям.
 - Дефициты текущего месяца дашборд берёт из таблицы графика `scheduling`, а не дублирует ячейки в analytics.
+- **Сводный журнал аудита** (фаза 7b): `audit_view` по событиям `events:audit` всех сервисов и выгрузке `GET /internal/audit`. API — `GET /audit` с фильтрами и выгрузкой в xlsx; права — `audit_journal` (open-questions №64).
 - Отчёт по нагрузке печатает `documents` (`GET /print/load-report`) по данным `analytics` от имени оператора.
 
 ### 3.6 `documents`

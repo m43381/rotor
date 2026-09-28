@@ -272,7 +272,7 @@ UNIQUE(`owner_unit_id`, `name`) WHERE `is_active`. `assigned_unit_id` — вну
     - поля: `assignment_id PK`, `person_id`, `person_name`, `unit_id` (подразделение, закрывшее ячейку), `schedule_id`, `schedule_status`, `duty_type_id`, `duty_role_id`, `date`, `start_at`, `end_at`, `occupied_days`, `load` (нарядо-сутки × вес), `holiday`, `source`;
     - поддерево — через `unit_projection` (путь не копируется в факт, поэтому перенос подразделения не требует пересчёта);
   - `unit_projection`, `rank_projection`, `processed_event`, `outbox` — общие таблицы;
-  - `audit_view` — сводный журнал аудита из событий `audit.recorded` всех сервисов (ADR-0010).
+  - `audit_view(id PK, service, occurred_at, actor_id, actor_name, actor_unit_id, action, entity_type, entity_id, scope_unit_id, before, after, comment, request_id)` — сводный журнал аудита из событий `audit.recorded` всех сервисов (ADR-0010, фаза 7b); только дополняется, хранится бессрочно;
 - **`auth_admin_db`**: `audit_log` (операции с операторами: `operator.create`, `update`, `block`, `unblock`, `reset_password`, `logout`; паролей в записях нет), `outbox`, `processed_event`. Сами операторы живут в Keycloak: `username`, ФИО, роль, атрибут `unit_id`, признак блокировки (фаза 7a, ADR-0016).
 
 ## 7. Общие таблицы (`libs/common`)
