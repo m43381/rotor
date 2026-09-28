@@ -5,6 +5,7 @@ import { accessToken, signIn } from '@/auth'
 import type { components, paths as OrgPaths } from './generated/org'
 import type { components as PC, paths as PersonnelPaths } from './generated/personnel'
 import type { components as AC, paths as AnalyticsPaths } from './generated/analytics'
+import type { components as UC, paths as AuthAdminPaths } from './generated/auth-admin'
 import type { components as DC, paths as DocumentsPaths } from './generated/documents'
 import type { components as SC, paths as SchedulingPaths } from './generated/scheduling'
 
@@ -59,6 +60,9 @@ export type ImportKind = ImportJob['kind']
 export type Overview = AC['schemas']['Overview']
 export type PersonLoad = AC['schemas']['PersonLoad']
 
+export type OperatorAccount = UC['schemas']['OperatorOut']
+export type OperatorRole = NonNullable<OperatorAccount['role']>
+
 /** Ошибка API в формате сервисов: `{code, message, details?}`. */
 export class ApiError extends Error {
   readonly status: number
@@ -99,6 +103,9 @@ documents.use(auth)
 
 export const analytics = createClient<AnalyticsPaths>({ baseUrl: '/api/analytics' })
 analytics.use(auth)
+
+export const authAdmin = createClient<AuthAdminPaths>({ baseUrl: '/api/auth-admin' })
+authAdmin.use(auth)
 
 interface Result<T> {
   data?: T

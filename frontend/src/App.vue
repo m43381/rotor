@@ -23,6 +23,10 @@ const ROLE_NAMES: Record<string, string> = {
   viewer: 'Просмотр',
 }
 const isSuperadmin = computed(() => store.me?.roles.includes('superadmin') === true)
+// Операторами управляют администраторы (open-questions №59)
+const canManageOperators = computed(() => isSuperadmin.value || store.me?.roles.includes('unit_admin') === true)
+// Смена своего пароля — страница аккаунта Keycloak
+const accountUrl = `${window.location.origin}/auth/realms/dutyflow/account/#/account-security/signing-in`
 // Импорт меняет данные — наблюдателю не показывается (права проверяет сервис по строкам)
 const canImport = computed(() => (store.me?.roles ?? []).some((r) => r !== 'viewer'))
 const roleLabel = computed(() =>
@@ -49,6 +53,7 @@ const roleLabel = computed(() =>
         <RouterLink to="/dashboard">Нагрузка</RouterLink>
         <RouterLink to="/documents">Документы</RouterLink>
         <RouterLink v-if="canImport" to="/import">Импорт</RouterLink>
+        <RouterLink v-if="canManageOperators" to="/operators">Операторы</RouterLink>
         <RouterLink v-if="isSuperadmin" to="/references">Справочники</RouterLink>
       </nav>
       <div v-if="store.me" class="user">
@@ -56,6 +61,16 @@ const roleLabel = computed(() =>
           <strong>{{ store.me.full_name || store.me.username }}</strong>
           <small>{{ roleLabel }} · {{ store.me.unit.name }}</small>
         </div>
+        <Button
+          v-tooltip.bottom="'Сменить пароль'"
+          as="a"
+          :href="accountUrl"
+          target="_blank"
+          icon="pi pi-key"
+          text
+          rounded
+          aria-label="Сменить пароль"
+        />
         <Button icon="pi pi-sign-out" text rounded aria-label="Выйти" @click="signOut" />
       </div>
     </header>

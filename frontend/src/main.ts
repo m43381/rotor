@@ -19,6 +19,7 @@ import DocumentsView from './views/DocumentsView.vue'
 import DutyLimitsView from './views/DutyLimitsView.vue'
 import DutyTypesView from './views/DutyTypesView.vue'
 import ImportView from './views/ImportView.vue'
+import OperatorsView from './views/OperatorsView.vue'
 import PeopleView from './views/PeopleView.vue'
 import PersonView from './views/PersonView.vue'
 import ReferencesView from './views/ReferencesView.vue'
@@ -45,6 +46,7 @@ async function bootstrap() {
       { path: '/import', component: ImportView },
       { path: '/documents', component: DocumentsView },
       { path: '/dashboard', component: DashboardView },
+      { path: '/operators', component: OperatorsView },
       { path: '/:pathMatch(.*)*', redirect: '/units' },
     ],
   })
