@@ -17,11 +17,14 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from testcontainers.community.postgres import PostgresContainer
 
 from dutyflow_common.testing import TestIssuer
+from dutyflow_common.testing.audit_coverage import AuditCoverage, event_hooks
 from org.bootstrap import ensure_root
 from org.main import create_app
 from org.settings import OrgSettings
 
 SERVICE_DIR = Path(__file__).resolve().parents[1]
+# Учёт покрытия аудита: исключения — маршруты, не меняющие данные, с причиной
+AUDIT = AuditCoverage(exempt={})
 INTERNAL_TOKEN = "test-internal-token"
 
 
@@ -57,6 +60,7 @@ def issuer(settings: OrgSettings) -> TestIssuer:
 @pytest.fixture(scope="session")
 async def app(settings: OrgSettings, issuer: TestIssuer, migrated: str) -> AsyncIterator[FastAPI]:
     application = create_app(settings, token_verifier=issuer.verifier)
+    AUDIT.bind(application)
     async with LifespanManager(application):
         yield application
 
@@ -90,6 +94,7 @@ async def client_for(app: FastAPI, issuer: TestIssuer) -> AsyncIterator[ClientFa
             transport=ASGITransport(app=app),
             base_url="http://test",
             headers={"Authorization": f"Bearer {token}"},
+            event_hooks=event_hooks(AUDIT),
         )
         clients.append(c)
         return c
@@ -108,3 +113,9 @@ def admin(client_for: ClientFactory, settings: OrgSettings) -> AsyncClient:
 async def anon(app: FastAPI) -> AsyncIterator[AsyncClient]:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c
+
+
+@pytest.fixture(scope="session")
+def audit_coverage() -> AuditCoverage:
+    """Учёт покрытия аудита — через фикстуру: импорт conftest из теста дал бы второй экземпляр."""
+    return AUDIT

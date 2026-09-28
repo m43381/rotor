@@ -36,3 +36,22 @@ async def test_calendar_upsert_and_range(admin: AsyncClient) -> None:
 async def test_unit_type_code_validated(admin: AsyncClient) -> None:
     r = await admin.post("/unit-types", json={"code": "Bad Code", "name": "x", "level": 1})
     assert r.status_code == 422
+
+
+async def test_reference_updates_are_audited(admin: AsyncClient) -> None:
+    rank = (await admin.post("/ranks", json={"name": "Сержант", "order": 5})).json()
+    r = await admin.put(
+        f"/ranks/{rank['id']}",
+        json={"name": "Младший сержант", "short_name": "мл. с-т", "order": 5},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["short_name"] == "мл. с-т"
+    kind = (
+        await admin.post("/unit-types", json={"code": "platoon", "name": "Взвод", "level": 5})
+    ).json()
+    r = await admin.put(
+        f"/unit-types/{kind['id']}", json={"code": "platoon", "name": "Учебный взвод", "level": 5}
+    )
+    assert r.status_code == 200, r.text
+    audit = (await admin.get("/audit", params={"entity_id": rank["id"]})).json()["items"]
+    assert [a["action"] for a in audit] == ["rank.update", "rank.create"]

@@ -24,12 +24,15 @@ from dutyflow_common.events import Event
 from dutyflow_common.ids import uuid7
 from dutyflow_common.projections import handle_rank_event, handle_unit_event
 from dutyflow_common.testing import TestIssuer
+from dutyflow_common.testing.audit_coverage import AuditCoverage, event_hooks
 from scheduling.checks import PersonInfo
 from scheduling.main import create_app
 from scheduling.refs import AttributeDef, PersonnelRefs
 from scheduling.settings import SchedulingSettings
 
 SERVICE_DIR = Path(__file__).resolve().parents[1]
+# Учёт покрытия аудита: исключения — маршруты, не меняющие данные, с причиной
+AUDIT = AuditCoverage(exempt={})
 INTERNAL_TOKEN = "test-internal-token"
 
 
@@ -168,6 +171,7 @@ async def app(
         solver=local_solver,
         jobs=FAKE_JOBS,
     )
+    AUDIT.bind(application)
     async with LifespanManager(application):
         yield application
 
@@ -265,6 +269,7 @@ async def client_for(app: FastAPI, issuer: TestIssuer) -> AsyncIterator[ClientFa
             transport=ASGITransport(app=app),
             base_url="http://test",
             headers={"Authorization": f"Bearer {token}"},
+            event_hooks=event_hooks(AUDIT),
         )
         clients.append(c)
         return c
@@ -314,3 +319,9 @@ async def add_type(
     assert r.status_code == 201, r.text
     data: dict[str, object] = r.json()
     return data
+
+
+@pytest.fixture(scope="session")
+def audit_coverage() -> AuditCoverage:
+    """Учёт покрытия аудита — через фикстуру: импорт conftest из теста дал бы второй экземпляр."""
+    return AUDIT

@@ -103,6 +103,10 @@ async def test_create_update_block_reset(
     assert (await fac.post(f"/operators/{uid}/unblock")).json()["enabled"] is True
     assert (await fac.post(f"/operators/{people.fac_admin}/block")).status_code == 422
 
+    keycloak.logouts.clear()
+    assert (await fac.post(f"/operators/{uid}/logout")).status_code == 200
+    assert keycloak.logouts == [uid]
+
     reset = (await fac.post(f"/operators/{uid}/reset-password")).json()
     assert reset["temporary_password"] != password
     assert keycloak.passwords[uid] == (reset["temporary_password"], True)
@@ -118,6 +122,7 @@ async def test_create_update_block_reset(
         "operator.update",
         "operator.block",
         "operator.unblock",
+        "operator.logout",
         "operator.reset_password",
     ]
     dump = str([(r.before, r.after) for r in rows])

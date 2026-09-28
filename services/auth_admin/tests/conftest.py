@@ -25,8 +25,11 @@ from testcontainers.community.postgres import PostgresContainer
 from auth_admin.main import create_app
 from auth_admin.settings import AuthAdminSettings
 from dutyflow_common.testing import TestIssuer
+from dutyflow_common.testing.audit_coverage import AuditCoverage, event_hooks
 
 SERVICE_DIR = Path(__file__).resolve().parents[1]
+# Учёт покрытия аудита: исключения — маршруты, не меняющие данные, с причиной
+AUDIT = AuditCoverage(exempt={})
 ROOT = uuid.UUID("00000000-0000-7000-8000-000000000001")
 FACULTY = uuid.UUID("00000000-0000-7000-8000-000000000002")
 COURSE = uuid.UUID("00000000-0000-7000-8000-000000000003")
@@ -230,6 +233,7 @@ async def app(
         keycloak_transport=httpx.MockTransport(keycloak.handler),
         org_transport=httpx.MockTransport(org_handler),
     )
+    AUDIT.bind(application)
     async with LifespanManager(application):
         yield application
 
@@ -280,6 +284,7 @@ async def client_for(app: FastAPI, issuer: TestIssuer) -> AsyncIterator[ClientFa
             transport=ASGITransport(app=app),
             base_url="http://test",
             headers={"Authorization": f"Bearer {token}"},
+            event_hooks=event_hooks(AUDIT),
         )
         clients.append(c)
         return c
@@ -287,3 +292,9 @@ async def client_for(app: FastAPI, issuer: TestIssuer) -> AsyncIterator[ClientFa
     yield make
     for c in clients:
         await c.aclose()
+
+
+@pytest.fixture(scope="session")
+def audit_coverage() -> AuditCoverage:
+    """Учёт покрытия аудита — через фикстуру: импорт conftest из теста дал бы второй экземпляр."""
+    return AUDIT

@@ -97,3 +97,36 @@ async def test_reasons_reference(admin: AsyncClient, client_for: ClientFactory, 
     assert r.status_code == 201
     op = client_for(org.fac_a, "operator")
     assert (await op.post("/exemption-reasons", json={"code": "x", "name": "X"})).status_code == 403
+
+
+async def test_reference_updates_are_audited(admin: AsyncClient) -> None:
+    position = await admin.post("/positions", json={"name": "Командир отделения"})
+    assert position.status_code == 201, position.text
+    pid = position.json()["id"]
+    r = await admin.put(f"/positions/{pid}", json={"name": "Командир отделения", "sort_order": 3})
+    assert r.status_code == 200, r.text
+    reason = (
+        await admin.post("/exemption-reasons", json={"code": "study", "name": "Учёба"})
+    ).json()
+    r = await admin.put(
+        f"/exemption-reasons/{reason['id']}", json={"code": "study", "name": "Учебный сбор"}
+    )
+    assert r.status_code == 200, r.text
+    attr = await admin.post(
+        "/attribute-definitions",
+        json={"code": "sport", "name": "Спортсмен", "value_type": "bool"},
+    )
+    assert attr.status_code == 201, attr.text
+    r = await admin.put(
+        f"/attribute-definitions/{attr.json()['id']}",
+        json={"code": "sport", "name": "Спортсмен-разрядник", "value_type": "bool"},
+    )
+    assert r.status_code == 200, r.text
+    # Тип характеристики менять нельзя
+    bad = await admin.put(
+        f"/attribute-definitions/{attr.json()['id']}",
+        json={"code": "sport", "name": "Спорт", "value_type": "string"},
+    )
+    assert bad.status_code == 422
+    history = (await admin.get("/audit", params={"entity_id": pid})).json()["items"]
+    assert [a["action"] for a in history] == ["position.update", "position.create"]

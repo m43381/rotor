@@ -105,7 +105,7 @@ async def emit(
 async def org(app: FastAPI, settings: AnalyticsSettings) -> Org:
     engine = create_async_engine(settings.database_url)
     async with engine.begin() as conn:
-        await conn.execute(text("TRUNCATE duty_fact, unit_projection, processed_event"))
+        await conn.execute(text("TRUNCATE duty_fact, audit_view, unit_projection, processed_event"))
     await engine.dispose()
     maker: async_sessionmaker[AsyncSession] = app.state.db.sessionmaker
     o = Org(uuid7(), uuid7(), uuid7(), uuid7(), uuid7())

@@ -25,8 +25,21 @@ from testcontainers.community.postgres import PostgresContainer
 from documents.main import create_app
 from documents.settings import DocumentsSettings
 from dutyflow_common.testing import TestIssuer
+from dutyflow_common.testing.audit_coverage import AuditCoverage, event_hooks
 
 SERVICE_DIR = Path(__file__).resolve().parents[1]
+# Учёт покрытия аудита: исключения — маршруты, не меняющие данные, с причиной
+AUDIT = AuditCoverage(
+    exempt={
+        # Задача импорта — служебное состояние documents; сами изменения личного состава
+        # при применении пишет в свой журнал personnel (от имени оператора, ADR-0014)
+        "POST /imports/{kind}": "загрузка файла — только предпросмотр",
+        "POST /imports/{job_id}/recheck": "повторная проверка — без изменений данных",
+        "POST /imports/{job_id}/apply": "изменения данных и их аудит — в personnel",
+        "POST /imports/{job_id}/discard": "отмена предпросмотра — без изменений данных",
+        "POST /templates/{form}/preview": "PDF на демо-данных, ничего не сохраняется",
+    }
+)
 UNIT = uuid.UUID("00000000-0000-7000-8000-000000000001")
 FACULTY = uuid.UUID("00000000-0000-7000-8000-000000000002")
 COURSE = uuid.UUID("00000000-0000-7000-8000-000000000003")
@@ -353,6 +366,7 @@ async def app(
         org_transport=httpx.MockTransport(upstreams.org),
         analytics_transport=httpx.MockTransport(upstreams.analytics),
     )
+    AUDIT.bind(application)
     async with LifespanManager(application):
         yield application
 
@@ -386,6 +400,7 @@ async def client_for(app: FastAPI, issuer: TestIssuer) -> AsyncIterator[ClientFa
             transport=ASGITransport(app=app),
             base_url="http://test",
             headers={"Authorization": f"Bearer {token}"},
+            event_hooks=event_hooks(AUDIT),
         )
         clients.append(c)
         return c
@@ -399,3 +414,9 @@ async def client_for(app: FastAPI, issuer: TestIssuer) -> AsyncIterator[ClientFa
 def sessionmaker(app: FastAPI) -> async_sessionmaker[AsyncSession]:
     maker: async_sessionmaker[AsyncSession] = app.state.db.sessionmaker
     return maker
+
+
+@pytest.fixture(scope="session")
+def audit_coverage() -> AuditCoverage:
+    """Учёт покрытия аудита — через фикстуру: импорт conftest из теста дал бы второй экземпляр."""
+    return AUDIT
