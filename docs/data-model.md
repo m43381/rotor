@@ -273,7 +273,7 @@ UNIQUE(`owner_unit_id`, `name`) WHERE `is_active`. `assigned_unit_id` — вну
     - поддерево — через `unit_projection` (путь не копируется в факт, поэтому перенос подразделения не требует пересчёта);
   - `unit_projection`, `rank_projection`, `processed_event`, `outbox` — общие таблицы;
   - `audit_view` — сводный журнал аудита из событий `audit.recorded` всех сервисов (ADR-0010).
-- **`auth_admin_db`**: только `audit_log` (операции с операторами). Сами операторы живут в Keycloak: `username`, ФИО, роль, атрибут `unit_id`.
+- **`auth_admin_db`**: `audit_log` (операции с операторами: `operator.create`, `update`, `block`, `unblock`, `reset_password`, `logout`; паролей в записях нет), `outbox`, `processed_event`. Сами операторы живут в Keycloak: `username`, ФИО, роль, атрибут `unit_id`, признак блокировки (фаза 7a, ADR-0016).
 
 ## 7. Общие таблицы (`libs/common`)
 
