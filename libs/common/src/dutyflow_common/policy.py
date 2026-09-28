@@ -150,6 +150,10 @@ DEFAULT_RULES: dict[RuleKey, Scope] = {
     **_rules(Role.UNIT_ADMIN, "analytics", read=SUBTREE),
     **_rules(Role.OPERATOR, "analytics", read=SUBTREE),
     **_rules(Role.VIEWER, "analytics", read=SUBTREE),
+    # Сводный журнал аудита (open-questions №64): администратор и оператор — своё поддерево,
+    # наблюдатель — нет; записи без подразделения видит только суперадминистратор.
+    **_rules(Role.UNIT_ADMIN, "audit_journal", read=SUBTREE),
+    **_rules(Role.OPERATOR, "audit_journal", read=SUBTREE),
     # Журнал аудита: оператор видит записи своего поддерева (ADR-0010).
     **_rules(Role.UNIT_ADMIN, "audit", read=SUBTREE),
     **_rules(Role.OPERATOR, "audit", read=SUBTREE),

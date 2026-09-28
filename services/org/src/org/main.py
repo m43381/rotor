@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from dutyflow_common.app import create_service_app
+from dutyflow_common.audit_export import audit_export_router
 from dutyflow_common.auth import TokenVerifier
 from dutyflow_common.db import Database
 from org.api import audit, internal, refs, units
@@ -20,6 +21,7 @@ def create_app(
     app = create_service_app(settings, title="DutyFlow org", token_verifier=token_verifier)
     for module in (units, refs, audit, internal):
         app.include_router(module.router)
+    app.include_router(audit_export_router())
 
     base_lifespan = app.router.lifespan_context
 

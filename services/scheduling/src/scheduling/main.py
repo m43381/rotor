@@ -3,6 +3,7 @@
 from fastapi import FastAPI
 
 from dutyflow_common.app import create_service_app
+from dutyflow_common.audit_export import audit_export_router
 from dutyflow_common.auth import TokenVerifier
 from scheduling.api import (
     allocation,
@@ -45,6 +46,7 @@ def create_app(
         internal,
     ):
         app.include_router(module.router)
+    app.include_router(audit_export_router())
     return app
 
 

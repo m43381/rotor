@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Response
 
 from dutyflow_common.auth import TokenVerifier
-from dutyflow_common.context import current_operator, current_request_id
+from dutyflow_common.context import current_operator, current_request_id, set_service_name
 from dutyflow_common.db import Database
 from dutyflow_common.errors import install_error_handlers
 from dutyflow_common.settings import ServiceSettings
@@ -41,6 +41,7 @@ def create_service_app(
     token_verifier: TokenVerifier | None = None,
 ) -> FastAPI:
     setup_logging(settings.log_level)
+    set_service_name(settings.service_name)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:

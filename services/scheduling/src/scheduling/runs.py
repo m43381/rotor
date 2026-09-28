@@ -344,7 +344,18 @@ class AllocationRunService:
         run = await self._run(run_id, "update")
         if run.status not in ("preview_ready", "queued", "running"):
             raise ValidationFailedError("Отменить можно только непримененный предпросмотр")
+        _, unit = await self.schedules.access(run.schedule_id, "read")
+        before = run.status
         run.status = "discarded"
+        audit.record(
+            self.session,
+            action="allocation.discard",
+            entity_type="allocation_run",
+            entity_id=run.id,
+            scope_unit_id=unit.unit_id,
+            before={"status": before},
+            after={"status": "discarded"},
+        )
         await self.session.commit()
         return run
 

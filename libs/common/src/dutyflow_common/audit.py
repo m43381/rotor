@@ -3,7 +3,7 @@
 
 import uuid
 from collections.abc import Mapping
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi.encoders import jsonable_encoder
@@ -12,7 +12,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
 
-from dutyflow_common.context import current_operator, current_request_id
+from dutyflow_common.context import current_operator, current_request_id, service_name
 from dutyflow_common.db import Base
 from dutyflow_common.errors import ValidationFailedError
 from dutyflow_common.ids import uuid7
@@ -82,6 +82,7 @@ def record(
     operator = current_operator.get()
     entry = AuditLog(
         id=uuid7(),
+        occurred_at=datetime.now(UTC),
         actor_id=operator.subject if operator else SYSTEM_ACTOR,
         actor_name=(operator.full_name or operator.username) if operator else SYSTEM_ACTOR,
         actor_unit_id=operator.unit_id if operator else None,
@@ -102,8 +103,11 @@ def record(
         entity_id,
         {
             "audit_id": entry.id,
+            "service": service_name(),
+            "occurred_at": entry.occurred_at,
             "actor_id": entry.actor_id,
             "actor_name": entry.actor_name,
+            "actor_unit_id": entry.actor_unit_id,
             "action": action,
             "entity_type": entity_type,
             "entity_id": entity_id,

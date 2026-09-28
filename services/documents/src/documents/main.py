@@ -9,6 +9,7 @@ from fastapi import FastAPI
 from documents.api import imports, printing
 from documents.settings import DocumentsSettings
 from dutyflow_common.app import create_service_app
+from dutyflow_common.audit_export import audit_export_router
 from dutyflow_common.auth import TokenVerifier
 from dutyflow_common.upstream import UpstreamClient
 
@@ -25,6 +26,7 @@ def create_app(
     app = create_service_app(settings, title="DutyFlow documents", token_verifier=token_verifier)
     for module in (imports, printing):
         app.include_router(module.router)
+    app.include_router(audit_export_router())
     app.state.personnel = UpstreamClient(settings.personnel_url, transport=personnel_transport)
     app.state.scheduling = UpstreamClient(settings.scheduling_url, transport=scheduling_transport)
     app.state.org = UpstreamClient(settings.org_url, transport=org_transport)

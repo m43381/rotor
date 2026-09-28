@@ -10,6 +10,7 @@ from auth_admin.api import operators
 from auth_admin.keycloak import KeycloakAdmin
 from auth_admin.settings import AuthAdminSettings
 from dutyflow_common.app import create_service_app
+from dutyflow_common.audit_export import audit_export_router
 from dutyflow_common.auth import TokenVerifier
 from dutyflow_common.upstream import UpstreamClient
 
@@ -23,6 +24,7 @@ def create_app(
     settings = settings or AuthAdminSettings()
     app = create_service_app(settings, title="DutyFlow auth-admin", token_verifier=token_verifier)
     app.include_router(operators.router)
+    app.include_router(audit_export_router())
     app.state.keycloak = KeycloakAdmin(
         settings.keycloak_url,
         settings.keycloak_realm,
