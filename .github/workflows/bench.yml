@@ -1,0 +1,38 @@
+# Бенчмарки — по расписанию и вручную, не блокируют слияние (план фазы 7, шаг 7d).
+# Отчёты — артефактом; в docs/benchmarks/ их переносят вручную после проверки.
+name: Бенчмарки
+
+on:
+  schedule:
+    - cron: "0 3 * * 1" # понедельник, 03:00 UTC
+  workflow_dispatch:
+
+jobs:
+  bench:
+    name: Движок, импорт, снимки
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv python install 3.12 && uv sync --all-packages --frozen
+      # Каждый бенчмарк отдельно: сбой одного не отменяет остальные отчёты
+      - run: uv run python tools/bench/engine.py
+        continue-on-error: true
+      - run: uv run python tools/bench/imports.py
+        continue-on-error: true
+      - run: uv run python tools/bench/people_snapshot.py
+        continue-on-error: true
+      - run: uv run python tools/bench/schedule_snapshot.py
+        continue-on-error: true
+      - run: uv run python tools/bench/hierarchy.py
+        continue-on-error: true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: benchmarks-${{ github.run_number }}
+          path: docs/benchmarks/
+          retention-days: 90

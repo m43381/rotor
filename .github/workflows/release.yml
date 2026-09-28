@@ -1,0 +1,26 @@
+# Пакет поставки для изолированной сети по тегу версии `vX.Y.Z` (ADR-0017).
+name: Пакет поставки
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  bundle:
+    name: dutyflow-<версия>.tar
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv python install 3.12 && uv sync --all-packages --frozen
+      - name: Сборка пакета
+        run: uv run python tools/bundle.py --version "${GITHUB_REF_NAME#v}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dutyflow-${{ github.ref_name }}
+          path: dist/*.tar
+          compression-level: 0 # образы внутри уже сжаты
+          retention-days: 30
