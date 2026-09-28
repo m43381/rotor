@@ -85,12 +85,16 @@ tools/                  # генератор синтетических данн
 | Команда | Что делает |
 |---|---|
 | `just install` | Зависимости Python (uv workspace) и фронтенда |
-| `just up` / `just down` / `just reset` | Поднять стенд, остановить, остановить с удалением данных. Стенд: http://localhost:8088 |
+| `just up` / `just down` / `just reset` | Поднять стенд, остановить, остановить с удалением данных. Стенд: https://localhost:8443 (сертификат внутреннего УЦ `deploy/certs/ca.crt`; 8088 перенаправляет на HTTPS) |
 | `just seed` | Демо-дерево подразделений, демо-учётки (`faculty_admin`, `course_operator`, `faculty_viewer`, `department_operator`, пароль `demo-password-1`), ~900 человек личного состава (курсанты и постоянный состав: управления факультетов, кафедры), наряды академии, факультетов и курсов с ролями и требованиями, допуски; идемпотентен |
 | `just lint` | ruff, ruff format, mypy strict, eslint, vue-tsc, проверка лицензий фронтенда |
 | `just test` | pytest (интеграционные тесты на Postgres через testcontainers, нужен Docker) и vitest |
 | `just e2e` | Playwright против поднятого стенда, системный Edge/Chrome |
 | `just gen-api` | Типы API фронтенда из OpenAPI сервисов |
 | `just screenshots` | Скриншоты UI для пояснительной записки |
+| `just backup` / `just restore <каталог>` | Резервная копия всех БД (включая Keycloak) и настроек в `deploy/backups/` / восстановление из неё |
+| `just doctor` | Проверка стенда: контейнеры, `/health`, очереди событий, сертификат, свежесть копий |
+| `just certs` | Перевыпуск сертификата HTTPS на имена из `TLS_HOSTS` (корневой сохраняется) |
+| `just bundle <версия>` | Пакет поставки для изолированной сети → `dist/` (установка и эксплуатация: `deploy/README.md`, `deploy/dutyflow.sh`) |
 
 Операторов создают администраторы в разделе «Операторы» (сервис `auth-admin`, ADR-0016); Keycloak настраивает одноразовый контейнер `keycloak-init` при каждом `just up`. Пароль администратора `admin` лежит в `deploy/.env` (`DUTYFLOW_ADMIN_PASSWORD`). Файл создаётся `just env` со случайными секретами. Бенчмарки: `just bench` (иерархия), `just bench-people` (снимок личного состава) и `just bench-schedule` (таблица месяца и снимок задачи), `just bench-allocation` (движок распределения), `just bench-import` (импорт до 20 000 строк) → `docs/benchmarks/`. Read-model аналитики перестраивается из фактов scheduling командой `just analytics-rebuild` (стенд поднят). Экспериментальный стенд фазы 5 (legacy против методов движка, 1k–50k, затухание, пороги auto): `just experiment` → `docs/experiments.md` (десятки минут; `just experiment --report` — только отчёт по готовым данным).
