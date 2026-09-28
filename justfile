@@ -38,7 +38,7 @@ logs service="":
 lint:
     uv run ruff check .
     uv run ruff format --check .
-    uv run mypy libs/common/src services/org/src services/personnel/src services/scheduling/src services/allocation/src services/documents/src services/analytics/src tools
+    uv run mypy libs/common/src services/org/src services/personnel/src services/scheduling/src services/allocation/src services/documents/src services/analytics/src services/auth_admin/src tools
     cd frontend; npm run lint; npm run typecheck; npm run check:licenses
 
 # Автоисправление форматирования
@@ -56,6 +56,7 @@ test *args:
     uv run pytest services/allocation {{args}}
     uv run pytest services/documents {{args}}
     uv run pytest services/analytics {{args}}
+    uv run pytest services/auth_admin {{args}}
     cd frontend; npm test
 
 # E2E-тесты UI против стенда (после up и seed); браузер системный, PW_CHANNEL=msedge|chrome

@@ -12,6 +12,7 @@ members = [
     "dutyflow",
     "dutyflow-allocation",
     "dutyflow-analytics",
+    "dutyflow-auth-admin",
     "dutyflow-common",
     "dutyflow-documents",
     "dutyflow-org",
@@ -440,6 +441,23 @@ requires-dist = [
 name = "dutyflow-analytics"
 version = "0.1.0"
 source = { editable = "services/analytics" }
+dependencies = [
+    { name = "alembic" },
+    { name = "dutyflow-common" },
+    { name = "uvicorn", extra = ["standard"] },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "alembic", specifier = ">=1.14" },
+    { name = "dutyflow-common", editable = "libs/common" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.32" },
+]
+
+[[package]]
+name = "dutyflow-auth-admin"
+version = "0.1.0"
+source = { editable = "services/auth_admin" }
 dependencies = [
     { name = "alembic" },
     { name = "dutyflow-common" },

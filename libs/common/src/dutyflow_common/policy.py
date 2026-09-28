@@ -143,6 +143,9 @@ DEFAULT_RULES: dict[RuleKey, Scope] = {
     **_rules(Role.UNIT_ADMIN, "document_settings", read=SUBTREE, update=SUBTREE),
     **_rules(Role.OPERATOR, "document_settings", read=SUBTREE),
     **_rules(Role.VIEWER, "document_settings", read=SUBTREE),
+    # Операторы (open-questions №59): администратор подразделения — в своём поддереве;
+    # ограничения по выдаваемым ролям проверяет сервис auth-admin.
+    **_rules(Role.UNIT_ADMIN, "operator", read=SUBTREE, create=SUBTREE, update=SUBTREE),
     # Аналитика нагрузки видна в своём поддереве всем ролям (open-questions №56)
     **_rules(Role.UNIT_ADMIN, "analytics", read=SUBTREE),
     **_rules(Role.OPERATOR, "analytics", read=SUBTREE),
