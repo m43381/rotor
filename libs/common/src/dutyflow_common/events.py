@@ -26,6 +26,7 @@ from redis.exceptions import ResponseError
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from dutyflow_common.heartbeat import beat
 from dutyflow_common.outbox import ProcessedEvent
 
 log = logging.getLogger(__name__)
@@ -157,6 +158,7 @@ class EventConsumer:
         while not stop.is_set():
             try:
                 await self.run_once()
+                beat()
             except Exception:
                 log.exception("Сбой чтения событий, повтор через 5 с")
                 with contextlib.suppress(TimeoutError):

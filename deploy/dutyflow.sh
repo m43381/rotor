@@ -3,7 +3,8 @@
 # Python, just и доступ в интернет на сервере не требуются.
 #
 #   ./dutyflow.sh install            первая установка из пакета поставки: образы, .env, сертификаты
-#   ./dutyflow.sh update             установка новой версии пакета поверх старой (с резервной копией)
+#   ./dutyflow.sh update <каталог>   переход на эту версию с прежней (каталог прежнего пакета):
+#                                    перенос .env и сертификатов, резервная копия, запуск
 #   ./dutyflow.sh up | down | status | logs [сервис]
 #   ./dutyflow.sh backup             резервная копия всех БД (включая Keycloak) и настроек
 #   ./dutyflow.sh restore <каталог>  восстановление из копии (стенд останавливается)
@@ -16,7 +17,9 @@ export MSYS_NO_PATHCONV=1 # Git Bash на Windows не должен перепи
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="$DIR/.env"
-compose() { docker compose -f "$DIR/docker-compose.yml" --env-file "$ENV_FILE" "$@"; }
+# Пути для docker — в форме хоста (на Windows с Git Bash /tmp и т. п. не совпадают с C:)
+DIR_HOST="$(cd "$DIR" && (pwd -W 2>/dev/null || pwd))"
+compose() { docker compose -f "$DIR_HOST/docker-compose.yml" --env-file "$DIR_HOST/.env" "$@"; }
 
 say() { printf '%s\n' "$*"; }
 die() { printf 'Ошибка: %s\n' "$*" >&2; exit 1; }
@@ -65,7 +68,6 @@ make_env() {
     done < "$DIR/.env.example" > "$ENV_FILE"
     chmod 600 "$ENV_FILE"
     say "Создан $ENV_FILE со случайными секретами. Пароль admin: DUTYFLOW_ADMIN_PASSWORD."
-    say "Проверьте PUBLIC_URL и TLS_HOSTS (адрес сервера в сети) до первого запуска."
 }
 
 issue_certs() { # $1=force — перевыпустить сертификат сервера
@@ -84,6 +86,12 @@ issue_certs() { # $1=force — перевыпустить сертификат �
 # --- Команды ---------------------------------------------------------------------------------
 
 cmd_install() {
+    if [ ! -f "$ENV_FILE" ]; then
+        # Адрес сервера нужен до выпуска сертификата и первого запуска Keycloak
+        make_env
+        say "Укажите в .env PUBLIC_URL, TLS_HOSTS и BACKUP_DIR и запустите ./dutyflow.sh install ещё раз."
+        return
+    fi
     load_images
     make_env
     issue_certs
@@ -93,6 +101,14 @@ cmd_install() {
 }
 
 cmd_update() {
+    local old="${1:-}"
+    if [ -n "$old" ]; then
+        [ -f "$old/.env" ] || die "в $old нет .env — укажите каталог прежней версии"
+        [ "$(cd "$old" && pwd)" != "$DIR" ] || die "укажите каталог прежней версии, а не текущий"
+        if [ ! -f "$ENV_FILE" ]; then cp -p "$old/.env" "$ENV_FILE"; fi
+        if [ -d "$old/certs" ] && [ ! -f "$DIR/certs/server.crt" ]; then cp -Rp "$old/certs" "$DIR/"; fi
+        say "Настройки перенесены из $old"
+    fi
     require_env
     if compose ps --status running -q postgres | grep -q .; then
         say "Резервная копия перед обновлением:"
@@ -106,13 +122,13 @@ cmd_update() {
 }
 
 load_images() {
-    [ -f "$DIR/images.tar" ] || die "нет images.tar рядом со скриптом (это пакет поставки?)"
+    [ -f "$DIR/images.tar.gz" ] || die "нет images.tar.gz рядом со скриптом (это пакет поставки?)"
     if [ -f "$DIR/MANIFEST.sha256" ]; then
         say "Проверка контрольных сумм пакета…"
         (cd "$DIR" && sha256sum -c MANIFEST.sha256 > /dev/null) || die "пакет повреждён"
     fi
     say "Загрузка образов (несколько минут)…"
-    docker load -i "$DIR/images.tar"
+    docker load -i "$DIR_HOST/images.tar.gz"
     local version
     version="$(cat "$DIR/VERSION")"
     if [ -f "$ENV_FILE" ] && grep -q '^DUTYFLOW_VERSION=' "$ENV_FILE"; then
@@ -133,6 +149,7 @@ cmd_backup() {
     stamp="$(date +%Y%m%d-%H%M%S)"
     compose run --rm -e BACKUP_STAMP="$stamp" -v "$(host_path "$(backup_dir)"):/backups" ops-db \
         sh /scripts/backup.sh
+    say "Каталог копии на сервере: $(backup_dir)/$stamp"
 }
 
 cmd_restore() {
@@ -191,7 +208,7 @@ cmd="${1:-}"
 shift || true
 case "$cmd" in
     install) cmd_install ;;
-    update) cmd_update ;;
+    update) cmd_update "$@" ;;
     up) cmd_up ;;
     down) cmd_down ;;
     status) cmd_status ;;
@@ -200,5 +217,5 @@ case "$cmd" in
     restore) cmd_restore "$@" ;;
     doctor) cmd_doctor ;;
     certs) require_env; issue_certs force; compose restart gateway; say "Шлюз перезапущен с новым сертификатом" ;;
-    *) sed -n '2,13p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; [ -z "$cmd" ] || exit 1 ;;
+    *) sed -n '2,14p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; [ -z "$cmd" ] || exit 1 ;;
 esac

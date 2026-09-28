@@ -46,6 +46,10 @@ restore dir:
 doctor:
     bash deploy/dutyflow.sh doctor
 
+# Пакет поставки для изолированной сети → dist/dutyflow-<версия>.tar (установка: deploy/README.md)
+bundle version:
+    uv run python tools/bundle.py --version {{version}}
+
 # Логи сервиса (по умолчанию все)
 logs service="":
     {{compose}} logs -f --tail=200 {{service}}

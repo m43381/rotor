@@ -131,7 +131,12 @@ services:
     image: dutyflow/org:${DUTYFLOW_VERSION:-dev}
     command: ["python", "-m", "org.relay"]
     healthcheck:
-      disable: true  # HTTP-порта у релея нет; проверка из Dockerfile сервиса к нему не относится
+      # Признак жизни цикла (dutyflow_common.heartbeat): HTTP-порта у процесса нет
+      test: ["CMD", "python", "-m", "dutyflow_common.heartbeat", "60"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     environment:
       <<: *service-env
       SERVICE_NAME: org
@@ -167,7 +172,12 @@ services:
     image: dutyflow/personnel:${DUTYFLOW_VERSION:-dev}
     command: ["python", "-m", "personnel.relay"]
     healthcheck:
-      disable: true
+      # Признак жизни цикла (dutyflow_common.heartbeat): HTTP-порта у процесса нет
+      test: ["CMD", "python", "-m", "dutyflow_common.heartbeat", "60"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     environment: *personnel-env
     depends_on:
       personnel:
@@ -180,7 +190,12 @@ services:
     image: dutyflow/personnel:${DUTYFLOW_VERSION:-dev}
     command: ["python", "-m", "personnel.consumer"]
     healthcheck:
-      disable: true
+      # Признак жизни цикла (dutyflow_common.heartbeat): HTTP-порта у процесса нет
+      test: ["CMD", "python", "-m", "dutyflow_common.heartbeat", "60"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     environment: *personnel-env
     depends_on:
       personnel:
@@ -220,7 +235,12 @@ services:
     image: dutyflow/scheduling:${DUTYFLOW_VERSION:-dev}
     command: ["python", "-m", "scheduling.relay"]
     healthcheck:
-      disable: true
+      # Признак жизни цикла (dutyflow_common.heartbeat): HTTP-порта у процесса нет
+      test: ["CMD", "python", "-m", "dutyflow_common.heartbeat", "60"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     environment: *scheduling-env
     depends_on:
       scheduling:
@@ -233,7 +253,12 @@ services:
     image: dutyflow/scheduling:${DUTYFLOW_VERSION:-dev}
     command: ["python", "-m", "scheduling.consumer"]
     healthcheck:
-      disable: true
+      # Признак жизни цикла (dutyflow_common.heartbeat): HTTP-порта у процесса нет
+      test: ["CMD", "python", "-m", "dutyflow_common.heartbeat", "60"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     environment: *scheduling-env
     depends_on:
       scheduling:
@@ -306,7 +331,12 @@ services:
     image: dutyflow/documents:${DUTYFLOW_VERSION:-dev}
     command: ["python", "-m", "documents.relay"]
     healthcheck:
-      disable: true
+      # Признак жизни цикла (dutyflow_common.heartbeat): HTTP-порта у процесса нет
+      test: ["CMD", "python", "-m", "dutyflow_common.heartbeat", "60"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     environment: *documents-env
     depends_on:
       documents:
@@ -345,7 +375,12 @@ services:
     image: dutyflow/analytics:${DUTYFLOW_VERSION:-dev}
     command: ["python", "-m", "analytics.consumer"]
     healthcheck:
-      disable: true
+      # Признак жизни цикла (dutyflow_common.heartbeat): HTTP-порта у процесса нет
+      test: ["CMD", "python", "-m", "dutyflow_common.heartbeat", "60"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     environment: *analytics-env
     depends_on:
       analytics:
@@ -384,7 +419,12 @@ services:
     image: dutyflow/auth-admin:${DUTYFLOW_VERSION:-dev}
     command: ["python", "-m", "auth_admin.relay"]
     healthcheck:
-      disable: true
+      # Признак жизни цикла (dutyflow_common.heartbeat): HTTP-порта у процесса нет
+      test: ["CMD", "python", "-m", "dutyflow_common.heartbeat", "60"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     environment: *auth-admin-env
     depends_on:
       auth-admin:

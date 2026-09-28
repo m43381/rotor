@@ -9,6 +9,7 @@ import signal
 from redis.asyncio import Redis
 
 from dutyflow_common.db import Database
+from dutyflow_common.heartbeat import beat
 from dutyflow_common.outbox import relay_once
 from dutyflow_common.settings import ServiceSettings
 
@@ -29,6 +30,7 @@ async def run_relay(settings: ServiceSettings, *, idle_sleep: float = 1.0) -> No
         while not stop.is_set():
             try:
                 sent = await relay_once(db.sessionmaker, redis)
+                beat()
             except Exception:
                 log.exception("Ошибка публикации событий, повтор через %s с", idle_sleep * 5)
                 sent = 0

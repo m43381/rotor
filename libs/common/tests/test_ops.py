@@ -1,8 +1,9 @@
-"""Сертификаты внутреннего УЦ (фаза 7c): выпуск, SAN, продление без смены корневого."""
+"""Эксплуатация (фаза 7c): сертификаты внутреннего УЦ, проверки doctor, признак жизни."""
 
 import ipaddress
 from pathlib import Path
 
+import pytest
 from cryptography import x509
 
 from dutyflow_common.certs import days_left, generate, main
@@ -42,9 +43,24 @@ def test_doctor_cert_check(tmp_path: Path) -> None:
     generate(tmp_path, ["localhost"], days=10)
     report = Report()
     check_cert(report, tmp_path / "server.crt")
-    assert not report.problems and report.warnings  # скоро истекает
+    assert not report.problems
+    assert report.warnings  # скоро истекает
 
     generate(tmp_path, ["localhost"])
     report = Report()
     check_cert(report, tmp_path / "server.crt")
-    assert not report.problems and not report.warnings
+    assert not report.problems
+    assert not report.warnings
+
+
+def test_heartbeat(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import os
+
+    from dutyflow_common import heartbeat
+
+    monkeypatch.setenv("HEARTBEAT_FILE", str(tmp_path / "hb"))
+    assert heartbeat.main(["60"]) == 1  # процесс ещё не отметился
+    heartbeat.beat()
+    assert heartbeat.main(["60"]) == 0
+    os.utime(tmp_path / "hb", (0, 0))
+    assert heartbeat.main(["60"]) == 1  # отметка устарела
