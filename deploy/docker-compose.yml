@@ -39,6 +39,7 @@ services:
       SCHEDULING_DB_PASSWORD: ${SCHEDULING_DB_PASSWORD}
       DOCUMENTS_DB_PASSWORD: ${DOCUMENTS_DB_PASSWORD}
       ANALYTICS_DB_PASSWORD: ${ANALYTICS_DB_PASSWORD}
+      AUTH_ADMIN_DB_PASSWORD: ${AUTH_ADMIN_DB_PASSWORD}
       KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
     volumes:
       - ./postgres/ensure-databases.sh:/ensure-databases.sh:ro
@@ -324,6 +325,55 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # Управление операторами из интерфейса поверх Keycloak Admin API (ADR-0002, фаза 7a)
+  auth-admin:
+    build:
+      context: ..
+      dockerfile: services/Dockerfile
+      args:
+        SERVICE: auth_admin
+    image: dutyflow/auth-admin:dev
+    environment: &auth-admin-env
+      <<: *service-env
+      SERVICE_NAME: auth-admin
+      DATABASE_URL: postgresql+asyncpg://auth_admin:${AUTH_ADMIN_DB_PASSWORD}@postgres:5432/auth_admin_db
+      KEYCLOAK_URL: http://keycloak:8080/auth
+      AUTH_ADMIN_CLIENT_SECRET: ${AUTH_ADMIN_CLIENT_SECRET}
+      ORG_URL: http://org:8000
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+      keycloak-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  auth-admin-relay:
+    image: dutyflow/auth-admin:dev
+    command: ["python", "-m", "auth_admin.relay"]
+    healthcheck:
+      disable: true
+    environment: *auth-admin-env
+    depends_on:
+      auth-admin:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Одноразово при каждом `up`: служебный клиент auth-admin, политика паролей и блокировок
+  # realm (open-questions №61). Импорт realm-файла Keycloak делает только при первом запуске.
+  keycloak-init:
+    image: dutyflow/auth-admin:dev
+    command: ["python", "-m", "auth_admin.bootstrap"]
+    healthcheck:
+      disable: true
+    environment:
+      <<: *auth-admin-env
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    restart: "no"
+
   gateway:
     build:
       context: ../frontend
@@ -342,6 +392,8 @@ services:
       documents:
         condition: service_healthy
       analytics:
+        condition: service_healthy
+      auth-admin:
         condition: service_healthy
       keycloak:
         condition: service_healthy
