@@ -13,6 +13,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import App from './App.vue'
 import { ensureSignedIn } from './auth'
 import { ru } from './locale/ru'
+import AuditView from './views/AuditView.vue'
 import ClearanceMismatchesView from './views/ClearanceMismatchesView.vue'
 import DashboardView from './views/DashboardView.vue'
 import DocumentsView from './views/DocumentsView.vue'
@@ -47,6 +48,7 @@ async function bootstrap() {
       { path: '/documents', component: DocumentsView },
       { path: '/dashboard', component: DashboardView },
       { path: '/operators', component: OperatorsView },
+      { path: '/audit', component: AuditView },
       { path: '/:pathMatch(.*)*', redirect: '/units' },
     ],
   })

@@ -53,6 +53,7 @@ const roleLabel = computed(() =>
         <RouterLink to="/dashboard">Нагрузка</RouterLink>
         <RouterLink to="/documents">Документы</RouterLink>
         <RouterLink v-if="canImport" to="/import">Импорт</RouterLink>
+        <RouterLink v-if="canImport" to="/audit">Журнал</RouterLink>
         <RouterLink v-if="canManageOperators" to="/operators">Операторы</RouterLink>
         <RouterLink v-if="isSuperadmin" to="/references">Справочники</RouterLink>
       </nav>
@@ -91,7 +92,7 @@ const roleLabel = computed(() =>
 .topbar {
   display: flex;
   align-items: center;
-  gap: 2rem;
+  gap: 1.5rem;
   padding: 0.5rem 1.25rem;
   border-bottom: 1px solid var(--p-content-border-color);
   background: var(--p-content-background);
@@ -105,13 +106,16 @@ const roleLabel = computed(() =>
 }
 .nav {
   display: flex;
-  gap: 1rem;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.9rem;
   flex: 1;
+  min-width: 0;
 }
 .nav a {
   color: var(--p-text-muted-color);
   text-decoration: none;
   padding: 0.25rem 0;
+  white-space: nowrap;
 }
 .nav a.router-link-active {
   color: var(--p-primary-color);
@@ -130,6 +134,10 @@ const roleLabel = computed(() =>
 }
 .user-text small {
   color: var(--p-text-muted-color);
+  max-width: 22rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .content {
   flex: 1;

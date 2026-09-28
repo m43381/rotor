@@ -34,10 +34,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Сводный журнал аудита всех сервисов */
+        get: operations["journal_audit_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/audit/facets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Значения для фильтров журнала */
+        get: operations["facets_audit_facets_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/audit/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Журнал по фильтрам в xlsx (до 50 000 записей) */
+        get: operations["export_audit_export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** Facets */
+        Facets: {
+            /** Entity Type */
+            entity_type: string[];
+            /** Action */
+            action: string[];
+            /** Service */
+            service: string[];
+        };
         /** Fairness */
         Fairness: {
             /** People */
@@ -61,6 +121,59 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** JournalEntry */
+        JournalEntry: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Service */
+            service: string;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+            /** Actor Id */
+            actor_id: string;
+            /** Actor Name */
+            actor_name: string;
+            /** Action */
+            action: string;
+            /** Entity Type */
+            entity_type: string;
+            /**
+             * Entity Id
+             * Format: uuid
+             */
+            entity_id: string;
+            /** Unit Id */
+            unit_id: string | null;
+            /** Unit Name */
+            unit_name: string | null;
+            /** Before */
+            before: {
+                [key: string]: unknown;
+            } | null;
+            /** After */
+            after: {
+                [key: string]: unknown;
+            } | null;
+            /** Comment */
+            comment: string | null;
+        };
+        /** JournalPage */
+        JournalPage: {
+            /** Items */
+            items: components["schemas"]["JournalEntry"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
         };
         /** Overview */
         Overview: {
@@ -264,6 +377,110 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PeoplePage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    journal_audit_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                date_from?: string | null;
+                date_to?: string | null;
+                /** @description С поддеревом */
+                unit_id?: string | null;
+                /** @description ФИО или id оператора */
+                actor?: string | null;
+                entity_type?: string | null;
+                entity_id?: string | null;
+                /** @description Действие или его начало: person. */
+                action?: string | null;
+                service?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JournalPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    facets_audit_facets_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Facets"];
+                };
+            };
+        };
+    };
+    export_audit_export_get: {
+        parameters: {
+            query?: {
+                date_from?: string | null;
+                date_to?: string | null;
+                /** @description С поддеревом */
+                unit_id?: string | null;
+                /** @description ФИО или id оператора */
+                actor?: string | null;
+                entity_type?: string | null;
+                entity_id?: string | null;
+                /** @description Действие или его начало: person. */
+                action?: string | null;
+                service?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": unknown;
                 };
             };
             /** @description Validation Error */

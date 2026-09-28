@@ -348,6 +348,10 @@ onMounted(async () => {
   align-items: flex-start;
   gap: 1rem;
 }
+.page-header > :deep(.p-button) {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
 h1 {
   margin: 0;
   font-size: 1.4rem;

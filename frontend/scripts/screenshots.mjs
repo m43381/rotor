@@ -134,5 +134,16 @@ await page.waitForSelector('canvas')
 await page.waitForTimeout(1200)
 await shot('18-dashboard')
 
+// Фаза 7: операторы и сводный журнал изменений
+await page.goto(`${base}/operators`)
+await page.waitForSelector('.p-datatable-tbody tr')
+await page.waitForTimeout(500)
+await shot('19-operators')
+await page.goto(`${base}/audit`)
+await page.waitForSelector('.p-datatable-tbody tr')
+await page.locator('.p-datatable-tbody .p-datatable-row-toggle-button').first().click()
+await page.waitForTimeout(500)
+await shot('20-audit')
+
 await browser.close()
 console.log(`Скриншоты: ${out.pathname}`)
