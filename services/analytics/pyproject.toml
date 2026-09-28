@@ -6,6 +6,7 @@ requires-python = ">=3.12,<3.13"
 dependencies = [
     "dutyflow-common",
     "alembic>=1.14",
+    "openpyxl>=3.1",
     "uvicorn[standard]>=0.32",
 ]
 

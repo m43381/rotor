@@ -303,6 +303,10 @@ services:
       DATABASE_URL: postgresql+asyncpg://analytics:${ANALYTICS_DB_PASSWORD}@postgres:5432/analytics_db
       ORG_URL: http://org:8000
       SCHEDULING_URL: http://scheduling:8000
+      # Источники сводного журнала аудита (начальное заполнение, фаза 7b)
+      PERSONNEL_URL: http://personnel:8000
+      DOCUMENTS_URL: http://documents:8000
+      AUTH_ADMIN_URL: http://auth-admin:8000
     depends_on:
       db-init:
         condition: service_completed_successfully

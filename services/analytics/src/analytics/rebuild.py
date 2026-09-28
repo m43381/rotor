@@ -1,4 +1,5 @@
 """Перестроение read-model с нуля: `python -m analytics.rebuild` (`just analytics-rebuild`).
+Факты нарядов заменяются целиком, сводный журнал аудита дополняется недостающими записями.
 
 Нужно при первом запуске (события до появления analytics в потоках могут быть обрезаны)
 и после восстановления из резервной копии. Факты берутся из scheduling пачками по
@@ -12,6 +13,7 @@ from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from analytics.facts import upsert_facts
+from analytics.journal import rebuild_journal
 from analytics.models import DutyFact
 from analytics.settings import AnalyticsSettings
 from dutyflow_common.app import setup_logging
@@ -45,10 +47,18 @@ async def rebuild(
 async def main(settings: AnalyticsSettings) -> None:
     db = Database(settings.database_url)
     scheduling = InternalClient(settings.scheduling_url, settings.internal_token, timeout=60.0)
+    sources = {
+        name: InternalClient(url, settings.internal_token, timeout=60.0)
+        for name, url in settings.audit_sources().items()
+    }
     try:
         await rebuild(db.sessionmaker, scheduling)
+        # Журнал только дополняется: недостающие записи берутся из сервисов
+        await rebuild_journal(db.sessionmaker, sources)
     finally:
         await scheduling.aclose()
+        for client in sources.values():
+            await client.aclose()
         await db.dispose()
 
 

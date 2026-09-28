@@ -2,7 +2,7 @@
 
 from fastapi import FastAPI
 
-from analytics.api import metrics
+from analytics.api import journal, metrics
 from analytics.settings import AnalyticsSettings
 from dutyflow_common.app import create_service_app
 from dutyflow_common.auth import TokenVerifier
@@ -13,7 +13,8 @@ def create_app(
 ) -> FastAPI:
     settings = settings or AnalyticsSettings()
     app = create_service_app(settings, title="DutyFlow analytics", token_verifier=token_verifier)
-    app.include_router(metrics.router)
+    for module in (metrics, journal):
+        app.include_router(module.router)
     return app
 
 
