@@ -17,7 +17,7 @@ import httpx
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from tools.gen.names import fio
-from tools.gen.seed_org import check, read_env, token
+from tools.gen.seed_org import check, read_env, token, verify
 
 SEED = 20260926
 OFFICER = "Постоянный состав"
@@ -42,7 +42,7 @@ def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     env = read_env()
-    with httpx.Client(base_url=env.public_url, timeout=60.0) as http:
+    with httpx.Client(base_url=env.public_url, timeout=60.0, verify=verify()) as http:
         bearer = token(http, "dutyflow", "dutyflow-cli", "admin", env.admin_password)
         h = {"Authorization": f"Bearer {bearer}"}
 

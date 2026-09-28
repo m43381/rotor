@@ -150,3 +150,21 @@ async def test_bootstrap_is_idempotent(settings: AuthAdminSettings, keycloak: Fa
     ]
     assert keycloak.realm["passwordPolicy"] == PASSWORD_POLICY
     assert keycloak.realm["waitIncrementSeconds"] == 900
+
+
+def test_spa_urls_follow_public_url() -> None:
+    from auth_admin.bootstrap import spa_urls
+
+    client = {
+        "clientId": "dutyflow-spa",
+        "redirectUris": ["http://localhost:8088/*", "http://localhost:5173/*"],
+        "webOrigins": ["http://localhost:8088"],
+        "attributes": {
+            "post.logout.redirect.uris": "http://localhost:8088/*##http://localhost:5173/*"
+        },
+    }
+    out = spa_urls(client, "https://localhost:8443/")
+    assert "https://localhost:8443/*" in out["redirectUris"]
+    assert "http://localhost:5173/*" in out["redirectUris"]
+    assert "https://localhost:8443" in out["webOrigins"]
+    assert "https://localhost:8443/*" in out["attributes"]["post.logout.redirect.uris"].split("##")

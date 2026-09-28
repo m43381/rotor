@@ -58,6 +58,12 @@ class Env:
     kc_admin_password: str
 
 
+def verify() -> str | bool:
+    """Проверка HTTPS стенда по корневому сертификату внутреннего УЦ (фаза 7c)."""
+    ca = ROOT / "deploy" / "certs" / "ca.crt"
+    return str(ca) if ca.exists() else True
+
+
 def read_env() -> Env:
     values: dict[str, str] = {}
     for line in (ROOT / "deploy" / ".env").read_text(encoding="utf-8").splitlines():
@@ -209,7 +215,7 @@ def main() -> int:
     if isinstance(sys.stdout, __import__("io").TextIOWrapper):
         sys.stdout.reconfigure(encoding="utf-8")
     env = read_env()
-    with httpx.Client(base_url=env.public_url, timeout=30.0) as http:
+    with httpx.Client(base_url=env.public_url, timeout=30.0, verify=verify()) as http:
         api = OrgApi(http, token(http, "dutyflow", "dutyflow-cli", "admin", env.admin_password))
         types = ensure_types(api)
         ensure_ranks(api)

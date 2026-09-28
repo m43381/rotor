@@ -4,7 +4,8 @@
 - служебный клиент `dutyflow-auth-admin` (конфиденциальный, только client credentials) с
   секретом из `AUTH_ADMIN_CLIENT_SECRET` и ролями `manage-users`, `view-users`,
   `query-users` и `view-realm` (чтение настроек, без их изменения) в `realm-management`;
-- политика паролей и блокировки realm (open-questions №61).
+- политика паролей и блокировки realm (open-questions №61);
+- адреса возврата клиента SPA по `PUBLIC_URL` (после перехода на HTTPS или смены адреса).
 
 Импорт realm-файла Keycloak выполняет только при первом создании realm, поэтому то, что
 должно меняться на уже развёрнутом стенде, настраивается здесь — через Admin API
@@ -39,6 +40,19 @@ REALM_SECURITY = {
 # view-realm — только чтение настроек realm: без него Keycloak не отдаёт состав ролей
 # (`/roles/{role}/users`), и список операторов пришлось бы собирать запросом на каждого
 SERVICE_ROLES = ("manage-users", "view-users", "query-users", "view-realm")
+SPA_CLIENT = "dutyflow-spa"
+
+
+def spa_urls(client: dict[str, Any], public_url: str) -> dict[str, Any]:
+    """Клиент SPA с адресами возврата для `public_url` (прежние адреса остаются: dev-сервер
+    фронтенда и т. п.)."""
+    base = public_url.rstrip("/")
+    redirects = sorted({*client.get("redirectUris", []), f"{base}/*"})
+    origins = sorted({*client.get("webOrigins", []), base})
+    attrs = dict(client.get("attributes") or {})
+    logout = [u for u in attrs.get("post.logout.redirect.uris", "").split("##") if u]
+    attrs["post.logout.redirect.uris"] = "##".join(sorted({*logout, f"{base}/*"}))
+    return {**client, "redirectUris": redirects, "webOrigins": origins, "attributes": attrs}
 
 
 async def bootstrap(
@@ -91,6 +105,12 @@ async def bootstrap(
         await call(
             "POST", f"/users/{account['id']}/role-mappings/clients/{management['id']}", json=roles
         )
+        if settings.public_url:
+            spa = (await call("GET", "/clients", params={"clientId": SPA_CLIENT})).json()
+            if spa:
+                await call(
+                    "PUT", f"/clients/{spa[0]['id']}", json=spa_urls(spa[0], settings.public_url)
+                )
     log.info("Keycloak настроен: клиент %s, политика паролей и блокировки", client_id)
 
 

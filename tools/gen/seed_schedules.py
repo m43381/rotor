@@ -17,7 +17,7 @@ from typing import Any
 import httpx
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from tools.gen.seed_org import FACULTIES, check, read_env, token
+from tools.gen.seed_org import FACULTIES, check, read_env, token, verify
 
 COURSES_PER_FACULTY = 4
 HELPER = "Помощник дежурного по факультету"
@@ -32,7 +32,7 @@ def main() -> int:
         sys.stdout.reconfigure(encoding="utf-8")
     env = read_env()
     month = next_month(dt.date.today())
-    with httpx.Client(base_url=env.public_url, timeout=60.0) as http:
+    with httpx.Client(base_url=env.public_url, timeout=60.0, verify=verify()) as http:
         bearer = token(http, "dutyflow", "dutyflow-cli", "admin", env.admin_password)
         h = {"Authorization": f"Bearer {bearer}"}
 

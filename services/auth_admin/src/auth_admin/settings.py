@@ -14,3 +14,5 @@ class AuthAdminSettings(ServiceSettings):
     # Для keycloak-init: администратор master-realm (создаётся Keycloak при первом запуске)
     keycloak_admin: str = ""
     keycloak_admin_password: str = ""
+    # Публичный адрес стенда: адреса возврата клиента SPA (keycloak-init)
+    public_url: str = ""

@@ -373,6 +373,8 @@ services:
       <<: *auth-admin-env
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      # Адреса возврата клиента SPA следуют за публичным адресом (например, при переходе на HTTPS)
+      PUBLIC_URL: ${PUBLIC_URL}
     depends_on:
       keycloak:
         condition: service_healthy
@@ -384,8 +386,13 @@ services:
     image: dutyflow/gateway:dev
     ports:
       - "${GATEWAY_PORT:-8088}:80"
+      - "${GATEWAY_HTTPS_PORT:-8443}:443"
+    environment:
+      PUBLIC_URL: ${PUBLIC_URL}
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      # Шаблон: образ nginx подставляет PUBLIC_URL и кладёт результат в conf.d
+      - ./nginx/nginx.conf:/etc/nginx/templates/default.conf.template:ro
+      - ./certs:/etc/nginx/certs:ro
     depends_on:
       org:
         condition: service_healthy

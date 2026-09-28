@@ -12,7 +12,9 @@ export default defineConfig({
   retries: 0,
   reporter: [['list']],
   use: {
-    baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:8088',
+    baseURL: process.env.E2E_BASE_URL ?? 'https://localhost:8443',
+    // Стенд — на сертификате внутреннего УЦ (фаза 7c); браузер тестов ему не доверяет
+    ignoreHTTPSErrors: true,
     channel: process.env.PW_CHANNEL || undefined,
     headless: true,
     locale: 'ru-RU',
