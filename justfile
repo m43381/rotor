@@ -34,6 +34,18 @@ down:
 reset:
     {{compose}} down -v
 
+# Резервная копия всех БД и настроек → deploy/backups/<время> (хранится BACKUP_KEEP_DAYS дней)
+backup:
+    bash deploy/dutyflow.sh backup
+
+# Восстановить стенд из копии: `just restore deploy/backups/20260929-020000` (данные заменяются)
+restore dir:
+    bash deploy/dutyflow.sh restore {{dir}}
+
+# Проверка стенда: контейнеры, /health, очереди событий, сертификат, свежесть копий
+doctor:
+    bash deploy/dutyflow.sh doctor
+
 # Логи сервиса (по умолчанию все)
 logs service="":
     {{compose}} logs -f --tail=200 {{service}}

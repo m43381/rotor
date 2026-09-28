@@ -21,6 +21,7 @@ deploy/.env
 *.pem
 *.key
 deploy/certs/
+deploy/backups/
 
 # Артефакты
 *.log

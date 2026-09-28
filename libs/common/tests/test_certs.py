@@ -30,3 +30,21 @@ def test_cli_check(tmp_path: Path) -> None:
     assert main(["generate", "--out", str(tmp_path), "--host", "localhost", "--days", "10"]) == 0
     assert main(["check", "--cert", str(tmp_path / "server.crt"), "--warn-days", "5"]) == 0
     assert main(["check", "--cert", str(tmp_path / "server.crt"), "--warn-days", "30"]) == 1
+
+
+def test_doctor_cert_check(tmp_path: Path) -> None:
+    from dutyflow_common.doctor import Report, check_cert
+
+    report = Report()
+    check_cert(report, tmp_path / "server.crt")
+    assert report.problems  # сертификата нет
+
+    generate(tmp_path, ["localhost"], days=10)
+    report = Report()
+    check_cert(report, tmp_path / "server.crt")
+    assert not report.problems and report.warnings  # скоро истекает
+
+    generate(tmp_path, ["localhost"])
+    report = Report()
+    check_cert(report, tmp_path / "server.crt")
+    assert not report.problems and not report.warnings

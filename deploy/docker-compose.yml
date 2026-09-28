@@ -12,8 +12,16 @@ x-service-env: &service-env
   # Часовой пояс инсталляции: время нарядов локальное (ADR-0008)
   TIMEZONE: ${TIMEZONE:-Europe/Moscow}
 
+# Ротация логов Docker: до 5 файлов по 20 МБ на контейнер
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+
 services:
   postgres:
+    logging: *logging
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
@@ -29,6 +37,7 @@ services:
 
   # Одноразово создаёт недостающие БД и роли сервисов (в том числе на уже существующем томе).
   db-init:
+    logging: *logging
     image: postgres:16-alpine
     command: ["sh", "/ensure-databases.sh"]
     environment:
@@ -49,6 +58,7 @@ services:
     restart: "no"
 
   redis:
+    logging: *logging
     image: redis:7-alpine
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
@@ -61,6 +71,7 @@ services:
     restart: unless-stopped
 
   keycloak:
+    logging: *logging
     image: quay.io/keycloak/keycloak:26.3
     command: ["start", "--import-realm"]
     environment:
@@ -95,12 +106,13 @@ services:
     restart: unless-stopped
 
   org:
+    logging: *logging
     build:
       context: ..
       dockerfile: services/Dockerfile
       args:
         SERVICE: org
-    image: dutyflow/org:dev
+    image: dutyflow/org:${DUTYFLOW_VERSION:-dev}
     environment:
       <<: *service-env
       SERVICE_NAME: org
@@ -115,7 +127,8 @@ services:
     restart: unless-stopped
 
   org-relay:
-    image: dutyflow/org:dev
+    logging: *logging
+    image: dutyflow/org:${DUTYFLOW_VERSION:-dev}
     command: ["python", "-m", "org.relay"]
     healthcheck:
       disable: true  # HTTP-порта у релея нет; проверка из Dockerfile сервиса к нему не относится
@@ -129,12 +142,13 @@ services:
     restart: unless-stopped
 
   personnel:
+    logging: *logging
     build:
       context: ..
       dockerfile: services/Dockerfile
       args:
         SERVICE: personnel
-    image: dutyflow/personnel:dev
+    image: dutyflow/personnel:${DUTYFLOW_VERSION:-dev}
     environment: &personnel-env
       <<: *service-env
       SERVICE_NAME: personnel
@@ -149,7 +163,8 @@ services:
     restart: unless-stopped
 
   personnel-relay:
-    image: dutyflow/personnel:dev
+    logging: *logging
+    image: dutyflow/personnel:${DUTYFLOW_VERSION:-dev}
     command: ["python", "-m", "personnel.relay"]
     healthcheck:
       disable: true
@@ -161,7 +176,8 @@ services:
 
   # Один экземпляр: проекции чувствительны к порядку событий (ADR-0011).
   personnel-consumer:
-    image: dutyflow/personnel:dev
+    logging: *logging
+    image: dutyflow/personnel:${DUTYFLOW_VERSION:-dev}
     command: ["python", "-m", "personnel.consumer"]
     healthcheck:
       disable: true
@@ -176,12 +192,13 @@ services:
     restart: unless-stopped
 
   scheduling:
+    logging: *logging
     build:
       context: ..
       dockerfile: services/Dockerfile
       args:
         SERVICE: scheduling
-    image: dutyflow/scheduling:dev
+    image: dutyflow/scheduling:${DUTYFLOW_VERSION:-dev}
     environment: &scheduling-env
       <<: *service-env
       SERVICE_NAME: scheduling
@@ -199,7 +216,8 @@ services:
     restart: unless-stopped
 
   scheduling-relay:
-    image: dutyflow/scheduling:dev
+    logging: *logging
+    image: dutyflow/scheduling:${DUTYFLOW_VERSION:-dev}
     command: ["python", "-m", "scheduling.relay"]
     healthcheck:
       disable: true
@@ -211,7 +229,8 @@ services:
 
   # Один экземпляр: проекции чувствительны к порядку событий (ADR-0011).
   scheduling-consumer:
-    image: dutyflow/scheduling:dev
+    logging: *logging
+    image: dutyflow/scheduling:${DUTYFLOW_VERSION:-dev}
     command: ["python", "-m", "scheduling.consumer"]
     healthcheck:
       disable: true
@@ -225,12 +244,13 @@ services:
 
   # Движок распределения: без предметной БД, только внутренний API для scheduling (ADR-0006)
   allocation:
+    logging: *logging
     build:
       context: ..
       dockerfile: services/Dockerfile
       args:
         SERVICE: allocation
-    image: dutyflow/allocation:dev
+    image: dutyflow/allocation:${DUTYFLOW_VERSION:-dev}
     environment: &allocation-env
       <<: *service-env
       SERVICE_NAME: allocation
@@ -241,11 +261,14 @@ services:
 
   # Фоновые расчёты движка (очередь arq, фаза 5b): CP-SAT с большим пределом, большие снимки
   allocation-worker:
-    image: dutyflow/allocation:dev
+    logging: *logging
+    image: dutyflow/allocation:${DUTYFLOW_VERSION:-dev}
     command: ["arq", "allocation.worker.WorkerSettings"]
     healthcheck:
       disable: true
     environment: *allocation-env
+    # Большие задачи CP-SAT не должны вытеснять остальной стенд (эталон — 8 CPU / 16 ГБ)
+    mem_limit: ${ALLOCATION_WORKER_MEMORY:-4g}
     depends_on:
       allocation:
         condition: service_healthy
@@ -254,12 +277,13 @@ services:
   # Импорт и печать (фаза 6): чужие данные читает и пишет через публичные API владельцев
   # от имени оператора (ADR-0014); своя БД — только задачи импорта и настройки документов.
   documents:
+    logging: *logging
     build:
       context: ..
       dockerfile: services/Dockerfile
       args:
         SERVICE: documents
-    image: dutyflow/documents:dev
+    image: dutyflow/documents:${DUTYFLOW_VERSION:-dev}
     environment: &documents-env
       <<: *service-env
       SERVICE_NAME: documents
@@ -278,7 +302,8 @@ services:
     restart: unless-stopped
 
   documents-relay:
-    image: dutyflow/documents:dev
+    logging: *logging
+    image: dutyflow/documents:${DUTYFLOW_VERSION:-dev}
     command: ["python", "-m", "documents.relay"]
     healthcheck:
       disable: true
@@ -291,12 +316,13 @@ services:
   # Read-model нагрузки по событиям scheduling (фаза 6c): не в критическом пути — если
   # analytics недоступен, распределение и графики работают
   analytics:
+    logging: *logging
     build:
       context: ..
       dockerfile: services/Dockerfile
       args:
         SERVICE: analytics
-    image: dutyflow/analytics:dev
+    image: dutyflow/analytics:${DUTYFLOW_VERSION:-dev}
     environment: &analytics-env
       <<: *service-env
       SERVICE_NAME: analytics
@@ -315,7 +341,8 @@ services:
   # Один экземпляр: факты и проекции чувствительны к порядку событий. При пустой read-model
   # заполняет её выгрузкой из scheduling (`just analytics-rebuild` — вручную).
   analytics-consumer:
-    image: dutyflow/analytics:dev
+    logging: *logging
+    image: dutyflow/analytics:${DUTYFLOW_VERSION:-dev}
     command: ["python", "-m", "analytics.consumer"]
     healthcheck:
       disable: true
@@ -331,12 +358,13 @@ services:
 
   # Управление операторами из интерфейса поверх Keycloak Admin API (ADR-0002, фаза 7a)
   auth-admin:
+    logging: *logging
     build:
       context: ..
       dockerfile: services/Dockerfile
       args:
         SERVICE: auth_admin
-    image: dutyflow/auth-admin:dev
+    image: dutyflow/auth-admin:${DUTYFLOW_VERSION:-dev}
     environment: &auth-admin-env
       <<: *service-env
       SERVICE_NAME: auth-admin
@@ -352,7 +380,8 @@ services:
     restart: unless-stopped
 
   auth-admin-relay:
-    image: dutyflow/auth-admin:dev
+    logging: *logging
+    image: dutyflow/auth-admin:${DUTYFLOW_VERSION:-dev}
     command: ["python", "-m", "auth_admin.relay"]
     healthcheck:
       disable: true
@@ -365,7 +394,8 @@ services:
   # Одноразово при каждом `up`: служебный клиент auth-admin, политика паролей и блокировок
   # realm (open-questions №61). Импорт realm-файла Keycloak делает только при первом запуске.
   keycloak-init:
-    image: dutyflow/auth-admin:dev
+    logging: *logging
+    image: dutyflow/auth-admin:${DUTYFLOW_VERSION:-dev}
     command: ["python", "-m", "auth_admin.bootstrap"]
     healthcheck:
       disable: true
@@ -381,9 +411,10 @@ services:
     restart: "no"
 
   gateway:
+    logging: *logging
     build:
       context: ../frontend
-    image: dutyflow/gateway:dev
+    image: dutyflow/gateway:${DUTYFLOW_VERSION:-dev}
     ports:
       - "${GATEWAY_PORT:-8088}:80"
       - "${GATEWAY_HTTPS_PORT:-8443}:443"
@@ -409,6 +440,43 @@ services:
       keycloak:
         condition: service_healthy
     restart: unless-stopped
+
+  # --- Эксплуатация (профиль ops: не стартуют с `up`, запускаются `dutyflow.sh`) ---
+
+  # Резервное копирование и восстановление БД (open-questions №63)
+  ops-db:
+    profiles: ["ops"]
+    image: postgres:16-alpine
+    logging: *logging
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+    volumes:
+      - ./postgres:/scripts:ro
+      # Настройки стенда попадают в копию: без них копию не поднять на другом сервере.
+      # Каталог копий (/backups) или копии (/restore) монтирует dutyflow.sh
+      - ./.env:/config/.env:ro
+      - ./certs:/config/certs:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  # Проверка работоспособности изнутри сети стенда (`dutyflow.sh doctor`)
+  ops:
+    profiles: ["ops"]
+    image: dutyflow/org:${DUTYFLOW_VERSION:-dev}
+    command: ["python", "-m", "dutyflow_common.doctor"]
+    logging: *logging
+    healthcheck:
+      disable: true
+    environment:
+      <<: *service-env
+      CERTS_DIR: /certs
+    volumes:
+      - ./certs:/certs:ro
+    restart: "no"
 
 volumes:
   pgdata:

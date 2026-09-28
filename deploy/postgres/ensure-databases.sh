@@ -6,6 +6,8 @@
 set -eu
 
 export PGHOST=postgres PGUSER="$POSTGRES_USER" PGPASSWORD="$POSTGRES_PASSWORD"
+# Без NOTICE «extension already exists» при каждом запуске
+export PGOPTIONS="-c client_min_messages=warning"
 
 sql() { psql -v ON_ERROR_STOP=1 -qtA "$@"; }
 
