@@ -12,8 +12,11 @@ from dutyflow_common.db import Database
 from dutyflow_common.heartbeat import beat
 from dutyflow_common.outbox import relay_once
 from dutyflow_common.settings import ServiceSettings
+from dutyflow_common.streams import trim_streams
 
 log = logging.getLogger(__name__)
+# Обрезка потоков раз в минуту: её делает каждый релей, повтор безвреден
+TRIM_EVERY = 60.0
 
 
 async def run_relay(settings: ServiceSettings, *, idle_sleep: float = 1.0) -> None:
@@ -26,10 +29,16 @@ async def run_relay(settings: ServiceSettings, *, idle_sleep: float = 1.0) -> No
         with contextlib.suppress(NotImplementedError):
             loop.add_signal_handler(sig, stop.set)
     log.info("Релей outbox запущен: %s", settings.service_name)
+    trimmed_at = 0.0
     try:
         while not stop.is_set():
             try:
                 sent = await relay_once(db.sessionmaker, redis)
+                if loop.time() - trimmed_at > TRIM_EVERY:
+                    removed = await trim_streams(redis)
+                    trimmed_at = loop.time()
+                    if removed:
+                        log.info("Из потоков удалено подтверждённых событий: %d", removed)
                 beat()
             except Exception:
                 log.exception("Ошибка публикации событий, повтор через %s с", idle_sleep * 5)

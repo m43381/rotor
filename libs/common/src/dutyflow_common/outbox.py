@@ -89,8 +89,7 @@ async def relay_once(
                     "aggregate_id": str(ev.aggregate_id),
                     "payload": json.dumps(ev.payload, ensure_ascii=False),
                 },
-                maxlen=100_000,
-                approximate=True,
+                # Без MAXLEN: обрезку непрочитанного исключает dutyflow_common.streams
             )
             ev.published_at = func.now()
         return len(rows)
