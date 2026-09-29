@@ -1,5 +1,6 @@
 """Подключение к БД сервиса, базовый класс моделей и общие колонки."""
 
+import os
 import uuid
 from collections.abc import AsyncIterator, Iterable
 from datetime import datetime
@@ -55,7 +56,15 @@ class VersionedMixin:
 
 class Database:
     def __init__(self, url: str, *, echo: bool = False) -> None:
-        self.engine: AsyncEngine = create_async_engine(url, echo=echo, pool_pre_ping=True)
+        # Пул на процесс: при нескольких процессах uvicorn (WEB_CONCURRENCY) соединений к
+        # PostgreSQL — процессы × (DB_POOL_SIZE + DB_MAX_OVERFLOW); max_connections — в compose
+        self.engine: AsyncEngine = create_async_engine(
+            url,
+            echo=echo,
+            pool_pre_ping=True,
+            pool_size=int(os.environ.get("DB_POOL_SIZE", "10")),
+            max_overflow=int(os.environ.get("DB_MAX_OVERFLOW", "10")),
+        )
         self.sessionmaker = async_sessionmaker(self.engine, expire_on_commit=False)
 
     async def session(self) -> AsyncIterator[AsyncSession]:

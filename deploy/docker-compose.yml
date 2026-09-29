@@ -23,6 +23,17 @@ services:
   postgres:
     logging: *logging
     image: postgres:16-alpine
+    # Под эталон 8 CPU / 16 ГБ (№62): процессы сервисов × пул соединений, кэш страниц
+    command:
+      - postgres
+      - -c
+      - max_connections=${POSTGRES_MAX_CONNECTIONS:-500}
+      - -c
+      - shared_buffers=${POSTGRES_SHARED_BUFFERS:-1GB}
+      - -c
+      - effective_cache_size=4GB
+      - -c
+      - work_mem=16MB
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -157,6 +168,8 @@ services:
     environment: &personnel-env
       <<: *service-env
       SERVICE_NAME: personnel
+      # Процессов uvicorn (фаза 7d); релеи и консьюмеры его не читают
+      WEB_CONCURRENCY: ${PERSONNEL_WORKERS:-3}
       DATABASE_URL: postgresql+asyncpg://personnel:${PERSONNEL_DB_PASSWORD}@postgres:5432/personnel_db
       ORG_URL: http://org:8000
       SCHEDULING_URL: http://scheduling:8000
@@ -217,6 +230,8 @@ services:
     environment: &scheduling-env
       <<: *service-env
       SERVICE_NAME: scheduling
+      # Процессов uvicorn (фаза 7d); релеи и консьюмеры его не читают
+      WEB_CONCURRENCY: ${SCHEDULING_WORKERS:-4}
       DATABASE_URL: postgresql+asyncpg://scheduling:${SCHEDULING_DB_PASSWORD}@postgres:5432/scheduling_db
       ORG_URL: http://org:8000
       PERSONNEL_URL: http://personnel:8000
@@ -312,6 +327,8 @@ services:
     environment: &documents-env
       <<: *service-env
       SERVICE_NAME: documents
+      # Процессов uvicorn (фаза 7d); релеи и консьюмеры его не читают
+      WEB_CONCURRENCY: ${DOCUMENTS_WORKERS:-2}
       DATABASE_URL: postgresql+asyncpg://documents:${DOCUMENTS_DB_PASSWORD}@postgres:5432/documents_db
       PERSONNEL_URL: http://personnel:8000
       SCHEDULING_URL: http://scheduling:8000
@@ -356,6 +373,8 @@ services:
     environment: &analytics-env
       <<: *service-env
       SERVICE_NAME: analytics
+      # Процессов uvicorn (фаза 7d); релеи и консьюмеры его не читают
+      WEB_CONCURRENCY: ${ANALYTICS_WORKERS:-2}
       DATABASE_URL: postgresql+asyncpg://analytics:${ANALYTICS_DB_PASSWORD}@postgres:5432/analytics_db
       ORG_URL: http://org:8000
       SCHEDULING_URL: http://scheduling:8000
