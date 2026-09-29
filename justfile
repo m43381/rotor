@@ -134,3 +134,7 @@ seed:
     uv run python tools/gen/seed_people.py
     uv run python tools/gen/seed_duties.py
     uv run python tools/gen/seed_schedules.py
+
+# Нагрузочный прогон на отдельном стенде (№62): up → populate → run → down, отчёт docs/benchmarks/load.md
+load *args:
+    uv run python -m tools.load {{args}}

@@ -39,3 +39,6 @@ Thumbs.db
 frontend/e2e-results/
 frontend/playwright-report/
 frontend/screenshots/
+deploy/.env.load
+deploy/backups-load/
+tools/load/.state/
