@@ -130,6 +130,8 @@ async def people_batch(data: PeopleBatchIn, session: SessionDep) -> Response:
             Clearance.revoked_at.is_(None),
             or_(Clearance.valid_from.is_(None), Clearance.valid_from <= data.date_to),
             or_(Clearance.valid_to.is_(None), Clearance.valid_to >= data.date_from),
+            # Для кандидатов в ячейку нужны допуски только к её роли (в ~15 раз меньше данных)
+            *([in_array(Clearance.duty_role_id, data.duty_role_ids)] if data.duty_role_ids else []),
         )
         .group_by(Clearance.person_id)
     ):
