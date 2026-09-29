@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// Панель ячейки (фаза 3b): кто назначен и кандидаты — люди поддерева исполнителя с причинами
-// непригодности и нагрузкой за месяц. Нарушение отдыха или лимита — с подтверждением
+// Панель ячейки (фаза 3b): кто назначен и кандидаты — люди поддерева исполнителя с допуском
+// к роли (фаза 7d), с причинами непригодности и нагрузкой за месяц. Нарушение отдыха или лимита — с подтверждением
 // и комментарием (ADR-0008, open-questions №38); остальное назначить нельзя.
 import Button from 'primevue/button'
 import Checkbox from 'primevue/checkbox'
@@ -185,7 +185,7 @@ function pin(id: string, pinned: boolean) {
           </label>
         </div>
         <DataTable :value="visibleCandidates" data-key="person_id" size="small" :loading="loading" scrollable scroll-height="50vh">
-          <template #empty>Подходящих людей нет</template>
+          <template #empty>Подходящих людей нет: в списке только люди с допуском к этой роли</template>
           <Column header="Человек">
             <template #body="{ data: c }">
               <div class="name">{{ c.name }}</div>

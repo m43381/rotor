@@ -231,7 +231,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Назначенные и кандидаты: люди поддерева исполнителя с причинами непригодности */
+        /** Назначенные и кандидаты: люди поддерева исполнителя с допуском к роли и нарушениями */
         get: operations["candidates_day_plans__day_plan_id__candidates_get"];
         put?: never;
         post?: never;

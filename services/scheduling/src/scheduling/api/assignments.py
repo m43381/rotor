@@ -18,7 +18,7 @@ class PinAssignmentIn(BaseModel):
 @router.get(
     "/day-plans/{day_plan_id}/candidates",
     response_model=CandidatesOut,
-    summary="Назначенные и кандидаты: люди поддерева исполнителя с причинами непригодности",
+    summary="Назначенные и кандидаты: люди поддерева исполнителя с допуском к роли и нарушениями",
 )
 async def candidates(day_plan_id: uuid.UUID, svc: AssignmentServiceDep) -> CandidatesOut:
     return await svc.candidates(day_plan_id)

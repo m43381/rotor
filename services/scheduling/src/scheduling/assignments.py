@@ -261,7 +261,14 @@ class AssignmentService:
     async def candidates(self, day_plan_id: uuid.UUID) -> CandidatesOut:
         ctx = await self._context(day_plan_id, "read")
         first, last = self._window(ctx.cell.date)
-        people = await self.people(unit_ids=[ctx.unit.unit_id], date_from=first, date_to=last)
+        # Только люди с допуском к роли: остальные в ячейку не встают (нарушение «нет
+        # допуска» не подтверждается), а поддерево факультета — десятки тысяч человек
+        people = await self.people(
+            unit_ids=[ctx.unit.unit_id],
+            date_from=first,
+            date_to=last,
+            duty_role_ids=[ctx.role.id],
+        )
         paths = await self._paths(p.unit_id for p in people)
         ctx.slot.unit_paths = {u: p for u, (p, _) in paths.items()}
         busy = await self._busy((p.id for p in people), ctx.cell.date, ctx.cell.id)

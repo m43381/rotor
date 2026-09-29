@@ -887,7 +887,7 @@
         "tags": [
           "assignments"
         ],
-        "summary": "Назначенные и кандидаты: люди поддерева исполнителя с причинами непригодности",
+        "summary": "Назначенные и кандидаты: люди поддерева исполнителя с допуском к роли и нарушениями",
         "operationId": "candidates_day_plans__day_plan_id__candidates_get",
         "security": [
           {

@@ -102,6 +102,7 @@ class FakePeople:
         date_to: object,
         unit_ids: Sequence[uuid.UUID] = (),
         person_ids: Sequence[uuid.UUID] = (),
+        duty_role_ids: Sequence[uuid.UUID] = (),
     ) -> list[PersonInfo]:
         self.calls += 1
         if person_ids:
@@ -110,7 +111,9 @@ class FakePeople:
         return [
             p
             for p, path in self.people.values()
-            if p.is_active and any(path == r or path.startswith(r + ".") for r in roots)
+            if p.is_active
+            and any(path == r or path.startswith(r + ".") for r in roots)
+            and (not duty_role_ids or any(c[0] in duty_role_ids for c in p.clearances))
         ]
 
 

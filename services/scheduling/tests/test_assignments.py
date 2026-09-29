@@ -86,9 +86,9 @@ async def test_candidates_and_assign(admin: AsyncClient, org: Org) -> None:
     body = r.json()
     assert body["cell"]["headcount"] == 2
     assert body["cell"]["can_assign"] is True
+    # Люди без допуска к роли в кандидаты не попадают (фаза 7d): встать в ячейку они не могут
     names = [(c["name"], c["eligible"]) for c in body["candidates"]]
-    assert names == [("Алексеев Иван Петрович", True), ("Бездопусков Иван Петрович", False)]
-    assert body["candidates"][1]["violations"][0]["kind"] == "clearance"
+    assert names == [("Алексеев Иван Петрович", True)]
 
     r = await assign(admin, cell, ok)
     assert r.status_code == 201, r.text

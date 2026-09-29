@@ -1135,6 +1135,8 @@ export interface components {
              * @default false
              */
             include_names: boolean;
+            /** Duty Role Ids */
+            duty_role_ids?: string[];
         };
         /** PeopleBatchPerson */
         PeopleBatchPerson: {

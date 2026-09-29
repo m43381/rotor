@@ -3513,6 +3513,15 @@
             "type": "boolean",
             "title": "Include Names",
             "default": false
+          },
+          "duty_role_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 1000,
+            "title": "Duty Role Ids"
           }
         },
         "type": "object",

@@ -196,6 +196,9 @@ class PeopleBatchIn(BaseModel):
     date_to: dt.date
     # ФИО и звание — для списков кандидатов; для снимка движка не нужны
     include_names: bool = False
+    # Только люди с действующим в периоде допуском к одной из ролей (кандидаты в ячейку):
+    # без допуска человек в ячейку не встаёт, а поддерево бывает в десятки тысяч (фаза 7d)
+    duty_role_ids: list[uuid.UUID] = Field(default_factory=list, max_length=1000)
 
     @model_validator(mode="after")
     def _one_selector(self) -> "PeopleBatchIn":

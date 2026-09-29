@@ -22,6 +22,7 @@ class PeopleLoader(Protocol):
         date_to: dt.date,
         unit_ids: Sequence[uuid.UUID] = (),
         person_ids: Sequence[uuid.UUID] = (),
+        duty_role_ids: Sequence[uuid.UUID] = (),
     ) -> list[PersonInfo]: ...
 
 
@@ -57,6 +58,7 @@ def http_people_loader(settings: SchedulingSettings) -> PeopleLoader:
         date_to: dt.date,
         unit_ids: Sequence[uuid.UUID] = (),
         person_ids: Sequence[uuid.UUID] = (),
+        duty_role_ids: Sequence[uuid.UUID] = (),
     ) -> list[PersonInfo]:
         client = InternalClient(settings.personnel_url, settings.internal_token, timeout=30.0)
         try:
@@ -68,6 +70,7 @@ def http_people_loader(settings: SchedulingSettings) -> PeopleLoader:
                     "date_from": str(date_from),
                     "date_to": str(date_to),
                     "include_names": True,
+                    "duty_role_ids": [str(r) for r in duty_role_ids],
                 },
             )
         finally:

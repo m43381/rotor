@@ -380,6 +380,20 @@ async def test_snapshot_includes_clearances(
     [p] = r.json()
     assert p["clearances"] == [[str(role), "2026-10-15", None]]
 
+    # Фильтр кандидатов: только люди с действующим в периоде допуском к роли
+    await add_person(admin, org.course_a1, "Бездопусков")
+    period = {"unit_ids": [str(org.fac_a)], "date_from": "2026-10-01", "date_to": "2026-10-31"}
+    everyone = (await internal.post("/internal/people/batch", json=period)).json()
+    assert len(everyone) == 2
+    by_role = await internal.post(
+        "/internal/people/batch", json={**period, "duty_role_ids": [str(role)]}
+    )
+    assert [x["id"] for x in by_role.json()] == [p["id"]]
+    expired = await internal.post(
+        "/internal/people/batch", json={**period, "duty_role_ids": [str(old_role)]}
+    )
+    assert expired.json() == []
+
     refs = (await internal.post("/internal/references", json={})).json()
     assert [a["code"] for a in refs["attributes"]] == ["category"]
 

@@ -69,6 +69,18 @@ async def people_batch(data: PeopleBatchIn, session: SessionDep) -> Response:
         people_q = select(Person.id).where(
             Person.is_active, in_array(Person.unit_id, data.unit_ids)
         )
+    if data.duty_role_ids:
+        people_q = people_q.where(
+            select(Clearance.id)
+            .where(
+                Clearance.person_id == Person.id,
+                in_array(Clearance.duty_role_id, data.duty_role_ids),
+                Clearance.revoked_at.is_(None),
+                or_(Clearance.valid_from.is_(None), Clearance.valid_from <= data.date_to),
+                or_(Clearance.valid_to.is_(None), Clearance.valid_to >= data.date_from),
+            )
+            .exists()
+        )
     ids = people_q.subquery()
 
     people = await session.execute(
