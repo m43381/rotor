@@ -92,6 +92,7 @@ async def bench(url: str) -> tuple[list[dict[str, Any]], str]:
         date_to: Any,
         unit_ids: Sequence[Any] = (),
         person_ids: Sequence[Any] = (),
+        duty_role_ids: Sequence[Any] = (),
     ) -> list[PersonInfo]:
         return people
 

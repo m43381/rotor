@@ -1,0 +1,436 @@
+{
+ "params": {
+  "users": 300,
+  "duration": 600,
+  "ramp": 60,
+  "think": 10.0,
+  "probe": 30,
+  "procs": 6
+ },
+ "machine": {
+  "host": "Windows 11, AMD64 Family 25 Model 117 Stepping 2, AuthenticAMD",
+  "docker_cpus": 16,
+  "docker_mem_gib": 15.2
+ },
+ "summary": {
+  "rows": {
+   "login": {
+    "kind": "auth",
+    "count": 300,
+    "errors": 0,
+    "rejected": 0,
+    "p50": 70.80320000022766,
+    "p95": 90.01680000073975,
+    "p99": 114.3326999990677,
+    "max": 125.1364999989164,
+    "error_samples": []
+   },
+   "candidates": {
+    "kind": "read",
+    "count": 4647,
+    "errors": 0,
+    "rejected": 0,
+    "p50": 116.26129999785917,
+    "p95": 387.9796000001079,
+    "p99": 545.8708000005572,
+    "max": 1662.3723000011523,
+    "error_samples": []
+   },
+   "people_search": {
+    "kind": "read",
+    "count": 2185,
+    "errors": 0,
+    "rejected": 0,
+    "p50": 13.487799998983974,
+    "p95": 41.36359999756678,
+    "p99": 85.35990000018501,
+    "max": 214.40209999855142,
+    "error_samples": []
+   },
+   "unassign": {
+    "kind": "write",
+    "count": 1665,
+    "errors": 0,
+    "rejected": 0,
+    "p50": 129.13399999888497,
+    "p95": 384.4066000019666,
+    "p99": 550.791500001651,
+    "max": 1415.1488999996218,
+    "error_samples": []
+   },
+   "person_card": {
+    "kind": "read",
+    "count": 4681,
+    "errors": 0,
+    "rejected": 0,
+    "p50": 11.173300001246389,
+    "p95": 26.11840000099619,
+    "p99": 60.260599999310216,
+    "max": 277.72840000034194,
+    "error_samples": []
+   },
+   "person_clearances": {
+    "kind": "read",
+    "count": 4681,
+    "errors": 0,
+    "rejected": 0,
+    "p50": 14.296400000603171,
+    "p95": 32.92660000079195,
+    "p99": 96.36319999845,
+    "max": 318.8841000010143,
+    "error_samples": []
+   },
+   "person_update": {
+    "kind": "write",
+    "count": 825,
+    "errors": 0,
+    "rejected": 0,
+    "p50": 57.60080000254675,
+    "p95": 74.95230000131414,
+    "p99": 108.66669999813894,
+    "max": 266.9440999998187,
+    "error_samples": []
+   },
+   "assign": {
+    "kind": "write",
+    "count": 1663,
+    "errors": 0,
+    "rejected": 0,
+    "p50": 163.0963999996311,
+    "p95": 456.32779999868944,
+    "p99": 665.7913000017288,
+    "max": 1653.2469000012497,
+    "error_samples": []
+   },
+   "people_list": {
+    "kind": "read",
+    "count": 3166,
+    "errors": 0,
+    "rejected": 0,
+    "p50": 13.494000002538087,
+    "p95": 35.21560000081081,
+    "p99": 91.22569999817642,
+    "max": 259.485799997492,
+    "error_samples": []
+   },
+   "schedules_list": {
+    "kind": "read",
+    "count": 5033,
+    "errors": 0,
+    "rejected": 0,
+    "p50": 9.757699997862801,
+    "p95": 38.46079999857466,
+    "p99": 156.03799999735202,
+    "max": 481.8328000001202,
+    "error_samples": []
+   },
+   "schedule_table": {
+    "kind": "read",
+    "count": 5033,
+    "errors": 0,
+    "rejected": 0,
+    "p50": 35.627600002044346,
+    "p95": 222.784400000819,
+    "p99": 333.38350000121864,
+    "max": 782.8067999980703,
+    "error_samples": []
+   },
+   "dashboard": {
+    "kind": "read",
+    "count": 2164,
+    "errors": 0,
+    "rejected": 0,
+    "p50": 20.786599998245947,
+    "p95": 400.7568999986688,
+    "p99": 983.715200000006,
+    "max": 1424.0364000033878,
+    "error_samples": []
+   },
+   "journal": {
+    "kind": "read",
+    "count": 651,
+    "errors": 0,
+    "rejected": 0,
+    "p50": 16.296600002533523,
+    "p95": 52.92150000241236,
+    "p99": 292.4663000012515,
+    "max": 790.2149000001373,
+    "error_samples": []
+   },
+   "print_pdf": {
+    "kind": "print",
+    "count": 422,
+    "errors": 0,
+    "rejected": 0,
+    "p50": 756.8581999985327,
+    "p95": 7439.7324999990815,
+    "p99": 8777.177899999515,
+    "max": 13991.131900002074,
+    "error_samples": []
+   }
+  },
+  "kinds": {
+   "read": {
+    "count": 32241,
+    "errors": 0,
+    "p50": 16.426300000603078,
+    "p95": 224.39829999711947,
+    "p99": 407.0543000016187
+   },
+   "write": {
+    "count": 4153,
+    "errors": 0,
+    "p50": 117.62259999886737,
+    "p95": 394.36990000103833,
+    "p99": 588.9839000010397
+   },
+   "print": {
+    "count": 422,
+    "errors": 0,
+    "p50": 756.8581999985327,
+    "p95": 7439.7324999990815,
+    "p99": 8777.177899999515
+   }
+  },
+  "rps": 61.36,
+  "seconds": 600.0,
+  "requests": 36816,
+  "probes": [
+   {
+    "seconds": 1.21,
+    "status": "preview_ready",
+    "method": "local_search",
+    "places": 150,
+    "filled": 150
+   },
+   {
+    "seconds": 1.26,
+    "status": "preview_ready",
+    "method": "local_search",
+    "places": 300,
+    "filled": 300
+   },
+   {
+    "seconds": 1.02,
+    "status": "preview_ready",
+    "method": "local_search",
+    "places": 120,
+    "filled": 120
+   },
+   {
+    "seconds": 1.05,
+    "status": "preview_ready",
+    "method": "local_search",
+    "places": 210,
+    "filled": 210
+   },
+   {
+    "seconds": 1.08,
+    "status": "preview_ready",
+    "method": "local_search",
+    "places": 300,
+    "filled": 300
+   },
+   {
+    "seconds": 2.43,
+    "status": "preview_ready",
+    "method": "local_search",
+    "places": 330,
+    "filled": 330
+   },
+   {
+    "seconds": 1.66,
+    "status": "preview_ready",
+    "method": "local_search",
+    "places": 330,
+    "filled": 330
+   },
+   {
+    "seconds": 1.51,
+    "status": "preview_ready",
+    "method": "local_search",
+    "places": 270,
+    "filled": 270
+   },
+   {
+    "seconds": 0.57,
+    "status": "preview_ready",
+    "method": "local_search",
+    "places": 60,
+    "filled": 60
+   },
+   {
+    "seconds": 0.78,
+    "status": "preview_ready",
+    "method": "local_search",
+    "places": 90,
+    "filled": 90
+   },
+   {
+    "seconds": 1.27,
+    "status": "preview_ready",
+    "method": "local_search",
+    "places": 330,
+    "filled": 330
+   },
+   {
+    "seconds": 0.74,
+    "status": "preview_ready",
+    "method": "local_search",
+    "places": 90,
+    "filled": 90
+   },
+   {
+    "seconds": 0.69,
+    "status": "preview_ready",
+    "method": "local_search",
+    "places": 60,
+    "filled": 60
+   },
+   {
+    "seconds": 1.22,
+    "status": "preview_ready",
+    "method": "local_search",
+    "places": 120,
+    "filled": 120
+   },
+   {
+    "seconds": 0.99,
+    "status": "preview_ready",
+    "method": "local_search",
+    "places": 150,
+    "filled": 150
+   },
+   {
+    "seconds": 1.48,
+    "status": "preview_ready",
+    "method": "local_search",
+    "places": 270,
+    "filled": 270
+   },
+   {
+    "seconds": 1.16,
+    "status": "preview_ready",
+    "method": "local_search",
+    "places": 240,
+    "filled": 240
+   },
+   {
+    "seconds": 0.93,
+    "status": "preview_ready",
+    "method": "local_search",
+    "places": 240,
+    "filled": 240
+   },
+   {
+    "seconds": 1.12,
+    "status": "preview_ready",
+    "method": "local_search",
+    "places": 210,
+    "filled": 210
+   }
+  ],
+  "resources": {
+   "personnel": {
+    "cpu_avg": 65.99914285714286,
+    "cpu_max": 121.17,
+    "mem_max_mib": 375.3
+   },
+   "gateway": {
+    "cpu_avg": 5.022571428571428,
+    "cpu_max": 7.91,
+    "mem_max_mib": 27.77
+   },
+   "documents-relay": {
+    "cpu_avg": 0.9348571428571428,
+    "cpu_max": 14.71,
+    "mem_max_mib": 65.19
+   },
+   "scheduling-consumer": {
+    "cpu_avg": 1.052857142857143,
+    "cpu_max": 19.06,
+    "mem_max_mib": 77.12
+   },
+   "scheduling-relay": {
+    "cpu_avg": 2.1988571428571433,
+    "cpu_max": 19.76,
+    "mem_max_mib": 67.32
+   },
+   "documents": {
+    "cpu_avg": 89.00485714285715,
+    "cpu_max": 202.86,
+    "mem_max_mib": 502.9
+   },
+   "personnel-consumer": {
+    "cpu_avg": 0.5537142857142857,
+    "cpu_max": 11.01,
+    "mem_max_mib": 73.44
+   },
+   "analytics-consumer": {
+    "cpu_avg": 4.814857142857143,
+    "cpu_max": 22.56,
+    "mem_max_mib": 78.66
+   },
+   "auth-admin-relay": {
+    "cpu_avg": 0.7497142857142858,
+    "cpu_max": 17.3,
+    "mem_max_mib": 66.7
+   },
+   "personnel-relay": {
+    "cpu_avg": 1.2677142857142856,
+    "cpu_max": 12.04,
+    "mem_max_mib": 65.45
+   },
+   "org-relay": {
+    "cpu_avg": 1.4448571428571428,
+    "cpu_max": 17.29,
+    "mem_max_mib": 68.98
+   },
+   "scheduling": {
+    "cpu_avg": 176.35628571428572,
+    "cpu_max": 325.08,
+    "mem_max_mib": 926.1
+   },
+   "allocation-worker": {
+    "cpu_avg": 0.10514285714285715,
+    "cpu_max": 0.28,
+    "mem_max_mib": 56.8
+   },
+   "auth-admin": {
+    "cpu_avg": 5.872,
+    "cpu_max": 24.99,
+    "mem_max_mib": 81.79
+   },
+   "analytics": {
+    "cpu_avg": 30.441714285714287,
+    "cpu_max": 117.34,
+    "mem_max_mib": 320.1
+   },
+   "org": {
+    "cpu_avg": 1.325142857142857,
+    "cpu_max": 16.31,
+    "mem_max_mib": 78.14
+   },
+   "postgres": {
+    "cpu_avg": 64.85514285714285,
+    "cpu_max": 115.47,
+    "mem_max_mib": 2277.376
+   },
+   "allocation": {
+    "cpu_avg": 5.821428571428571,
+    "cpu_max": 51.91,
+    "mem_max_mib": 150.6
+   },
+   "keycloak": {
+    "cpu_avg": 1.2737142857142856,
+    "cpu_max": 6.16,
+    "mem_max_mib": 3041.28
+   },
+   "redis": {
+    "cpu_avg": 1.2551428571428571,
+    "cpu_max": 4.57,
+    "mem_max_mib": 1326.08
+   }
+  }
+ }
+}

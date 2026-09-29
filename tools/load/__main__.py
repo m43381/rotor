@@ -29,9 +29,10 @@ def main() -> int:
     r.add_argument("--users", type=int, default=300)
     r.add_argument("--duration", type=int, default=600, help="секунд замера")
     r.add_argument("--ramp", type=int, default=60, help="секунд разгона")
-    r.add_argument("--think", type=float, default=3.0, help="средняя пауза между действиями, с")
+    r.add_argument("--think", type=float, default=10.0, help="средняя пауза между действиями, с")
     r.add_argument("--probe", type=int, default=30, help="период замера автораспределения, с")
-    r.add_argument("--procs", type=int, default=4, help="процессов генератора нагрузки")
+    r.add_argument("--procs", type=int, default=6, help="процессов генератора нагрузки")
+    r.add_argument("--name", default="load", help="docs/benchmarks/<name>.md и .json")
     args = parser.parse_args()
     if args.command == "up":
         stand.up()
@@ -40,7 +41,9 @@ def main() -> int:
     elif args.command == "populate":
         populate.main(args.people, args.operators, args.active, args.resume)
     else:
-        run.main(args.users, args.duration, args.ramp, args.think, args.probe, args.procs)
+        run.main(
+            args.users, args.duration, args.ramp, args.think, args.probe, args.procs, args.name
+        )
     return 0
 
 

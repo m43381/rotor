@@ -616,6 +616,20 @@ def write_report(result: dict[str, Any], state: dict[str, Any], params: dict[str
         "|---|---:|",
         *(f"| {k} | {fmt(v, 1)} |" for k, v in timings.items()),
         "",
+        "Шаг «графики» включает ожидание, пока консьюмеры обработают ~1,4 млн событий о "
+        "допусках и записей аудита после массовой выдачи.",
+        "",
+        "## Методика и допущения",
+        "",
+        "- Темп оператора в №62 не задан. Основной профиль — действие в среднем раз в 10 с "
+        "(просмотр таблицы, выбор человека, чтение карточки занимают время). Стрессовый профиль "
+        "с паузой 3 с — втрое плотнее — показывает запас: `just load run --think 3 --name load-stress` "
+        "→ `docs/benchmarks/load-stress.md`.",
+        "- Генератор нагрузки работает на той же машине, что и стенд, и делит с ним процессор; "
+        "стенд использует ресурсы Docker целиком, эталон — 8 CPU / 16 ГБ.",
+        "- Узкие места, найденные и исправленные этим прогоном, — в плане фазы 7 "
+        "(`docs/plans/phase-7.md`, статус шага 7d) и ADR-0004.",
+        "",
     ]
     REPORT.write_text("\n".join(lines), encoding="utf-8", newline="\n")
 
@@ -692,5 +706,9 @@ async def run_load(
     )
 
 
-def main(users: int, duration: int, ramp: int, think: float, probe: int, procs: int) -> None:
+def main(
+    users: int, duration: int, ramp: int, think: float, probe: int, procs: int, name: str
+) -> None:
+    global REPORT, RAW
+    REPORT, RAW = (ROOT / "docs" / "benchmarks" / f"{name}{ext}" for ext in (".md", ".json"))
     asyncio.run(run_load(users, duration, ramp, think, probe, procs))
