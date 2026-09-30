@@ -4,11 +4,15 @@
 // Выделение: клик — ячейка, Shift+клик — прямоугольник, клик по роли или дню — строка/столбец.
 // Двойной клик по ячейке — панель назначения людей (фаза 3b).
 // «Распределить…» — автораспределение с предпросмотром и применением (фаза 4b).
+// Фаза 8: шаги процесса со сводкой над таблицей, режимы отображения (исполнители, люди,
+// заполнение), подсветка ячеек, требующих действий, подсказка при наведении, отметка
+// сегодняшнего дня и незаполненных мест.
 import Button from 'primevue/button'
 import DatePicker from 'primevue/datepicker'
 import Dialog from 'primevue/dialog'
-import Message from 'primevue/message'
+import Popover from 'primevue/popover'
 import Select from 'primevue/select'
+import SelectButton from 'primevue/selectbutton'
 import Tag from 'primevue/tag'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
@@ -33,7 +37,7 @@ import CellPanel from '@/components/CellPanel.vue'
 import PrintDialog from '@/components/PrintDialog.vue'
 import UnitTreeSelect from '@/components/UnitTreeSelect.vue'
 import { useUnitsStore } from '@/stores/units'
-import { formatDateTime } from '@/utils/dates'
+import { formatDateTime, toIso } from '@/utils/dates'
 import { formatInterval } from '@/utils/duty'
 import { abbr, monthIso, monthTitle, rect, shiftMonth, weekday, type CellPos } from '@/utils/schedule'
 
@@ -208,21 +212,171 @@ function cellText(c: Cell, headcount: number): string {
   }
 }
 
-function cellTitle(c: Cell, date: string): string {
-  const who = c.state.includes('delegated') ? ` → ${executorName(c)}` : ''
-  const people = (c.assigned ?? []).map((a) => a.person_name + (a.conflict ? ` — ${a.conflict}` : '')).join(', ')
-  const filled = c.filled && !people ? ` · назначено ${c.filled}` : ''
-  return (
-    `${date.split('-').reverse().join('.')}: ${STATE_LABELS[c.state] ?? c.state}${who}` +
-    `${c.is_pinned ? ' (закреплено)' : ''}${people ? `
-${people}` : ''}${filled}`
-  )
-}
-
 function fillClass(c: Cell, headcount: number): string | undefined {
   if (!c.filled) return undefined
   return c.filled >= headcount ? 'full' : 'partial'
 }
+
+// --- сводка и шаги процесса (фаза 8) ------------------------------------------------------------
+/** Ячейку закрывает само подразделение графика своими людьми. */
+const isOwnFill = (c: Cell) => c.state === 'own' || c.state === 'incoming_active'
+const isUnfilled = (c: Cell, headcount: number) => isOwnFill(c) && c.filled < headcount
+const isWaiting = (c: Cell) => c.state === 'incoming_pending'
+const isDelegatedPending = (c: Cell) => c.state === 'delegated_pending' || c.state === 'incoming_delegated_pending'
+
+const summary = computed(() => {
+  const result = { toFill: 0, unfilled: 0, places: 0, placesFilled: 0, waiting: 0, delegated: 0, delegatedPending: 0, conflicts: 0 }
+  for (const row of table.value?.rows ?? []) {
+    if (!row.is_active) continue
+    for (const c of row.cells) {
+      if (!c) continue
+      if (isOwnFill(c)) {
+        result.toFill += 1
+        result.places += row.headcount
+        result.placesFilled += Math.min(c.filled, row.headcount)
+        if (c.filled < row.headcount) result.unfilled += 1
+      }
+      if (isWaiting(c)) result.waiting += 1
+      if (c.state.includes('delegated')) result.delegated += 1
+      if (isDelegatedPending(c)) result.delegatedPending += 1
+      if (c.has_conflict) result.conflicts += 1
+    }
+  }
+  return result
+})
+
+type StepState = 'done' | 'todo' | 'skip'
+const steps = computed(() => {
+  const s = summary.value
+  const status = table.value?.schedule.status
+  const list: { key: Highlight; title: string; text: string; state: StepState }[] = [
+    {
+      key: 'waiting',
+      title: 'Приём входящих',
+      text: s.waiting ? `ждут принятия: ${s.waiting}` : 'все входящие приняты',
+      state: s.waiting ? 'todo' : 'done',
+    },
+    {
+      key: 'delegated',
+      title: 'Передача ролей',
+      text: !s.delegated
+        ? 'роли не передавались'
+        : s.delegatedPending
+          ? `не приняты ниже: ${s.delegatedPending} из ${s.delegated}`
+          : `передано и принято: ${s.delegated}`,
+      state: !s.delegated ? 'skip' : s.delegatedPending ? 'todo' : 'done',
+    },
+    {
+      key: 'unfilled',
+      title: 'Назначение людей',
+      text: s.toFill ? `${s.placesFilled} из ${s.places} мест` + (s.unfilled ? ` · без людей ${s.unfilled} яч.` : '') : 'своих мест нет',
+      state: !s.toFill ? 'skip' : s.unfilled ? 'todo' : 'done',
+    },
+    {
+      key: 'conflicts',
+      title: 'Проверка',
+      text: s.conflicts ? `нарушений: ${s.conflicts}` : 'нарушений нет',
+      state: s.conflicts ? 'todo' : 'done',
+    },
+    {
+      key: 'all',
+      title: 'Публикация',
+      text: status === 'published' ? 'опубликован' : status === 'archived' ? 'в архиве' : 'черновик',
+      state: status === 'draft' ? 'todo' : 'done',
+    },
+  ]
+  return list
+})
+const fillPercent = computed(() =>
+  summary.value.places ? Math.round((summary.value.placesFilled / summary.value.places) * 100) : 100,
+)
+
+// --- режимы отображения и подсветка ----------------------------------------------------------
+type Mode = 'executors' | 'people' | 'fill'
+type Highlight = 'all' | 'unfilled' | 'waiting' | 'delegated' | 'conflicts'
+const MODES: { value: Mode; label: string }[] = [
+  { value: 'executors', label: 'Исполнители' },
+  { value: 'people', label: 'Люди' },
+  { value: 'fill', label: 'Заполнение' },
+]
+const MODE_KEY = 'dutyflow.schedule.mode'
+function savedMode(): Mode {
+  try {
+    const v = localStorage.getItem(MODE_KEY)
+    if (v === 'people' || v === 'fill') return v
+  } catch {
+    /* по умолчанию — исполнители */
+  }
+  return 'executors'
+}
+const mode = ref<Mode>(savedMode())
+watch(mode, (v) => {
+  try {
+    localStorage.setItem(MODE_KEY, v)
+  } catch {
+    /* не запомнили — не страшно */
+  }
+})
+const highlight = ref<Highlight>('all')
+function toggleHighlight(key: Highlight) {
+  highlight.value = highlight.value === key || key === 'all' ? 'all' : key
+}
+function matches(c: Cell, headcount: number): boolean {
+  switch (highlight.value) {
+    case 'unfilled':
+      return isUnfilled(c, headcount)
+    case 'waiting':
+      return isWaiting(c)
+    case 'delegated':
+      return isDelegatedPending(c)
+    case 'conflicts':
+      return c.has_conflict
+    default:
+      return true
+  }
+}
+
+const shortName = (full: string) => full.split(' ')[0] ?? full
+function displayText(c: Cell, headcount: number): string {
+  if (mode.value === 'fill') return c.state === 'inactive' ? '—' : `${c.filled}/${headcount}`
+  if (mode.value === 'people' && isOwnFill(c)) {
+    const people = c.assigned ?? []
+    if (!people.length) return ''
+    const first = people[0]
+    return first ? shortName(first.person_name) + (people.length > 1 ? ` +${people.length - 1}` : '') : ''
+  }
+  return cellText(c, headcount)
+}
+
+const todayIso = toIso(new Date())
+const todayCol = computed(() => table.value?.days.findIndex((d) => d.date === todayIso) ?? -1)
+
+// --- подсказка при наведении -------------------------------------------------------------------
+const hover = ref<{ cell: Cell; row: TableRow; date: string; x: number; y: number } | null>(null)
+function hoverCell(cell: Cell | null, row: TableRow, date: string, e: MouseEvent) {
+  if (!cell) {
+    hover.value = null
+    return
+  }
+  hover.value = { cell, row, date, x: e.clientX, y: e.clientY }
+}
+const tipStyle = computed(() => {
+  const h = hover.value
+  if (!h) return {}
+  const right = h.x > window.innerWidth - 320
+  const below = h.y < window.innerHeight - 220
+  return {
+    left: right ? `${h.x - 16}px` : `${h.x + 16}px`,
+    top: below ? `${h.y + 16}px` : `${h.y - 16}px`,
+    transform: `translate(${right ? '-100%' : '0'}, ${below ? '0' : '-100%'})`,
+  }
+})
+function longDate(iso: string): string {
+  const [y = 1970, m = 1, d = 1] = iso.split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })
+}
+
+const legend = ref<InstanceType<typeof Popover> | null>(null)
 
 // --- автораспределение: предпросмотр → применение (фаза 4b) -----------------------------------
 const allocateVisible = ref(false)
@@ -656,27 +810,102 @@ function archive() {
       </span>
     </div>
 
-    <Message v-if="!loading && unitId && !table" severity="secondary" :closable="false">
-      Графика на {{ monthTitle(month) }} нет.
-      <Button
-        v-if="canCreate"
-        label="Создать график"
-        icon="pi pi-plus"
-        size="small"
-        class="inline-btn"
-        :loading="busy"
-        @click="create"
-      />
-    </Message>
+    <div v-if="!loading && unitId && !table" class="card empty-state">
+      <i class="pi pi-calendar-plus" />
+      <strong>Графика на {{ monthTitle(month) }} нет</strong>
+      <span>
+        График создаётся со всеми ролями своих нарядов. Входящие роли вышестоящих появятся в нём
+        сами, когда их передадут.
+      </span>
+      <Button v-if="canCreate" label="Создать график" icon="pi pi-plus" :loading="busy" @click="create" />
+    </div>
 
     <template v-if="table">
-      <div v-if="editable && !preview" class="selection-bar">
-        <span class="muted">
-          <template v-if="selected.size">Выбрано ячеек: {{ selected.size }}</template>
-          <template v-else>
-            Выберите ячейки: клик, Shift+клик — прямоугольник, клик по роли или дню — строка/столбец;
-            двойной клик — назначить людей
-          </template>
+      <div class="steps" role="list" aria-label="Порядок работы с графиком">
+        <button
+          v-for="(st, i) in steps"
+          :key="st.title"
+          type="button"
+          role="listitem"
+          class="step"
+          :class="[st.state, { active: highlight === st.key && st.key !== 'all' }]"
+          :disabled="st.key === 'all' || st.state === 'skip'"
+          :title="st.key !== 'all' && st.state === 'todo' ? `${st.text} — подсветить эти ячейки` : st.text"
+          @click="toggleHighlight(st.key)"
+        >
+          <span class="step-mark">
+            <i v-if="st.state === 'done'" class="pi pi-check" />
+            <template v-else>{{ i + 1 }}</template>
+          </span>
+          <span class="step-body">
+            <span class="step-title">{{ st.title }}</span>
+            <span class="step-text">{{ st.text }}</span>
+          </span>
+        </button>
+        <div class="fill-meter" :title="`Укомплектовано ${fillPercent}% своих мест`">
+          <span class="fill-value">{{ fillPercent }}%</span>
+          <span class="fill-bar"><span :style="{ width: `${fillPercent}%` }" /></span>
+          <span class="fill-label">укомплектовано</span>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <SelectButton
+          v-model="mode"
+          :options="MODES"
+          option-label="label"
+          option-value="value"
+          :allow-empty="false"
+          size="small"
+          aria-label="Что показывать в ячейках"
+        />
+        <span v-if="highlight !== 'all'" class="chip chip--warn highlight-chip">
+          <i class="pi pi-filter" />
+          {{ steps.find((st) => st.key === highlight)?.title }}
+          <button type="button" aria-label="Снять подсветку" @click="highlight = 'all'"><i class="pi pi-times" /></button>
+        </span>
+        <span class="spacer" />
+        <Button
+          v-tooltip.left="
+            'Клик — ячейка, Shift+клик — прямоугольник, клик по роли или дню — строка или столбец; двойной клик — назначить людей'
+          "
+          icon="pi pi-question-circle"
+          text
+          rounded
+          severity="secondary"
+          size="small"
+          aria-label="Как выбирать ячейки"
+        />
+        <Button
+          label="Обозначения"
+          icon="pi pi-palette"
+          text
+          severity="secondary"
+          size="small"
+          @click="legend?.toggle($event)"
+        />
+        <Popover ref="legend">
+          <div class="legend">
+            <span v-for="(label, state) in STATE_LABELS" :key="state" class="legend-item">
+              <span :class="['swatch', 'cell', state]" />{{ label }}
+            </span>
+            <span class="legend-item"><span class="swatch cell own unfilled" />Своя ячейка без людей</span>
+            <span class="legend-item"><span class="swatch cell own full" />Укомплектована</span>
+            <span class="legend-item"><span class="swatch cell own conflict" />Нарушение (отдых, лимит)</span>
+            <span class="legend-item"><i class="pi pi-lock legend-icon" />Исполнитель закреплён</span>
+          </div>
+        </Popover>
+      </div>
+
+      <!-- Место под панелью действий постоянное: иначе после первого клика таблица сдвигается
+           и двойной клик промахивается -->
+      <div v-if="editable && !preview" class="selection-bar" :class="{ idle: !selected.size }">
+        <span v-if="selected.size" class="sel-count">
+          <i class="pi pi-check-square" /> Выбрано ячеек: {{ selected.size }}
+        </span>
+        <span v-else class="muted sel-hint">
+          <i class="pi pi-hand-pointer" /> Выберите ячейки — здесь появятся действия: передать, вернуть,
+          принять, закрепить. Двойной клик — назначить людей.
         </span>
         <template v-if="selected.size">
           <Select
@@ -685,6 +914,7 @@ function archive() {
             option-label="name"
             option-value="id"
             placeholder="Кому передать"
+            size="small"
             class="executor"
             input-id="executor"
             :disabled="!table.children.length"
@@ -736,8 +966,8 @@ function archive() {
                 <th
                   v-for="(d, col) in table.days"
                   :key="d.date"
-                  :class="['day', d.kind]"
-                  :title="d.name ?? undefined"
+                  :class="['day', d.kind, { today: col === todayCol }]"
+                  :title="d.name ?? (col === todayCol ? 'Сегодня' : undefined)"
                   @click="selectColumn(col)"
                 >
                   <div>{{ Number(d.date.slice(8)) }}</div>
@@ -778,8 +1008,12 @@ function archive() {
                       'cell',
                       table.days[col]?.kind,
                       c?.state,
-                      c && fillClass(c, r.row.headcount),
+                      c && (mode === 'fill' || isOwnFill(c)) && fillClass(c, r.row.headcount),
                       {
+                        today: col === todayCol,
+                        unfilled: c && r.row.is_active && isUnfilled(c, r.row.headcount),
+                        dim: c && highlight !== 'all' && !matches(c, r.row.headcount),
+                        wide: mode === 'people',
                         selected: c && selected.has(c.id),
                         empty: !c,
                         clickable: !!c,
@@ -788,13 +1022,15 @@ function archive() {
                         focused: c && preview && focusCell === c.id,
                       },
                     ]"
-                    :title="c ? cellTitle(c, table.days[col]?.date ?? '') : undefined"
                     :data-cell="c?.id"
+                    @mouseenter="hoverCell(c, r.row, table.days[col]?.date ?? '', $event)"
+                    @mousemove="hover && (hover.x = $event.clientX, hover.y = $event.clientY)"
+                    @mouseleave="hover = null"
                     @click="clickCell({ row: r.index, col }, $event)"
                     @dblclick="c && openPanel(c.id)"
                   >
                     <template v-if="c">
-                      {{ proposalText(c) ?? cellText(c, r.row.headcount)
+                      {{ proposalText(c) ?? displayText(c, r.row.headcount)
                       }}<i v-if="c.is_pinned" class="pi pi-lock pin" />
                     </template>
                   </td>
@@ -823,10 +1059,32 @@ function archive() {
         />
       </div>
 
-      <div class="legend">
-        <span v-for="(label, state) in STATE_LABELS" :key="state" class="legend-item">
-          <span :class="['swatch', 'cell', state]" />{{ label }}
-        </span>
+      <div
+        v-if="hover"
+        class="cell-tip"
+        :style="tipStyle"
+        role="tooltip"
+      >
+        <div class="tip-date">{{ longDate(hover.date) }}</div>
+        <div class="tip-role">{{ hover.row.duty_type_name }} · {{ hover.row.role_name }}</div>
+        <div class="tip-state">
+          <span :class="['swatch', 'cell', hover.cell.state]" />
+          {{ STATE_LABELS[hover.cell.state] }}
+        </div>
+        <div v-if="hover.cell.state.includes('delegated')" class="tip-line">
+          Исполнитель: <b>{{ executorName(hover.cell) }}</b>
+        </div>
+        <div class="tip-line">
+          Назначено {{ hover.cell.filled }} из {{ hover.row.headcount }}
+          <span v-if="isUnfilled(hover.cell, hover.row.headcount)" class="tip-warn">— нужны люди</span>
+        </div>
+        <ul v-if="hover.cell.assigned?.length" class="tip-people">
+          <li v-for="a in hover.cell.assigned" :key="a.person_name" :class="{ conflict: a.conflict }">
+            {{ a.person_name }}<span v-if="a.conflict"> — {{ a.conflict }}</span>
+          </li>
+        </ul>
+        <div v-if="hover.cell.is_pinned" class="tip-line muted"><i class="pi pi-lock" /> закреплено</div>
+        <div v-if="editable && !preview" class="tip-hint">Двойной клик — назначить людей</div>
       </div>
     </template>
 
@@ -910,7 +1168,164 @@ h1 {
   margin-left: 0.75rem;
 }
 .selection-bar {
-  min-height: 2.5rem;
+  height: 2.9rem;
+  box-sizing: border-box;
+  flex-wrap: nowrap !important;
+  overflow-x: auto;
+  padding: 0.35rem 0.6rem;
+  border-radius: var(--app-radius);
+  background: var(--app-accent-soft);
+  border: 1px solid var(--app-border-strong);
+}
+.selection-bar.idle {
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--app-border);
+}
+.sel-hint {
+  font-size: 0.85rem;
+}
+.sel-count {
+  font-weight: 600;
+  margin-right: 0.25rem;
+}
+.sel-count .pi {
+  color: var(--app-accent);
+}
+/* Шаги процесса */
+.steps {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) auto;
+  background: var(--app-card-bg);
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  overflow: hidden;
+}
+.step {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  padding: 0.6rem 0.75rem;
+  border: none;
+  border-right: 1px solid var(--app-border);
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  min-width: 0;
+}
+.step:disabled {
+  cursor: default;
+}
+.step:not(:disabled):hover,
+.step.active {
+  background: var(--app-subtle);
+}
+.step.active {
+  box-shadow: inset 0 -2px 0 var(--app-accent);
+}
+.step-mark {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border: 1.5px solid var(--app-border-strong);
+  color: var(--app-ink-3);
+}
+.step.done .step-mark {
+  border-color: var(--state-good);
+  background: var(--state-good);
+  color: #fff;
+}
+.step.done .step-mark .pi {
+  font-size: 0.7rem;
+}
+.step.todo .step-mark {
+  border-color: var(--state-serious);
+  color: var(--state-serious);
+}
+.step.skip {
+  opacity: 0.6;
+}
+.step-body {
+  display: grid;
+  min-width: 0;
+}
+.step-title {
+  font-weight: 600;
+  font-size: 0.86rem;
+}
+.step-text {
+  font-size: 0.78rem;
+  color: var(--app-ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.step.todo .step-text {
+  color: var(--app-ink-2);
+}
+.fill-meter {
+  display: grid;
+  grid-template-columns: auto;
+  align-content: center;
+  gap: 0.2rem;
+  padding: 0.5rem 1rem;
+  min-width: 9rem;
+}
+.fill-value {
+  font-size: 1.3rem;
+  font-weight: 650;
+  line-height: 1;
+}
+.fill-bar {
+  height: 5px;
+  border-radius: 3px;
+  background: var(--app-hover);
+  overflow: hidden;
+}
+.fill-bar span {
+  display: block;
+  height: 100%;
+  background: var(--app-accent);
+}
+.fill-label {
+  font-size: 0.72rem;
+  color: var(--app-ink-3);
+}
+@media (max-width: 1200px) {
+  .steps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .fill-meter {
+    display: none;
+  }
+}
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.toolbar .spacer {
+  flex: 1;
+}
+.highlight-chip button {
+  border: none;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 0 0 0 0.2rem;
+}
+.legend-icon {
+  width: 1rem;
+  text-align: center;
+  font-size: 0.75rem;
 }
 .executor {
   width: 16rem;
@@ -926,8 +1341,9 @@ h1 {
   min-width: 0;
   min-height: 0;
   overflow: auto;
-  border: 1px solid var(--p-content-border-color);
-  border-radius: 6px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  background: var(--app-card-bg);
 }
 .grid {
   border-collapse: separate;
@@ -989,7 +1405,48 @@ thead .sticky {
 }
 .day.weekend,
 .day.holiday {
-  color: var(--p-red-500);
+  color: var(--state-critical);
+}
+.day.today {
+  background: var(--app-accent) !important;
+  color: #fff;
+}
+.day.today small {
+  color: rgb(255 255 255 / 0.8);
+}
+.cell.today {
+  box-shadow: inset 1px 0 0 var(--app-accent), inset -1px 0 0 var(--app-accent);
+}
+.cell.wide {
+  min-width: 5.6rem;
+  max-width: 5.6rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+  padding: 0 0.2rem !important;
+}
+/* Своя ячейка без людей: заметна сразу, даже без цвета — полосой и точкой в углу */
+.cell.unfilled {
+  box-shadow: inset 0 -3px 0 var(--state-critical);
+}
+.cell.unfilled::before {
+  content: '';
+  position: absolute;
+  bottom: 5px;
+  right: 4px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--state-critical);
+}
+.cell.delegated_pending,
+.cell.incoming_delegated_pending,
+.cell.incoming_pending {
+  outline: 1px dashed rgb(201 133 0 / 0.7);
+  outline-offset: -3px;
+}
+.cell.dim {
+  opacity: 0.22;
 }
 .cell {
   height: 2rem;
@@ -1064,11 +1521,58 @@ thead .sticky {
   font-size: 0.5rem;
 }
 .legend {
+  display: grid;
+  gap: 0.45rem;
+  font-size: 0.84rem;
+  color: var(--app-ink-2);
+}
+.cell-tip {
+  position: fixed;
+  z-index: 1100;
+  width: 18rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  background: var(--app-card-bg);
+  border: 1px solid var(--app-border-strong);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.14);
+  pointer-events: none;
+  font-size: 0.84rem;
+  display: grid;
+  gap: 0.25rem;
+}
+.tip-date {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--app-ink-3);
+}
+.tip-role {
+  font-weight: 600;
+}
+.tip-state {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem 1rem;
-  font-size: 0.8rem;
-  color: var(--p-text-muted-color);
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--app-ink-2);
+}
+.tip-line {
+  color: var(--app-ink-2);
+}
+.tip-warn {
+  color: var(--state-critical);
+  font-weight: 600;
+}
+.tip-people {
+  margin: 0.15rem 0 0;
+  padding-left: 1.1rem;
+}
+.tip-people .conflict {
+  color: var(--state-critical);
+}
+.tip-hint {
+  margin-top: 0.2rem;
+  font-size: 0.75rem;
+  color: var(--app-ink-3);
 }
 .legend-item {
   display: inline-flex;

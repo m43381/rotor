@@ -41,6 +41,8 @@ const busy = ref(false)
 const unitId = ref<string | null>(null)
 const includeInactive = ref(false)
 const search = ref('')
+// Пустое состояние — только после первой загрузки, иначе оно мелькает до ответа сервиса
+const loaded = ref(false)
 
 const canCreate = computed(() => (units.me?.roles ?? []).some((r) => r !== 'viewer'))
 
@@ -56,6 +58,7 @@ async function load() {
     showError(e)
   } finally {
     loading.value = false
+    loaded.value = true
   }
 }
 watch([unitId, includeInactive], load)
@@ -229,7 +232,7 @@ async function onRole(value: DutyRoleIn) {
       <span class="chip"><i class="pi pi-tag" /> другие требования</span>
     </div>
 
-    <div v-if="loading && !types.length" class="list">
+    <div v-if="!loaded || (loading && !types.length)" class="list">
       <Skeleton v-for="i in 3" :key="i" height="9rem" border-radius="10px" />
     </div>
     <div v-else-if="!groups.length" class="card empty-state">
