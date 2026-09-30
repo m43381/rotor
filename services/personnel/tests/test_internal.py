@@ -23,7 +23,7 @@ async def test_people_batch_snapshot(admin: AsyncClient, internal: AsyncClient, 
         org.course_a1,
         "Снимков",
         rank_id=str(org.rank_major),
-        attributes={"category": "Курсант"},
+        attributes={"skill": "1 класс"},
     )
     b = await add_person(admin, org.fac_b, "Другой")
     archived = await add_person(admin, org.fac_a, "Архивный")
@@ -45,7 +45,7 @@ async def test_people_batch_snapshot(admin: AsyncClient, internal: AsyncClient, 
     people = r.json()
     assert [p["id"] for p in people] == [a["id"]]  # поддерево A, без архивных и без B
     assert people[0]["rank_order"] == 100
-    assert people[0]["attributes"] == {"category": "Курсант"}
+    assert people[0]["attributes"] == {"skill": "1 класс"}
     assert people[0]["exemptions"] == [["2026-09-25", "2026-10-03"]]
 
     only_unit = await internal.post(

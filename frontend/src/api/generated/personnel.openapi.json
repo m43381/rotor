@@ -97,6 +97,33 @@
             }
           },
           {
+            "name": "category_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category Id"
+            }
+          },
+          {
+            "name": "exempt_today",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Exempt Today"
+            }
+          },
+          {
             "name": "include_archived",
             "in": "query",
             "required": false,
@@ -196,6 +223,36 @@
             }
           }
         }
+      }
+    },
+    "/people/counts": {
+      "get": {
+        "tags": [
+          "people"
+        ],
+        "summary": "Численность по подразделениям",
+        "operationId": "people_counts_people_counts_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/UnitCount"
+                  },
+                  "type": "array",
+                  "title": "Response People Counts People Counts Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/people/{person_id}": {
@@ -1375,6 +1432,138 @@
         }
       }
     },
+    "/person-categories": {
+      "get": {
+        "tags": [
+          "references"
+        ],
+        "summary": "List Person Categories",
+        "operationId": "list_person_categories_person_categories_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PersonCategoryOut"
+                  },
+                  "type": "array",
+                  "title": "Response List Person Categories Person Categories Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "references"
+        ],
+        "summary": "Create Person Category",
+        "operationId": "create_person_category_person_categories_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PersonCategoryIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonCategoryOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/person-categories/{item_id}": {
+      "put": {
+        "tags": [
+          "references"
+        ],
+        "summary": "Update Person Category",
+        "operationId": "update_person_category_person_categories__item_id__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PersonCategoryIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonCategoryOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/attribute-definitions": {
       "get": {
         "tags": [
@@ -1826,7 +2015,7 @@
           "internal"
         ],
         "summary": "References",
-        "description": "Должности и характеристики — для проверки ссылок в требованиях ролей (scheduling).",
+        "description": "Должности, категории и характеристики — для проверки ссылок в требованиях ролей\n(scheduling).",
         "operationId": "references_internal_references_post",
         "responses": {
           "200": {
@@ -2492,6 +2681,29 @@
             ],
             "title": "Owner Unit Name"
           },
+          "assigned_unit_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Unit Id"
+          },
+          "assigned_unit_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Unit Name"
+          },
           "sort_order": {
             "type": "integer",
             "title": "Sort Order"
@@ -2526,7 +2738,7 @@
           "granted"
         ],
         "title": "ClearanceOption",
-        "description": "Роль, к которой человеку можно выдать допуск, и его соответствие требованиям."
+        "description": "Роль, к которой человеку можно выдать допуск, и его соответствие требованиям.\nС жёстким нарушением (категория) выдать нельзя."
       },
       "ClearanceOut": {
         "properties": {
@@ -2578,6 +2790,29 @@
             ],
             "title": "Owner Unit Name"
           },
+          "assigned_unit_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Unit Id"
+          },
+          "assigned_unit_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Unit Name"
+          },
           "id": {
             "type": "string",
             "format": "uuid",
@@ -2619,7 +2854,8 @@
               "future",
               "expired",
               "revoked",
-              "role_inactive"
+              "role_inactive",
+              "category_mismatch"
             ],
             "title": "Status"
           },
@@ -2743,6 +2979,29 @@
               }
             ],
             "title": "Owner Unit Name"
+          },
+          "assigned_unit_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Unit Id"
+          },
+          "assigned_unit_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Unit Name"
           },
           "sort_order": {
             "type": "integer",
@@ -3296,6 +3555,29 @@
             ],
             "title": "Owner Unit Name"
           },
+          "assigned_unit_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Unit Id"
+          },
+          "assigned_unit_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Unit Name"
+          },
           "clearance_id": {
             "type": "string",
             "format": "uuid",
@@ -3583,6 +3865,18 @@
             ],
             "title": "Position Id"
           },
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
           "attributes": {
             "additionalProperties": true,
             "type": "object",
@@ -3703,6 +3997,82 @@
         ],
         "title": "PeopleBatchPerson"
       },
+      "PersonCategoryIn": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 50,
+            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "sort_order": {
+            "type": "integer",
+            "maximum": 10000.0,
+            "minimum": 0.0,
+            "title": "Sort Order",
+            "default": 0
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "name"
+        ],
+        "title": "PersonCategoryIn"
+      },
+      "PersonCategoryOut": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 50,
+            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "sort_order": {
+            "type": "integer",
+            "maximum": 10000.0,
+            "minimum": 0.0,
+            "title": "Sort Order",
+            "default": 0
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active",
+            "default": true
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "name",
+          "id"
+        ],
+        "title": "PersonCategoryOut"
+      },
       "PersonCreate": {
         "properties": {
           "last_name": {
@@ -3782,6 +4152,11 @@
             "format": "uuid",
             "title": "Unit Id"
           },
+          "category_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Category Id"
+          },
           "attributes": {
             "additionalProperties": true,
             "type": "object",
@@ -3792,7 +4167,8 @@
         "required": [
           "last_name",
           "first_name",
-          "unit_id"
+          "unit_id",
+          "category_id"
         ],
         "title": "PersonCreate"
       },
@@ -3884,6 +4260,29 @@
             ],
             "title": "Position Name"
           },
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "category_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Name"
+          },
           "personal_no": {
             "anyOf": [
               {
@@ -3898,6 +4297,29 @@
           "is_active": {
             "type": "boolean",
             "title": "Is Active"
+          },
+          "exempt_until": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exempt Until"
+          },
+          "exempt_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exempt Reason"
           },
           "version": {
             "type": "integer",
@@ -3916,6 +4338,8 @@
           "rank_name",
           "position_id",
           "position_name",
+          "category_id",
+          "category_name",
           "personal_no",
           "is_active",
           "version"
@@ -4011,6 +4435,29 @@
             ],
             "title": "Position Name"
           },
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "category_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Name"
+          },
           "personal_no": {
             "anyOf": [
               {
@@ -4025,6 +4472,29 @@
           "is_active": {
             "type": "boolean",
             "title": "Is Active"
+          },
+          "exempt_until": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exempt Until"
+          },
+          "exempt_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exempt Reason"
           },
           "version": {
             "type": "integer",
@@ -4082,6 +4552,8 @@
           "rank_name",
           "position_id",
           "position_name",
+          "category_id",
+          "category_name",
           "personal_no",
           "is_active",
           "version",
@@ -4160,6 +4632,18 @@
               }
             ],
             "title": "Position Id"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
           },
           "personal_no": {
             "anyOf": [
@@ -4282,6 +4766,14 @@
             },
             "type": "array",
             "title": "Attributes"
+          },
+          "categories": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Categories"
           }
         },
         "type": "object",
@@ -4395,6 +4887,25 @@
         ],
         "title": "TransferIn"
       },
+      "UnitCount": {
+        "properties": {
+          "unit_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Unit Id"
+          },
+          "people": {
+            "type": "integer",
+            "title": "People"
+          }
+        },
+        "type": "object",
+        "required": [
+          "unit_id",
+          "people"
+        ],
+        "title": "UnitCount"
+      },
       "ValidationError": {
         "properties": {
           "loc": {
@@ -4440,6 +4951,7 @@
           "kind": {
             "type": "string",
             "enum": [
+              "category",
               "rank",
               "position",
               "attribute"
@@ -4460,6 +4972,11 @@
           "message": {
             "type": "string",
             "title": "Message"
+          },
+          "hard": {
+            "type": "boolean",
+            "title": "Hard",
+            "default": false
           }
         },
         "type": "object",

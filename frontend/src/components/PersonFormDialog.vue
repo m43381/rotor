@@ -4,6 +4,7 @@ import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
+import SelectButton from 'primevue/selectbutton'
 import Textarea from 'primevue/textarea'
 import { computed, ref, watch } from 'vue'
 
@@ -23,6 +24,7 @@ const firstName = ref('')
 const middleName = ref('')
 const rankId = ref<string | null>(null)
 const positionId = ref<string | null>(null)
+const categoryId = ref<string | null>(null)
 const personalNo = ref('')
 const note = ref('')
 const attributes = ref<Record<string, unknown>>({})
@@ -32,15 +34,20 @@ watch(visible, (open) => {
   unitId.value = props.defaultUnitId
   lastName.value = firstName.value = middleName.value = personalNo.value = note.value = ''
   rankId.value = positionId.value = null
+  // Самая частая категория — первая в справочнике (обычно «Курсант»)
+  categoryId.value = refs.activeCategories[0]?.id ?? null
   attributes.value = {}
 })
 
-const valid = computed(() => !!unitId.value && !!lastName.value.trim() && !!firstName.value.trim())
+const valid = computed(
+  () => !!unitId.value && !!categoryId.value && !!lastName.value.trim() && !!firstName.value.trim(),
+)
 
 function submit() {
-  if (!valid.value || !unitId.value) return
+  if (!valid.value || !unitId.value || !categoryId.value) return
   emit('submit', {
     unit_id: unitId.value,
+    category_id: categoryId.value,
     last_name: lastName.value.trim(),
     first_name: firstName.value.trim(),
     middle_name: middleName.value.trim() || null,
@@ -62,6 +69,28 @@ function submit() {
         <div class="field wide">
           <label for="p-unit">Подразделение</label>
           <UnitTreeSelect v-model="unitId" input-id="p-unit" />
+        </div>
+        <div class="field wide">
+          <label for="p-category">Категория</label>
+          <SelectButton
+            v-if="refs.activeCategories.length <= 4"
+            id="p-category"
+            v-model="categoryId"
+            :options="refs.activeCategories"
+            option-label="name"
+            option-value="id"
+            :allow-empty="false"
+          />
+          <Select
+            v-else
+            id="p-category"
+            v-model="categoryId"
+            :options="refs.activeCategories"
+            option-label="name"
+            option-value="id"
+            placeholder="Выберите категорию"
+          />
+          <small class="hint">От категории зависит, в какие роли нарядов человек может заступать.</small>
         </div>
         <div class="field">
           <label for="p-last">Фамилия</label>
@@ -138,6 +167,9 @@ function submit() {
 }
 .field label {
   font-weight: 600;
+}
+.hint {
+  color: var(--p-text-muted-color);
 }
 .actions {
   display: flex;

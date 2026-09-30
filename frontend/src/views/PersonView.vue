@@ -60,6 +60,7 @@ const form = ref({
   middle_name: '',
   rank_id: null as string | null,
   position_id: null as string | null,
+  category_id: null as string | null,
   personal_no: '',
   note: '',
 })
@@ -82,6 +83,7 @@ const dirty = computed(() => {
     (f.middle_name || null) !== (p.middle_name ?? null) ||
     f.rank_id !== (p.rank_id ?? null) ||
     f.position_id !== (p.position_id ?? null) ||
+    f.category_id !== (p.category_id ?? null) ||
     (f.personal_no || null) !== (p.personal_no ?? null) ||
     (f.note || null) !== (p.note ?? null) ||
     JSON.stringify(normalizedAttrs(attributes.value)) !== JSON.stringify(normalizedAttrs(p.attributes))
@@ -104,6 +106,7 @@ function fill(p: Person) {
     middle_name: p.middle_name ?? '',
     rank_id: p.rank_id ?? null,
     position_id: p.position_id ?? null,
+    category_id: p.category_id ?? null,
     personal_no: p.personal_no ?? '',
     note: p.note ?? '',
   }
@@ -184,6 +187,8 @@ function save() {
             middle_name: f.middle_name.trim() || null,
             rank_id: f.rank_id,
             position_id: f.position_id,
+            // Категорию можно сменить, но не сбросить (ADR-0018)
+            category_id: f.category_id ?? undefined,
             personal_no: f.personal_no.trim() || null,
             note: f.note.trim() || null,
             attributes: Object.keys(changed).length ? changed : undefined,
@@ -331,7 +336,10 @@ const clearances = ref<Clearance[]>([])
 const showRevoked = ref(false)
 const grantVisible = ref(false)
 // Индикатор на вкладке: действующие допуски, которые не проходят текущие требования роли
-const mismatches = computed(() => clearances.value.filter((c) => c.violations.length > 0).length)
+const mismatches = computed(
+  () => clearances.value.filter((c) => c.violations.length > 0 && c.status !== 'category_mismatch').length,
+)
+const blocked = computed(() => clearances.value.filter((c) => c.status === 'category_mismatch').length)
 const activeClearances = computed(() => clearances.value.filter((c) => c.status !== 'revoked').length)
 
 async function loadClearances() {
@@ -390,6 +398,7 @@ const STATUS: Record<string, { label: string; severity: string }> = {
   expired: { label: 'Истёк', severity: 'secondary' },
   revoked: { label: 'Отозван', severity: 'secondary' },
   role_inactive: { label: 'Роль не действует', severity: 'secondary' },
+  category_mismatch: { label: 'Не действует: категория', severity: 'danger' },
 }
 
 function period(c: Clearance) {
@@ -477,7 +486,15 @@ function describe(entry: AuditEntry): string {
         <Button icon="pi pi-arrow-left" text rounded aria-label="Назад" @click="router.push('/people')" />
         <h1>{{ title }}</h1>
         <Tag v-if="!person.is_active" value="Исключён из списков" severity="secondary" />
-        <p class="muted">{{ person.rank_name ?? 'Звание не указано' }} · {{ person.unit_name }}</p>
+        <p class="muted">
+          <span v-if="person.category_name" class="chip chip--category">{{ person.category_name }}</span>
+          <span v-else class="chip chip--danger">категория не указана</span>
+          {{ person.rank_name ?? 'Звание не указано' }} · {{ person.position_name ?? 'должность не указана' }} ·
+          {{ person.unit_name }}
+          <span v-if="person.exempt_until" class="chip chip--warn">
+            <i class="pi pi-calendar-times" /> {{ person.exempt_reason }} до {{ formatDate(person.exempt_until) }}
+          </span>
+        </p>
       </div>
       <div class="actions">
         <template v-if="person.is_active && editable">
@@ -584,6 +601,19 @@ function describe(entry: AuditEntry): string {
               />
             </div>
             <div class="field">
+              <label for="f-category">Категория</label>
+              <Select
+                id="f-category"
+                v-model="form.category_id"
+                :options="refs.categories.filter((c) => c.is_active || c.id === form.category_id)"
+                option-label="name"
+                option-value="id"
+                :disabled="!editable"
+                placeholder="Выберите категорию"
+                :invalid="!form.category_id"
+              />
+            </div>
+            <div class="field">
               <label for="f-no">Личный номер</label>
               <InputText id="f-no" v-model="form.personal_no" :disabled="!editable" maxlength="50" />
             </div>
@@ -633,6 +663,11 @@ function describe(entry: AuditEntry): string {
               <span>Показывать отозванные</span>
             </label>
           </div>
+          <Message v-if="blocked" severity="error" :closable="false">
+            Допусков, которые не действуют из-за категории: {{ blocked }}. Роль не допускает категорию
+            «{{ person.category_name ?? 'не указана' }}» — человек не назначается на неё ни вручную, ни
+            автоматически. Смените категорию или отзовите допуск.
+          </Message>
           <Message v-if="mismatches" severity="warn" :closable="false">
             Допусков, не проходящих текущие требования роли: {{ mismatches }}. Они действуют (допуск
             важнее требований), но попадают в отчёт о несоответствиях.

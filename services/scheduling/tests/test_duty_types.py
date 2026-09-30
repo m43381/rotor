@@ -2,7 +2,16 @@
 
 from typing import Any
 
-from conftest import POSITION_OFFICER, POSITION_OLD, ClientFactory, Org, add_type, role
+from conftest import (
+    CADET,
+    CATEGORY_OLD,
+    POSITION_OFFICER,
+    POSITION_OLD,
+    ClientFactory,
+    Org,
+    add_type,
+    role,
+)
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -25,14 +34,14 @@ async def test_create_with_roles(admin: AsyncClient, org: Org) -> None:
             role(
                 "Дневальный",
                 headcount=2,
-                attribute_requirements=[{"code": "category", "op": "eq", "value": "Курсант"}],
+                attribute_requirements=[{"code": "course_no", "op": "gte", "value": 2}],
+                assigned_unit_id=str(org.course_a1),
+                allowed_category_ids=[str(CADET)],
             ),
         ],
         rest_hours=72,
-        assigned_unit_id=str(org.course_a1),
     )
     assert t["owner_unit_name"] == "Факультет A"
-    assert t["assigned_unit_name"] == "Курс A1"
     assert t["start_time"] == "18:00:00"
     assert t["rest_hours"] == 72
     assert t["can_edit"] is True
@@ -42,9 +51,10 @@ async def test_create_with_roles(admin: AsyncClient, org: Org) -> None:
         ("Дневальный", "role2", 2),
     ]
     assert roles[0]["min_rank_order"] == 100
-    assert roles[1]["attribute_requirements"] == [
-        {"code": "category", "op": "eq", "value": "Курсант"}
-    ]
+    assert roles[1]["attribute_requirements"] == [{"code": "course_no", "op": "gte", "value": 2}]
+    assert (roles[0]["assigned_unit_id"], roles[0]["allowed_category_ids"]) == (None, None)
+    assert roles[1]["assigned_unit_name"] == "Курс A1"
+    assert roles[1]["allowed_category_ids"] == [str(CADET)]
 
 
 async def test_visibility_along_tree(
@@ -129,7 +139,9 @@ async def test_validation(admin: AsyncClient, org: Org) -> None:
         message: str = r.json()["message"]
         return message
 
-    assert "Закреплённое" in await bad(assigned_unit_id=str(org.fac_b))
+    assert "закрепить" in await bad(roles=[role(assigned_unit_id=str(org.fac_b))])
+    assert "Категория" in await bad(roles=[role(allowed_category_ids=[str(CATEGORY_OLD)])])
+    await bad(roles=[role(allowed_category_ids=[])])
     await bad(duration_minutes=30)
     await bad(duration_minutes=8 * 24 * 60)
     await bad(roles=[])
@@ -292,11 +304,9 @@ def _update_body(t: dict[str, Any]) -> dict[str, Any]:
     keys = (
         "name",
         "short_name",
-        "assigned_unit_id",
         "start_time",
         "duration_minutes",
         "rest_hours",
-        "load_weight",
         "version",
         "is_active",
     )

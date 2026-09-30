@@ -1,7 +1,6 @@
 import 'primeicons/primeicons.css'
 import './styles.css'
 
-import Aura from '@primeuix/themes/aura'
 import { createPinia } from 'pinia'
 import PrimeVue from 'primevue/config'
 import ConfirmationService from 'primevue/confirmationservice'
@@ -11,6 +10,7 @@ import { createApp } from 'vue'
 import { createRouter, createWebHistory } from 'vue-router'
 
 import App from './App.vue'
+import { DutyFlowPreset } from './theme'
 import { ensureSignedIn } from './auth'
 import { ru } from './locale/ru'
 import AuditView from './views/AuditView.vue'
@@ -19,6 +19,7 @@ import DashboardView from './views/DashboardView.vue'
 import DocumentsView from './views/DocumentsView.vue'
 import DutyLimitsView from './views/DutyLimitsView.vue'
 import DutyTypesView from './views/DutyTypesView.vue'
+import HomeView from './views/HomeView.vue'
 import ImportView from './views/ImportView.vue'
 import OperatorsView from './views/OperatorsView.vue'
 import PeopleView from './views/PeopleView.vue'
@@ -35,7 +36,8 @@ async function bootstrap() {
   const router = createRouter({
     history: createWebHistory(),
     routes: [
-      { path: '/', redirect: '/units' },
+      { path: '/', redirect: '/home' },
+      { path: '/home', component: HomeView },
       { path: '/units', component: UnitsView },
       { path: '/people', component: PeopleView },
       { path: '/people/:id', component: PersonView },
@@ -49,14 +51,14 @@ async function bootstrap() {
       { path: '/dashboard', component: DashboardView },
       { path: '/operators', component: OperatorsView },
       { path: '/audit', component: AuditView },
-      { path: '/:pathMatch(.*)*', redirect: '/units' },
+      { path: '/:pathMatch(.*)*', redirect: '/home' },
     ],
   })
 
   createApp(App)
     .use(createPinia())
     .use(router)
-    .use(PrimeVue, { theme: { preset: Aura, options: { darkModeSelector: '.app-dark' } }, locale: ru })
+    .use(PrimeVue, { theme: { preset: DutyFlowPreset, options: { darkModeSelector: '.app-dark' } }, locale: ru })
     .use(ToastService)
     .use(ConfirmationService)
     .directive('tooltip', Tooltip)

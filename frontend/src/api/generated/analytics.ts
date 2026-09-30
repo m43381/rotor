@@ -34,6 +34,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/metrics/breakdown": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Нагрузка в разрезе одного или двух измерений */
+        get: operations["breakdown_metrics_breakdown_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/metrics/distribution": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Распределение нагрузки на человека по группам (квартили) */
+        get: operations["distribution_metrics_distribution_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/metrics/calendar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Нагрузка по дням */
+        get: operations["calendar_metrics_calendar_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/metrics/roster": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Кто в наряде в этот день (включая черновики) */
+        get: operations["roster_metrics_roster_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/audit": {
         parameters: {
             query?: never;
@@ -89,6 +157,87 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** Breakdown */
+        Breakdown: {
+            dimension: components["schemas"]["Dimension"];
+            split: components["schemas"]["Dimension"] | null;
+            /** Items */
+            items: components["schemas"]["BreakdownItem"][];
+        };
+        /** BreakdownItem */
+        BreakdownItem: {
+            /** Key */
+            key: string | null;
+            /** Label */
+            label: string;
+            /** Order */
+            order: number;
+            /** Split Key */
+            split_key: string | null;
+            /** Split Label */
+            split_label: string | null;
+            /** Split Order */
+            split_order: number;
+            /** Duties */
+            duties: number;
+            /** Duty Days */
+            duty_days: number;
+            /** Load */
+            load: number;
+            /** People */
+            people: number;
+            /** Holidays */
+            holidays: number;
+            /** Load Per Person */
+            load_per_person: number;
+        };
+        /** CalendarDay */
+        CalendarDay: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Duties */
+            duties: number;
+            /** Load */
+            load: number;
+            /** People */
+            people: number;
+        };
+        /** @enum {string} */
+        Dimension: "unit" | "duty_type" | "role" | "category" | "rank" | "weekday" | "month" | "source" | "day_kind";
+        /** Distribution */
+        Distribution: {
+            dimension: components["schemas"]["Dimension"];
+            /** Items */
+            items: components["schemas"]["DistributionItem"][];
+        };
+        /** DistributionItem */
+        DistributionItem: {
+            /** Key */
+            key: string | null;
+            /** Label */
+            label: string;
+            /** Order */
+            order: number;
+            /** People */
+            people: number;
+            /** Min */
+            min: number;
+            /** Q1 */
+            q1: number;
+            /** Median */
+            median: number;
+            /** Q3 */
+            q3: number;
+            /** Max */
+            max: number;
+            /** Mean */
+            mean: number;
+            /** Gini */
+            gini: number;
+        };
         /** Facets */
         Facets: {
             /** Entity Type */
@@ -218,6 +367,8 @@ export interface components {
             top: components["schemas"]["PersonLoad"][];
             /** Bottom */
             bottom: components["schemas"]["PersonLoad"][];
+            /** Lorenz */
+            lorenz: number[][];
         };
         /** PeoplePage */
         PeoplePage: {
@@ -270,6 +421,39 @@ export interface components {
              * Format: date
              */
             last_date: string;
+        };
+        /** RosterItem */
+        RosterItem: {
+            /**
+             * Person Id
+             * Format: uuid
+             */
+            person_id: string;
+            /** Person Name */
+            person_name: string;
+            /** Unit Name */
+            unit_name: string;
+            /** Duty Type Name */
+            duty_type_name: string | null;
+            /** Role Name */
+            role_name: string | null;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /**
+             * Start At
+             * Format: date-time
+             */
+            start_at: string;
+            /**
+             * End At
+             * Format: date-time
+             */
+            end_at: string;
+            /** Schedule Status */
+            schedule_status: string;
         };
         /** UnitLoad */
         UnitLoad: {
@@ -377,6 +561,160 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PeoplePage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    breakdown_metrics_breakdown_get: {
+        parameters: {
+            query: {
+                /** @description Подразделение; учитывается всё поддерево */
+                unit_id: string;
+                /** @description Первая дата заступления */
+                date_from: string;
+                /** @description Последняя дата заступления */
+                date_to: string;
+                /** @description Измерение группировки */
+                dimension: components["schemas"]["Dimension"];
+                /** @description Второе измерение */
+                split?: components["schemas"]["Dimension"] | null;
+                /** @description Учитывать черновики графиков (№57) */
+                drafts?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Breakdown"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    distribution_metrics_distribution_get: {
+        parameters: {
+            query: {
+                /** @description Подразделение; учитывается всё поддерево */
+                unit_id: string;
+                /** @description Первая дата заступления */
+                date_from: string;
+                /** @description Последняя дата заступления */
+                date_to: string;
+                /** @description Измерение группировки */
+                dimension: components["schemas"]["Dimension"];
+                /** @description Учитывать черновики графиков (№57) */
+                drafts?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Distribution"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    calendar_metrics_calendar_get: {
+        parameters: {
+            query: {
+                /** @description Подразделение; учитывается всё поддерево */
+                unit_id: string;
+                /** @description Первая дата заступления */
+                date_from: string;
+                /** @description Последняя дата заступления */
+                date_to: string;
+                /** @description Учитывать черновики графиков (№57) */
+                drafts?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CalendarDay"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    roster_metrics_roster_get: {
+        parameters: {
+            query: {
+                /** @description Подразделение; учитывается всё поддерево */
+                unit_id: string;
+                /** @description Дата */
+                day: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RosterItem"][];
                 };
             };
             /** @description Validation Error */

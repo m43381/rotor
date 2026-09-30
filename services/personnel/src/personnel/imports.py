@@ -47,6 +47,7 @@ from personnel.models import (
     ExemptionReason,
     Person,
     PersonAttribute,
+    PersonCategory,
     Position,
 )
 from personnel.people import PeopleService, _event
@@ -141,6 +142,8 @@ class Refs:
     rank_name: dict[uuid.UUID, str]
     positions: dict[str, uuid.UUID]
     position_name: dict[uuid.UUID, str]
+    categories: dict[str, uuid.UUID]
+    category_name: dict[uuid.UUID, str]
     reasons: dict[str, uuid.UUID]
     attributes: dict[str, AttributeDefinition]  # по коду
     roles: dict[str, RoleInfo] = field(default_factory=dict)  # подпись → роль
@@ -189,6 +192,15 @@ class ImportService(PeopleService):
                 TemplateColumn(key="rank", title="Звание", type="list", options=sorted(refs.ranks)),
                 TemplateColumn(
                     key="position", title="Должность", type="list", options=sorted(refs.positions)
+                ),
+                TemplateColumn(
+                    key="category",
+                    title="Категория",
+                    required=True,
+                    type="list",
+                    options=list(refs.categories),
+                    hint="Курсант, слушатель, постоянный состав… — от неё зависит, в какие "
+                    "роли нарядов человек может заступать",
                 ),
                 TemplateColumn(key="note", title="Примечание"),
             ]
@@ -295,6 +307,11 @@ class ImportService(PeopleService):
             units[label] = u
         ranks = list(await self.session.scalars(select(RankProjection)))
         positions = list(await self.session.scalars(select(Position)))
+        categories = list(
+            await self.session.scalars(
+                select(PersonCategory).order_by(PersonCategory.sort_order, PersonCategory.name)
+            )
+        )
         reasons = list(await self.session.scalars(select(ExemptionReason)))
         refs = Refs(
             units=units,
@@ -304,6 +321,8 @@ class ImportService(PeopleService):
             rank_name={r.rank_id: r.name for r in ranks},
             positions={p.name: p.id for p in positions if p.is_active},
             position_name={p.id: p.name for p in positions},
+            categories={c.name: c.id for c in categories if c.is_active},
+            category_name={c.id: c.name for c in categories},
             reasons={r.name: r.id for r in reasons if r.is_active},
             attributes={a.code: a for a in await self.session.scalars(select(AttributeDefinition))},
             ambiguous=ambiguous,
@@ -470,6 +489,7 @@ class ImportService(PeopleService):
                 unit = self._unit_ref(refs, v.get("unit"))
                 rank_id = self._ref(refs.ranks, v.get("rank"), "rank", "Звание")
                 position_id = self._ref(refs.positions, v.get("position"), "position", "Должность")
+                category_id = self._ref(refs.categories, v.get("category"), "category", "Категория")
                 attrs: dict[str, Any] = {}
                 for key, raw in v.items():
                     if not key.startswith("attr:"):
@@ -488,14 +508,14 @@ class ImportService(PeopleService):
                     planned.append(
                         self._update_person(
                             out, existing, refs, unit, last, first, middle, note,
-                            rank_id, position_id, attrs, current_attrs[existing.id],
+                            rank_id, position_id, category_id, attrs, current_attrs[existing.id],
                         )
                     )  # fmt: skip
                 else:
                     planned.append(
                         self._create_person(
                             out, refs, number, unit, last, first, middle, note,
-                            rank_id, position_id, attrs, by_name, seen_names,
+                            rank_id, position_id, category_id, attrs, by_name, seen_names,
                         )
                     )  # fmt: skip
                 if number:
@@ -527,6 +547,7 @@ class ImportService(PeopleService):
         note: str | None,
         rank_id: uuid.UUID | None,
         position_id: uuid.UUID | None,
+        category_id: uuid.UUID | None,
         attrs: dict[str, Any],
         by_name: dict[tuple[uuid.UUID, str, str, str], list[Person]],
         seen_names: dict[tuple[uuid.UUID, str, str, str], int],
@@ -537,6 +558,8 @@ class ImportService(PeopleService):
             raise RowError("first_name", "Имя обязательно")
         if unit is None:
             raise RowError("unit", "Подразделение обязательно для нового человека")
+        if category_id is None:
+            raise RowError("category", "Категория обязательна для нового человека")
         if not self._allowed(refs, unit.unit_id, "person", "create"):
             raise RowError("unit", "Нет прав добавлять людей в это подразделение")
         missing = [
@@ -573,6 +596,7 @@ class ImportService(PeopleService):
                 middle_name=middle,
                 rank_id=rank_id,
                 position_id=position_id,
+                category_id=category_id,
                 personal_no=number,
                 note=note,
                 is_active=True,
@@ -615,6 +639,7 @@ class ImportService(PeopleService):
         note: str | None,
         rank_id: uuid.UUID | None,
         position_id: uuid.UUID | None,
+        category_id: uuid.UUID | None,
         attrs: dict[str, Any],
         current: dict[str, Any],
     ) -> Planned:
@@ -634,6 +659,7 @@ class ImportService(PeopleService):
             ("note", note, "Примечание", None),
             ("rank_id", rank_id, "Звание", refs.rank_name),
             ("position_id", position_id, "Должность", refs.position_name),
+            ("category_id", category_id, "Категория", refs.category_name),
         ):
             old = getattr(person, name)
             if new is not None and new != old:
@@ -743,11 +769,7 @@ class ImportService(PeopleService):
                 if info is None or not info.is_active:
                     raise RowError("role", f"Роль «{role_label}» не найдена или не действует")
                 if not info.covers(refs.unit_path.get(person.unit_id, "")):
-                    raise RowError(
-                        "role",
-                        f"Наряд «{info.duty_type.name}» не распространяется на подразделение "
-                        "человека",
-                    )
+                    raise RowError("role", info.not_covered_reason())
                 valid_from = date(v.get("valid_from"), "valid_from")
                 valid_to = date(v.get("valid_to"), "valid_to")
                 if valid_from and valid_to and valid_to < valid_from:
@@ -766,6 +788,9 @@ class ImportService(PeopleService):
                 if not self._allowed(refs, person.unit_id, "clearance", "grant"):
                     raise RowError("personal_no", "Нет прав выдавать допуски этому человеку")
                 violations = check(traits[person.id], info.requirements)
+                hard = [x for x in violations if x.hard]
+                if hard:  # категория не перекрывается основанием (ADR-0018)
+                    raise RowError("role", describer.out(hard, info.requirements)[0].message)
                 comment = text(v.get("override_comment"))
                 if violations and not comment:
                     raise RowError(

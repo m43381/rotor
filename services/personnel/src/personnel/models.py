@@ -45,6 +45,7 @@ __all__ = [
     "OutboxEvent",
     "Person",
     "PersonAttribute",
+    "PersonCategory",
     "Position",
     "ProcessedEvent",
     "RankProjection",
@@ -64,6 +65,21 @@ class Position(UuidPkMixin, TimestampMixin, Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
+class PersonCategory(UuidPkMixin, TimestampMixin, Base):
+    """Категория личного состава: курсант, слушатель, постоянный состав… (ADR-0018).
+
+    Роль наряда может допускать только некоторые категории — это жёсткое ограничение.
+    Идентификаторы базовых категорий детерминированы (`dutyflow_common.ids.category_id`).
+    """
+
+    __tablename__ = "person_category"
+
+    code: Mapped[str] = mapped_column(String(50), unique=True)
+    name: Mapped[str] = mapped_column(String(200), unique=True)
+    sort_order: Mapped[int] = mapped_column(SmallInteger, default=0)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
 class Person(UuidPkMixin, TimestampMixin, VersionedMixin, Base):
     __tablename__ = "person"
     __table_args__ = (
@@ -77,6 +93,10 @@ class Person(UuidPkMixin, TimestampMixin, VersionedMixin, Base):
     middle_name: Mapped[str | None] = mapped_column(String(100))
     rank_id: Mapped[uuid.UUID | None]
     position_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("position.id"))
+    # Обязательна для новых карточек; у перенесённых без категории — пусто до заполнения
+    category_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("person_category.id"), index=True
+    )
     personal_no: Mapped[str | None] = mapped_column(String(50), unique=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     archived_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
@@ -90,6 +110,7 @@ class Person(UuidPkMixin, TimestampMixin, VersionedMixin, Base):
             "middle_name": self.middle_name,
             "rank_id": self.rank_id,
             "position_id": self.position_id,
+            "category_id": self.category_id,
             "personal_no": self.personal_no,
             "is_active": self.is_active,
             "note": self.note,
@@ -281,5 +302,8 @@ class DutyRoleProjection(Base):
     min_rank_order: Mapped[int | None] = mapped_column(SmallInteger)
     allowed_position_ids: Mapped[list[uuid.UUID] | None] = mapped_column(ARRAY(Uuid()))
     attribute_requirements: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
+    # ADR-0018: закрепление за подразделением и допустимые категории (None — любые)
+    assigned_unit_id: Mapped[uuid.UUID | None]
+    allowed_category_ids: Mapped[list[uuid.UUID] | None] = mapped_column(ARRAY(Uuid()))
     is_active: Mapped[bool] = mapped_column(Boolean)
     source_version: Mapped[int] = mapped_column(Integer, default=0)

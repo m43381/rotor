@@ -167,12 +167,13 @@ async def build_snapshot(
                 Assignment,
                 DayPlan.date,
                 DayPlan.duty_role_id,
-                DutyType.load_weight,
+                DutyRole.load_weight,
                 DutyType.id,
                 DutyType.rest_hours,
             )
             .join(DayPlan, DayPlan.id == Assignment.day_plan_id)
             .join(DutyType, DutyType.id == DayPlan.duty_type_id)
+            .join(DutyRole, DutyRole.id == DayPlan.duty_role_id)
             .where(
                 in_array(Assignment.person_id, person_index),
                 DayPlan.date >= first,
@@ -240,7 +241,7 @@ async def build_snapshot(
                 "start_time": t.start_time,
                 "duration_minutes": t.duration_minutes,
                 "rest_hours": t.rest_hours,
-                "load_weight": t.load_weight,
+                "load_weight": r.load_weight,
                 "active": r.is_active and t.is_active,
             }
             for r, t in role_rows

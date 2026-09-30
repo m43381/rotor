@@ -38,7 +38,9 @@ test('создание оператора, первый вход со смено
   await other.locator('#password-confirm').fill('NewPassword123')
   await other.locator('[type=submit]').click()
   await expect(other.getByRole('heading', { name: 'Личный состав' })).toBeVisible()
-  await expect(other.getByText('Оператор · 1 курс, факультет 1')).toBeVisible()
+  // В шапке: подразделение оператора рядом с названием системы, роль — под именем
+  await expect(other.locator('.brand-sub')).toHaveText('1 курс, факультет 1')
+  await expect(other.locator('.user-text small')).toHaveText('Оператор')
   await other.context().close()
 
   // Блокировка

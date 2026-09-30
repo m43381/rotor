@@ -954,6 +954,10 @@ export interface components {
             attribute_requirements: {
                 [key: string]: unknown;
             }[];
+            /** Assigned Unit Id */
+            assigned_unit_id?: string | null;
+            /** Allowed Category Ids */
+            allowed_category_ids?: string[] | null;
             /** Is Active */
             is_active: boolean;
             /** Version */
@@ -972,6 +976,11 @@ export interface components {
              */
             headcount: number;
             /**
+             * Load Weight
+             * @default 1
+             */
+            load_weight: number;
+            /**
              * Sort Order
              * @default 0
              */
@@ -982,6 +991,10 @@ export interface components {
             allowed_position_ids?: string[] | null;
             /** Attribute Requirements */
             attribute_requirements?: components["schemas"]["AttributeRequirement"][];
+            /** Assigned Unit Id */
+            assigned_unit_id?: string | null;
+            /** Allowed Category Ids */
+            allowed_category_ids?: string[] | null;
             /**
              * Is Active
              * @default true
@@ -1006,6 +1019,8 @@ export interface components {
             name: string;
             /** Headcount */
             headcount: number;
+            /** Load Weight */
+            load_weight: number;
             /** Sort Order */
             sort_order: number;
             /** Min Rank Order */
@@ -1014,6 +1029,12 @@ export interface components {
             allowed_position_ids: string[] | null;
             /** Attribute Requirements */
             attribute_requirements: components["schemas"]["AttributeRequirement"][];
+            /** Assigned Unit Id */
+            assigned_unit_id: string | null;
+            /** Assigned Unit Name */
+            assigned_unit_name?: string | null;
+            /** Allowed Category Ids */
+            allowed_category_ids: string[] | null;
             /** Is Active */
             is_active: boolean;
             /** Version */
@@ -1031,6 +1052,11 @@ export interface components {
              */
             headcount: number;
             /**
+             * Load Weight
+             * @default 1
+             */
+            load_weight: number;
+            /**
              * Sort Order
              * @default 0
              */
@@ -1041,6 +1067,10 @@ export interface components {
             allowed_position_ids?: string[] | null;
             /** Attribute Requirements */
             attribute_requirements?: components["schemas"]["AttributeRequirement"][];
+            /** Assigned Unit Id */
+            assigned_unit_id?: string | null;
+            /** Allowed Category Ids */
+            allowed_category_ids?: string[] | null;
             /**
              * Is Active
              * @default true
@@ -1086,8 +1116,6 @@ export interface components {
             name: string;
             /** Short Name */
             short_name?: string | null;
-            /** Assigned Unit Id */
-            assigned_unit_id?: string | null;
             /**
              * Start Time
              * Format: time
@@ -1100,11 +1128,6 @@ export interface components {
              * @default 48
              */
             rest_hours: number;
-            /**
-             * Load Weight
-             * @default 1
-             */
-            load_weight: number;
             /**
              * Owner Unit Id
              * Format: uuid
@@ -1131,10 +1154,6 @@ export interface components {
             owner_unit_id: string;
             /** Owner Unit Name */
             owner_unit_name: string | null;
-            /** Assigned Unit Id */
-            assigned_unit_id: string | null;
-            /** Assigned Unit Name */
-            assigned_unit_name: string | null;
             /**
              * Start Time
              * Format: time
@@ -1144,8 +1163,6 @@ export interface components {
             duration_minutes: number;
             /** Rest Hours */
             rest_hours: number;
-            /** Load Weight */
-            load_weight: number;
             /** Is Active */
             is_active: boolean;
             /** Version */
@@ -1164,8 +1181,6 @@ export interface components {
             name: string;
             /** Short Name */
             short_name?: string | null;
-            /** Assigned Unit Id */
-            assigned_unit_id?: string | null;
             /**
              * Start Time
              * Format: time
@@ -1178,11 +1193,6 @@ export interface components {
              * @default 48
              */
             rest_hours: number;
-            /**
-             * Load Weight
-             * @default 1
-             */
-            load_weight: number;
             /** Version */
             version: number;
             /**
@@ -1482,6 +1492,16 @@ export interface components {
             can_edit: boolean;
             /** Pending Incoming */
             pending_incoming: number;
+            /**
+             * To Fill
+             * @default 0
+             */
+            to_fill: number;
+            /**
+             * Unfilled
+             * @default 0
+             */
+            unfilled: number;
         };
         /** TableDay */
         TableDay: {
@@ -1548,6 +1568,15 @@ export interface components {
             headcount: number;
             /** Is Active */
             is_active: boolean;
+            /** Assigned Unit Id */
+            assigned_unit_id?: string | null;
+            /** Assigned Unit Name */
+            assigned_unit_name?: string | null;
+            /**
+             * Locked
+             * @default false
+             */
+            locked: boolean;
             /** Cells */
             cells: (components["schemas"]["CellOut"] | null)[];
         };

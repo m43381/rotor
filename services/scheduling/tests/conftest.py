@@ -21,7 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from testcontainers.community.postgres import PostgresContainer
 
 from dutyflow_common.events import Event
-from dutyflow_common.ids import uuid7
+from dutyflow_common.ids import category_id, uuid7
 from dutyflow_common.projections import handle_rank_event, handle_unit_event
 from dutyflow_common.testing import TestIssuer
 from dutyflow_common.testing.audit_coverage import AuditCoverage, event_hooks
@@ -68,8 +68,13 @@ def migrated(database_url: str) -> str:
 # Справочники personnel, на которые ссылаются требования ролей (в тестах — без HTTP).
 POSITION_OFFICER = uuid.UUID("00000000-0000-7000-8000-0000000000a1")
 POSITION_OLD = uuid.UUID("00000000-0000-7000-8000-0000000000a2")
+# Категории личного состава (ADR-0018): id детерминированы, как в миграции personnel
+CADET = category_id("Курсант")
+PERMANENT = category_id("Постоянный состав")
+CATEGORY_OLD = category_id("Вольнонаёмный")
 REFS = PersonnelRefs(
     positions={POSITION_OFFICER: True, POSITION_OLD: False},
+    categories={CADET: True, PERMANENT: True, CATEGORY_OLD: False},
     attributes={
         "category": AttributeDef(
             "category", "Категория", "enum", ["Курсант", "Слушатель", "Постоянный состав"], True

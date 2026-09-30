@@ -38,7 +38,7 @@ COLUMNS: list[dict[str, Any]] = [
     {"key": "first_name", "title": "Имя", "required": True},
     {"key": "middle_name", "title": "Отчество"},
     {"key": "unit", "title": "Подразделение", "required": True},
-    {"key": "attr:category", "title": "Категория"},
+    {"key": "category", "title": "Категория", "required": True},
 ]
 
 

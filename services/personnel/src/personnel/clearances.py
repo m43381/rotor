@@ -7,6 +7,10 @@
   `requirements_not_met` с перечнем нарушений; выдать всё равно можно — с подтверждением
   и комментарием, запись попадает в аудит (`clearance.grant_override`). Такой допуск важнее
   требований: движок распределения видит только сам допуск.
+- Категория личного состава — жёсткое требование (ADR-0018): допуск человеку неподходящей
+  категории не выдаётся (422 `category_not_allowed`), а ставший неподходящим не действует
+  (статус `category_mismatch`, во внутренний batch не попадает).
+- Роль, закреплённая за подразделением, доступна только людям его поддерева (ADR-0018).
 - Требования берутся из локальной копии (`duty_role_projection`), поэтому выдача не зависит
   от доступности scheduling.
 
@@ -22,6 +26,7 @@ from typing import Any
 
 from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import aliased
 from sqlalchemy.orm.exc import StaleDataError
 
 from dutyflow_common import audit
@@ -46,6 +51,7 @@ from personnel.models import (
     DutyTypeProjection,
     Person,
     PersonAttribute,
+    PersonCategory,
     Position,
 )
 from personnel.schemas import (
@@ -73,6 +79,13 @@ class RequirementsNotMetError(AppError):
     code = "requirements_not_met"
 
 
+class CategoryNotAllowedError(AppError):
+    """Категория человека не допускается ролью — допуск не выдаётся даже с подтверждением."""
+
+    status_code = 422
+    code = "category_not_allowed"
+
+
 @dataclass(frozen=True, slots=True)
 class RoleInfo:
     role: DutyRoleProjection
@@ -80,17 +93,40 @@ class RoleInfo:
     owner_path: str | None
     owner_name: str | None
     requirements: RoleRequirements
+    # Путь подразделения, за которым закреплена роль (ADR-0018); None — не закреплена
+    assigned_path: str | None = None
+    assigned_name: str | None = None
 
     @property
     def is_active(self) -> bool:
         return self.role.is_active and self.duty_type.is_active
 
     def covers(self, unit_path: str) -> bool:
-        """Наряд принадлежит подразделению человека или вышестоящему."""
+        """Наряд принадлежит подразделению человека или вышестоящему, а закреплённая роль —
+        ещё и подразделению из поддерева закреплённого: только к ним ячейка может прийти."""
         if self.owner_path is None:
             return False
+        person = unit_path.split(".")
         owner = self.owner_path.split(".")
-        return unit_path.split(".")[: len(owner)] == owner
+        if person[: len(owner)] != owner:
+            return False
+        if self.role.assigned_unit_id is None:
+            return True
+        if self.assigned_path is None:  # закреплённое подразделение неизвестно — не выдаём
+            return False
+        assigned = self.assigned_path.split(".")
+        return person[: len(assigned)] == assigned
+
+    def not_covered_reason(self) -> str:
+        if self.role.assigned_unit_id is not None:
+            return (
+                f"Роль «{self.role.name}» закреплена за подразделением "
+                f"«{self.assigned_name or '?'}» — допуск выдаётся только его личному составу"
+            )
+        return (
+            f"Наряд «{self.duty_type.name}» принадлежит подразделению «{self.owner_name}» "
+            "и не распространяется на подразделение человека"
+        )
 
     def ref(self) -> dict[str, Any]:
         return {
@@ -100,6 +136,8 @@ class RoleInfo:
             "duty_type_name": self.duty_type.name,
             "owner_unit_id": self.duty_type.owner_unit_id,
             "owner_unit_name": self.owner_name,
+            "assigned_unit_id": self.role.assigned_unit_id,
+            "assigned_unit_name": self.assigned_name,
         }
 
 
@@ -111,6 +149,7 @@ class Describer:
         ranks: Sequence[RankProjection],
         positions: dict[uuid.UUID, str],
         attributes: dict[str, AttributeDefinition],
+        categories: dict[uuid.UUID, str] | None = None,
     ) -> None:
         # На один порядок может приходиться несколько званий (архивное и действующее)
         self.rank_names: dict[int, str] = {}
@@ -118,6 +157,7 @@ class Describer:
             self.rank_names[r.order] = r.name
         self.positions = positions
         self.attributes = attributes
+        self.categories = categories or {}
 
     def _value(self, code: str | None, value: Any) -> str:
         if value is None:
@@ -136,6 +176,13 @@ class Describer:
 
     def message(self, v: Violation, op: str | None = None) -> str:
         match v.kind:
+            case "category":
+                allowed = ", ".join(
+                    f"«{self.categories.get(uuid.UUID(c), '?')}»" for c in v.expected
+                )
+                have = self.categories.get(v.actual) if v.actual else None
+                head = f"Категория «{have}»" if have else "Категория не указана и"
+                return f"{head} не допускается ролью: допустимы {allowed}"
             case "rank":
                 need = self.rank_names.get(v.expected, f"порядок {v.expected}")
                 have = self.rank_names.get(v.actual) if v.actual is not None else None
@@ -163,16 +210,25 @@ class Describer:
     def out(self, violations: Iterable[Violation], req: RoleRequirements) -> list[ViolationOut]:
         ops = {a.code: a.op for a in req.attributes}
         return [
-            ViolationOut(kind=v.kind, code=v.code, message=self.message(v, ops.get(v.code or "")))
+            ViolationOut(
+                kind=v.kind,
+                code=v.code,
+                message=self.message(v, ops.get(v.code or "")),
+                hard=v.hard,
+            )
             for v in violations
         ]
 
 
-def status_of(c: Clearance, info: RoleInfo | None, today: dt.date) -> ClearanceStatus:
+def status_of(
+    c: Clearance, info: RoleInfo | None, today: dt.date, traits: PersonTraits | None = None
+) -> ClearanceStatus:
     if c.revoked_at is not None:
         return "revoked"
     if info is None or not info.is_active:
         return "role_inactive"
+    if traits is not None and any(v.hard for v in check(traits, info.requirements)):
+        return "category_mismatch"
     if c.valid_from is not None and c.valid_from > today:
         return "future"
     if c.valid_to is not None and c.valid_to < today:
@@ -186,26 +242,40 @@ class ClearanceService(ScopedService):
     async def _roles(
         self, role_ids: Iterable[uuid.UUID] | None = None
     ) -> dict[uuid.UUID, RoleInfo]:
+        assigned = aliased(UnitProjection)
         stmt = (
-            select(DutyRoleProjection, DutyTypeProjection, UnitProjection.path, UnitProjection.name)
+            select(
+                DutyRoleProjection,
+                DutyTypeProjection,
+                UnitProjection.path,
+                UnitProjection.name,
+                assigned.path,
+                assigned.name,
+            )
             .join(
                 DutyTypeProjection,
                 DutyTypeProjection.duty_type_id == DutyRoleProjection.duty_type_id,
             )
             .outerjoin(UnitProjection, UnitProjection.unit_id == DutyTypeProjection.owner_unit_id)
+            .outerjoin(assigned, assigned.unit_id == DutyRoleProjection.assigned_unit_id)
         )
         if role_ids is not None:
             stmt = stmt.where(DutyRoleProjection.duty_role_id.in_(set(role_ids)))
         result = {}
-        for role, duty_type, path, name in await self.session.execute(stmt):
+        for role, duty_type, path, name, a_path, a_name in await self.session.execute(stmt):
             result[role.duty_role_id] = RoleInfo(
                 role,
                 duty_type,
                 path,
                 name,
                 RoleRequirements.from_row(
-                    role.min_rank_order, role.allowed_position_ids, role.attribute_requirements
+                    role.min_rank_order,
+                    role.allowed_position_ids,
+                    role.attribute_requirements,
+                    role.allowed_category_ids,
                 ),
+                a_path,
+                a_name,
             )
         return result
 
@@ -221,20 +291,28 @@ class ClearanceService(ScopedService):
         ):
             attrs[pid][code] = value["v"]
         rows = await self.session.execute(
-            select(Person.id, RankProjection.order, Person.position_id)
+            select(Person.id, RankProjection.order, Person.position_id, Person.category_id)
             .outerjoin(RankProjection, RankProjection.rank_id == Person.rank_id)
             .where(Person.id.in_(ids))
         )
         return {
-            pid: PersonTraits(rank_order=order, position_id=pos, attributes=attrs.get(pid, {}))
-            for pid, order, pos in rows
+            pid: PersonTraits(
+                rank_order=order,
+                position_id=pos,
+                attributes=attrs.get(pid, {}),
+                category_id=category,
+            )
+            for pid, order, pos, category in rows
         }
 
     async def _describer(self) -> Describer:
         ranks = list(await self.session.scalars(select(RankProjection)))
         positions = dict((await self.session.execute(select(Position.id, Position.name))).all())
         attributes = {a.code: a for a in await self.session.scalars(select(AttributeDefinition))}
-        return Describer(ranks, positions, attributes)
+        categories = dict(
+            (await self.session.execute(select(PersonCategory.id, PersonCategory.name))).all()
+        )
+        return Describer(ranks, positions, attributes, categories)
 
     async def _person_path(self, person: Person) -> str:
         return (await self._unit(person.unit_id)).path
@@ -256,7 +334,14 @@ class ClearanceService(ScopedService):
         result = [
             self._out(c, roles.get(c.duty_role_id), traits, describer, today) for c in clearances
         ]
-        order = {"active": 0, "future": 1, "expired": 2, "role_inactive": 3, "revoked": 4}
+        order = {
+            "active": 0,
+            "future": 1,
+            "category_mismatch": 2,
+            "expired": 3,
+            "role_inactive": 4,
+            "revoked": 5,
+        }
         result.sort(key=lambda c: (order[c.status], c.duty_type_name, c.role_name))
         return result
 
@@ -268,10 +353,10 @@ class ClearanceService(ScopedService):
         describer: Describer,
         today: dt.date,
     ) -> ClearanceOut:
-        status = status_of(c, info, today)
+        status = status_of(c, info, today, traits)
         violations = (
             describer.out(check(traits, info.requirements), info.requirements)
-            if info is not None and status in ("active", "future")
+            if info is not None and status in ("active", "future", "category_mismatch")
             else []
         )
         ref = (
@@ -284,6 +369,8 @@ class ClearanceService(ScopedService):
                 "duty_type_name": "—",
                 "owner_unit_id": None,
                 "owner_unit_name": None,
+                "assigned_unit_id": None,
+                "assigned_unit_name": None,
             }
         )
         return ClearanceOut(
@@ -388,10 +475,7 @@ class ClearanceService(ScopedService):
         if info is None or not info.is_active:
             raise ValidationFailedError("Роль наряда не найдена или не действует")
         if not info.covers(await self._person_path(person)):
-            raise ValidationFailedError(
-                f"Наряд «{info.duty_type.name}» принадлежит подразделению «{info.owner_name}» "
-                "и не распространяется на подразделение человека"
-            )
+            raise ValidationFailedError(info.not_covered_reason())
         existing = await self.session.scalar(
             select(Clearance.id).where(
                 Clearance.person_id == person.id,
@@ -404,6 +488,12 @@ class ClearanceService(ScopedService):
 
         traits = (await self._traits([person.id]))[person.id]
         violations = check(traits, info.requirements)
+        hard = [v for v in violations if v.hard]
+        if hard:
+            described = (await self._describer()).out(hard, info.requirements)
+            raise CategoryNotAllowedError(
+                described[0].message, details={"violations": [v.model_dump() for v in described]}
+            )
         if violations and not data.confirm_override:
             describer = await self._describer()
             raise RequirementsNotMetError(
@@ -591,12 +681,21 @@ class ClearanceService(ScopedService):
                     skip(pid, None, "Роль наряда не найдена или не действует")
                     continue
                 if not info.covers(path):
-                    skip(pid, info, "Наряд не распространяется на подразделение человека")
+                    skip(pid, info, info.not_covered_reason())
                     continue
                 if (pid, role_id) in granted:
                     skip(pid, info, "Допуск уже выдан")
                     continue
                 violations = check(traits[pid], info.requirements)
+                hard = [v for v in violations if v.hard]
+                if hard:
+                    skip(
+                        pid,
+                        info,
+                        "Категория не допускается ролью",
+                        violations=[v.message for v in describer.out(hard, info.requirements)],
+                    )
+                    continue
                 if violations and not data.confirm_override:
                     result.needs_override += 1
                     skip(
@@ -624,7 +723,8 @@ class ClearanceService(ScopedService):
         self, unit_id: uuid.UUID | None, subtree: bool, page: PageParams
     ) -> Page[MismatchItem]:
         """Действующие допуски, которые сейчас не проходят требования роли: выданы вопреки
-        требованиям или устарели после смены звания, должности, характеристик или требований."""
+        требованиям или устарели после смены звания, должности, характеристик или требований.
+        Несоответствие категории (допуск не действует) помечено `hard`."""
         scope = self.policy.require(self.operator.roles, "clearance", "read")
         today = dt.date.today()
         stmt = (

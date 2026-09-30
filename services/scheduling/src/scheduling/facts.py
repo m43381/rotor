@@ -2,9 +2,10 @@
 
 Событие `assignment.created` / `assignment.removed` несёт всё, что нужно read-model
 `analytics` без обращений назад: человек и его краткое имя, подразделение-исполнитель,
-график и его статус, наряд и роль, дата и интервал, занятые сутки, нагрузка
-(нарядо-сутки × вес наряда), выходной или праздник по производственному календарю,
-источник (вручную / автоматически). Поля только добавлялись к прежнему формату.
+график и его статус, наряд и роль (с названиями — для разрезов аналитики, фаза 8), дата
+и интервал, занятые сутки, нагрузка (нарядо-сутки × вес роли, ADR-0019), выходной
+или праздник по производственному календарю, источник (вручную / автоматически).
+Поля только добавлялись к прежнему формату.
 
 Все пути, которые создают или удаляют назначения, публикуют события через `emit_*` —
 в том числе массовые: пересборка автораспределением и делегирование со снятием людей.
@@ -22,7 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dutyflow_common.calendar import CalendarProjection, day_kind
 from dutyflow_common.outbox import add_event
-from scheduling.models import Assignment, DayPlan, DutyType, Schedule
+from scheduling.models import Assignment, DayPlan, DutyRole, DutyType, Schedule
 
 
 def occupied_count(days: Range[dt.date]) -> int:
@@ -32,11 +33,12 @@ def occupied_count(days: Range[dt.date]) -> int:
     return span + (1 if days.upper_inc else 0) - (0 if days.lower_inc else 1)
 
 
-def _query() -> Select[Assignment, DayPlan, DutyType, Schedule]:
+def _query() -> Select[Assignment, DayPlan, DutyType, DutyRole, Schedule]:
     return (
-        select(Assignment, DayPlan, DutyType, Schedule)
+        select(Assignment, DayPlan, DutyType, DutyRole, Schedule)
         .join(DayPlan, DayPlan.id == Assignment.day_plan_id)
         .join(DutyType, DutyType.id == DayPlan.duty_type_id)
+        .join(DutyRole, DutyRole.id == DayPlan.duty_role_id)
         .join(Schedule, Schedule.id == DayPlan.schedule_id)
     )
 
@@ -60,6 +62,7 @@ def payload(
     a: Assignment,
     cell: DayPlan,
     duty_type: DutyType,
+    role: DutyRole,
     schedule: Schedule,
     kinds: dict[dt.date, str],
 ) -> dict[str, Any]:
@@ -75,11 +78,13 @@ def payload(
         "unit_id": schedule.unit_id,
         "duty_type_id": cell.duty_type_id,
         "duty_role_id": cell.duty_role_id,
+        "duty_type_name": duty_type.name,
+        "role_name": role.name,
         "date": cell.date,
         "start_at": a.start_at,
         "end_at": a.end_at,
         "occupied_days": occupied,
-        "load": round(occupied * float(duty_type.load_weight), 4),
+        "load": round(occupied * float(role.load_weight), 4),
         "holiday": day_kind(cell.date, kinds) in ("weekend", "holiday"),
         "source": a.source,
     }
@@ -92,15 +97,16 @@ async def payloads(
     if not assignments:
         return []
     cells = {
-        c.id: (c, t, s)
-        for c, t, s in await session.execute(
-            select(DayPlan, DutyType, Schedule)
+        c.id: (c, t, r, s)
+        for c, t, r, s in await session.execute(
+            select(DayPlan, DutyType, DutyRole, Schedule)
             .join(DutyType, DutyType.id == DayPlan.duty_type_id)
+            .join(DutyRole, DutyRole.id == DayPlan.duty_role_id)
             .join(Schedule, Schedule.id == DayPlan.schedule_id)
             .where(DayPlan.id.in_({a.day_plan_id for a in assignments}))
         )
     }
-    kinds = await _kinds(session, (c.date for c, _, _ in cells.values()))
+    kinds = await _kinds(session, (c.date for c, _, _, _ in cells.values()))
     return [payload(a, *cells[a.day_plan_id], kinds) for a in assignments]
 
 
@@ -124,4 +130,6 @@ async def export(
         stmt = stmt.where(Assignment.id > after)
     rows = (await session.execute(stmt)).all()
     kinds = await _kinds(session, (r.DayPlan.date for r in rows))
-    return [payload(r.Assignment, r.DayPlan, r.DutyType, r.Schedule, kinds) for r in rows]
+    return [
+        payload(r.Assignment, r.DayPlan, r.DutyType, r.DutyRole, r.Schedule, kinds) for r in rows
+    ]

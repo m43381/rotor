@@ -212,6 +212,372 @@
         }
       }
     },
+    "/metrics/breakdown": {
+      "get": {
+        "tags": [
+          "metrics"
+        ],
+        "summary": "Нагрузка в разрезе одного или двух измерений",
+        "operationId": "breakdown_metrics_breakdown_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "unit_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Подразделение; учитывается всё поддерево",
+              "title": "Unit Id"
+            },
+            "description": "Подразделение; учитывается всё поддерево"
+          },
+          {
+            "name": "date_from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Первая дата заступления",
+              "title": "Date From"
+            },
+            "description": "Первая дата заступления"
+          },
+          {
+            "name": "date_to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Последняя дата заступления",
+              "title": "Date To"
+            },
+            "description": "Последняя дата заступления"
+          },
+          {
+            "name": "dimension",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Dimension",
+              "description": "Измерение группировки"
+            },
+            "description": "Измерение группировки"
+          },
+          {
+            "name": "split",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Dimension"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Второе измерение",
+              "title": "Split"
+            },
+            "description": "Второе измерение"
+          },
+          {
+            "name": "drafts",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Учитывать черновики графиков (№57)",
+              "default": false,
+              "title": "Drafts"
+            },
+            "description": "Учитывать черновики графиков (№57)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Breakdown"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/metrics/distribution": {
+      "get": {
+        "tags": [
+          "metrics"
+        ],
+        "summary": "Распределение нагрузки на человека по группам (квартили)",
+        "operationId": "distribution_metrics_distribution_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "unit_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Подразделение; учитывается всё поддерево",
+              "title": "Unit Id"
+            },
+            "description": "Подразделение; учитывается всё поддерево"
+          },
+          {
+            "name": "date_from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Первая дата заступления",
+              "title": "Date From"
+            },
+            "description": "Первая дата заступления"
+          },
+          {
+            "name": "date_to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Последняя дата заступления",
+              "title": "Date To"
+            },
+            "description": "Последняя дата заступления"
+          },
+          {
+            "name": "dimension",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Dimension",
+              "description": "Измерение группировки"
+            },
+            "description": "Измерение группировки"
+          },
+          {
+            "name": "drafts",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Учитывать черновики графиков (№57)",
+              "default": false,
+              "title": "Drafts"
+            },
+            "description": "Учитывать черновики графиков (№57)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Distribution"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/metrics/calendar": {
+      "get": {
+        "tags": [
+          "metrics"
+        ],
+        "summary": "Нагрузка по дням",
+        "operationId": "calendar_metrics_calendar_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "unit_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Подразделение; учитывается всё поддерево",
+              "title": "Unit Id"
+            },
+            "description": "Подразделение; учитывается всё поддерево"
+          },
+          {
+            "name": "date_from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Первая дата заступления",
+              "title": "Date From"
+            },
+            "description": "Первая дата заступления"
+          },
+          {
+            "name": "date_to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Последняя дата заступления",
+              "title": "Date To"
+            },
+            "description": "Последняя дата заступления"
+          },
+          {
+            "name": "drafts",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Учитывать черновики графиков (№57)",
+              "default": false,
+              "title": "Drafts"
+            },
+            "description": "Учитывать черновики графиков (№57)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CalendarDay"
+                  },
+                  "title": "Response Calendar Metrics Calendar Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/metrics/roster": {
+      "get": {
+        "tags": [
+          "metrics"
+        ],
+        "summary": "Кто в наряде в этот день (включая черновики)",
+        "operationId": "roster_metrics_roster_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "unit_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Подразделение; учитывается всё поддерево",
+              "title": "Unit Id"
+            },
+            "description": "Подразделение; учитывается всё поддерево"
+          },
+          {
+            "name": "day",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Дата",
+              "title": "Day"
+            },
+            "description": "Дата"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RosterItem"
+                  },
+                  "title": "Response Roster Metrics Roster Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/audit": {
       "get": {
         "tags": [
@@ -612,6 +978,259 @@
   },
   "components": {
     "schemas": {
+      "Breakdown": {
+        "properties": {
+          "dimension": {
+            "$ref": "#/components/schemas/Dimension"
+          },
+          "split": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Dimension"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BreakdownItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "dimension",
+          "split",
+          "items"
+        ],
+        "title": "Breakdown"
+      },
+      "BreakdownItem": {
+        "properties": {
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "order": {
+            "type": "number",
+            "title": "Order"
+          },
+          "split_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Split Key"
+          },
+          "split_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Split Label"
+          },
+          "split_order": {
+            "type": "number",
+            "title": "Split Order"
+          },
+          "duties": {
+            "type": "integer",
+            "title": "Duties"
+          },
+          "duty_days": {
+            "type": "integer",
+            "title": "Duty Days"
+          },
+          "load": {
+            "type": "number",
+            "title": "Load"
+          },
+          "people": {
+            "type": "integer",
+            "title": "People"
+          },
+          "holidays": {
+            "type": "integer",
+            "title": "Holidays"
+          },
+          "load_per_person": {
+            "type": "number",
+            "title": "Load Per Person"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "order",
+          "split_key",
+          "split_label",
+          "split_order",
+          "duties",
+          "duty_days",
+          "load",
+          "people",
+          "holidays",
+          "load_per_person"
+        ],
+        "title": "BreakdownItem"
+      },
+      "CalendarDay": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "duties": {
+            "type": "integer",
+            "title": "Duties"
+          },
+          "load": {
+            "type": "number",
+            "title": "Load"
+          },
+          "people": {
+            "type": "integer",
+            "title": "People"
+          }
+        },
+        "type": "object",
+        "required": [
+          "date",
+          "duties",
+          "load",
+          "people"
+        ],
+        "title": "CalendarDay"
+      },
+      "Dimension": {
+        "type": "string",
+        "enum": [
+          "unit",
+          "duty_type",
+          "role",
+          "category",
+          "rank",
+          "weekday",
+          "month",
+          "source",
+          "day_kind"
+        ]
+      },
+      "Distribution": {
+        "properties": {
+          "dimension": {
+            "$ref": "#/components/schemas/Dimension"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DistributionItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "dimension",
+          "items"
+        ],
+        "title": "Distribution"
+      },
+      "DistributionItem": {
+        "properties": {
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "order": {
+            "type": "number",
+            "title": "Order"
+          },
+          "people": {
+            "type": "integer",
+            "title": "People"
+          },
+          "min": {
+            "type": "number",
+            "title": "Min"
+          },
+          "q1": {
+            "type": "number",
+            "title": "Q1"
+          },
+          "median": {
+            "type": "number",
+            "title": "Median"
+          },
+          "q3": {
+            "type": "number",
+            "title": "Q3"
+          },
+          "max": {
+            "type": "number",
+            "title": "Max"
+          },
+          "mean": {
+            "type": "number",
+            "title": "Mean"
+          },
+          "gini": {
+            "type": "number",
+            "title": "Gini"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "order",
+          "people",
+          "min",
+          "q1",
+          "median",
+          "q3",
+          "max",
+          "mean",
+          "gini"
+        ],
+        "title": "DistributionItem"
+      },
       "Facets": {
         "properties": {
           "entity_type": {
@@ -927,6 +1546,16 @@
             },
             "type": "array",
             "title": "Bottom"
+          },
+          "lorenz": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Lorenz"
           }
         },
         "type": "object",
@@ -942,7 +1571,8 @@
           "units",
           "trend",
           "top",
-          "bottom"
+          "bottom",
+          "lorenz"
         ],
         "title": "Overview"
       },
@@ -1060,6 +1690,77 @@
           "last_date"
         ],
         "title": "PersonRow"
+      },
+      "RosterItem": {
+        "properties": {
+          "person_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Person Id"
+          },
+          "person_name": {
+            "type": "string",
+            "title": "Person Name"
+          },
+          "unit_name": {
+            "type": "string",
+            "title": "Unit Name"
+          },
+          "duty_type_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duty Type Name"
+          },
+          "role_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role Name"
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "start_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start At"
+          },
+          "end_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "End At"
+          },
+          "schedule_status": {
+            "type": "string",
+            "title": "Schedule Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "person_id",
+          "person_name",
+          "unit_name",
+          "duty_type_name",
+          "role_name",
+          "date",
+          "start_at",
+          "end_at",
+          "schedule_status"
+        ],
+        "title": "RosterItem"
       },
       "UnitLoad": {
         "properties": {

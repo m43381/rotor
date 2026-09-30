@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// Справочники личного состава (суперадминистратор): должности, характеристики, причины
-// освобождений. Записи не удаляются, а выключаются — на них ссылаются люди и история.
+// Справочники личного состава (суперадминистратор): категории (ADR-0018), должности,
+// характеристики, причины освобождений. Записи не удаляются, а выключаются — на них ссылаются люди и история.
 import Button from 'primevue/button'
 import Checkbox from 'primevue/checkbox'
 import Column from 'primevue/column'
@@ -22,11 +22,11 @@ import { computed, onMounted, ref } from 'vue'
 import { ApiError, personnel, unwrap } from '@/api/client'
 import { useRefsStore } from '@/stores/refs'
 
-type Kind = 'positions' | 'attributes' | 'reasons'
+type Kind = 'categories' | 'positions' | 'attributes' | 'reasons'
 
 const refs = useRefsStore()
 const toast = useToast()
-const tab = ref<Kind>('positions')
+const tab = ref<Kind>('categories')
 const busy = ref(false)
 
 const TYPES = [
@@ -75,7 +75,12 @@ function open(k: Kind, item?: Record<string, unknown>) {
 }
 
 const dialogTitle = computed(() => {
-  const what = { positions: 'должность', attributes: 'характеристику', reasons: 'причину освобождения' }[kind.value]
+  const what = {
+    categories: 'категорию',
+    positions: 'должность',
+    attributes: 'характеристику',
+    reasons: 'причину освобождения',
+  }[kind.value]
   return `${editId.value ? 'Изменить' : 'Добавить'} ${what}`
 })
 const needsCode = computed(() => kind.value !== 'positions')
@@ -86,7 +91,14 @@ async function submit() {
   const f = form.value
   busy.value = true
   try {
-    if (kind.value === 'positions') {
+    if (kind.value === 'categories') {
+      const body = { code: f.code, name: f.name.trim(), sort_order: f.sort_order, is_active: f.is_active }
+      await unwrap(
+        editId.value
+          ? personnel.PUT('/person-categories/{item_id}', { params: { path: { item_id: editId.value } }, body })
+          : personnel.POST('/person-categories', { body }),
+      )
+    } else if (kind.value === 'positions') {
       const body = { name: f.name.trim(), sort_order: f.sort_order, is_active: f.is_active }
       await unwrap(
         editId.value
@@ -133,13 +145,42 @@ async function submit() {
 <template>
   <section class="page">
     <h1>Справочники личного состава</h1>
+    <p class="muted">
+      Записи не удаляются, а выключаются: на них ссылаются люди, роли нарядов и история.
+    </p>
     <Tabs v-model:value="tab">
       <TabList>
+        <Tab value="categories">Категории</Tab>
         <Tab value="positions">Должности</Tab>
         <Tab value="attributes">Характеристики</Tab>
         <Tab value="reasons">Причины освобождений</Tab>
       </TabList>
       <TabPanels>
+        <TabPanel value="categories">
+          <p class="hint-box">
+            <i class="pi pi-info-circle" />
+            <span>
+              Категория обязательна у каждого человека. Роль наряда может допускать только некоторые
+              категории — людям остальных допуск к ней не выдаётся.
+            </span>
+          </p>
+          <Button label="Добавить" icon="pi pi-plus" class="add" @click="open('categories')" />
+          <DataTable :value="refs.categories" data-key="id">
+            <Column header="Категория">
+              <template #body="{ data }"><span class="chip chip--category">{{ data.name }}</span></template>
+            </Column>
+            <Column field="code" header="Код" style="width: 10rem" />
+            <Column field="sort_order" header="Порядок" style="width: 8rem" />
+            <Column header="Статус" style="width: 9rem">
+              <template #body="{ data }"><Tag v-if="!data.is_active" value="Выключена" severity="secondary" /></template>
+            </Column>
+            <Column style="width: 4rem">
+              <template #body="{ data }">
+                <Button icon="pi pi-pencil" text rounded aria-label="Изменить" @click="open('categories', data)" />
+              </template>
+            </Column>
+          </DataTable>
+        </TabPanel>
         <TabPanel value="positions">
           <Button label="Добавить" icon="pi pi-plus" class="add" @click="open('positions')" />
           <DataTable :value="refs.positions" data-key="id">
@@ -240,8 +281,15 @@ async function submit() {
   max-width: 64rem;
 }
 h1 {
-  margin: 0 0 1rem;
+  margin: 0;
   font-size: 1.4rem;
+}
+.muted {
+  color: var(--p-text-muted-color);
+  margin: 0.25rem 0 1rem;
+}
+.hint-box {
+  margin: 0 0 0.75rem;
 }
 .add {
   margin-bottom: 0.75rem;

@@ -99,6 +99,9 @@ flowchart LR
 ### `position` — справочник должностей
 `id`, `name`, `sort_order`, `is_active`.
 
+### `person_category` — категории личного состава (ADR-0018)
+`id`, `code UNIQUE`, `name UNIQUE`, `sort_order`, `is_active`. Базовые — курсант, слушатель, постоянный состав; id детерминированы (`uuid5` от названия, `dutyflow_common.ids.category_id`), чтобы миграции personnel и scheduling сходились без обращения к чужой БД.
+
 ### `person`
 | Колонка | Тип | Примечание |
 |---|---|---|
@@ -107,6 +110,7 @@ flowchart LR
 | last_name, first_name, middle_name | text | |
 | rank_id | uuid | Ссылка на `org.rank` |
 | position_id | uuid FK → position NULL | |
+| category_id | uuid FK → person_category NULL | Обязательна при создании и изменении; пусто только у перенесённых записей без категории (ADR-0018) |
 | personal_no | text NULL UNIQUE | Личный номер, если есть. Ключ сопоставления при импорте |
 | is_active | bool | Уволенные/выпущенные архивируются, а не удаляются |
 | archived_at | timestamptz NULL | |
@@ -118,7 +122,7 @@ Scope-фильтр: `JOIN unit_projection up ON up.unit_id = person.unit_id WHER
 
 ### `attribute_definition` (ADR-0005)
 `id`, `code UNIQUE`, `name`, `value_type` (`bool`/`int`/`enum`/`date`/`string`), `enum_options jsonb NULL`, `is_required`, `sort_order`, `is_active`.
-Стартовый набор: `category` (enum: курсант / слушатель / постоянный состав).
+Стартовая характеристика `category` с фазы 8 выведена из действия: категория — отдельный справочник `person_category` (ADR-0018).
 
 ### `person_attribute`
 `person_id FK`, `definition_id FK`, `value jsonb` (`{"v": …}`), PK(`person_id`, `definition_id`). GIN(`value`).
@@ -138,11 +142,11 @@ Scope-фильтр: `JOIN unit_projection up ON up.unit_id = person.unit_id WHER
 | version | int | Меняется только срок действия |
 
 Ограничения: UNIQUE(`person_id`, `duty_role_id`) WHERE `revoked_at IS NULL`; CHECK(`valid_to >= valid_from`).
-Допуск выдаётся только к роли наряда подразделения человека или вышестоящего (ADR-0009, уточнения шага 2b).
+Допуск выдаётся только к роли наряда подразделения человека или вышестоящего (ADR-0009, уточнения шага 2b), а к закреплённой роли — только людям поддерева закреплённого подразделения. Категория человека должна входить в допустимые категории роли: иначе допуск не выдаётся, а ставший неподходящим получает статус `category_mismatch` и не попадает во внутренний batch (ADR-0018).
 
 ### `duty_type_projection`, `duty_role_projection` — копия требований ролей из scheduling
 `duty_type_projection(duty_type_id PK, name, short_name, owner_unit_id, is_active, source_version)`,
-`duty_role_projection(duty_role_id PK, duty_type_id, code, name, sort_order, min_rank_order, allowed_position_ids uuid[], attribute_requirements jsonb, is_active, source_version)`.
+`duty_role_projection(duty_role_id PK, duty_type_id, code, name, sort_order, min_rank_order, allowed_position_ids uuid[], attribute_requirements jsonb, assigned_unit_id, allowed_category_ids uuid[], is_active, source_version)`.
 Заполняются событиями `duty_type.changed` / `duty_role.changed`, при пустой копии — через `POST /internal/duty-roles/batch`. Нужны, чтобы проверка требований при выдаче допуска и отчёт о несоответствиях не зависели от доступности scheduling (ADR-0009).
 
 ### `exemption_reason`
@@ -160,15 +164,13 @@ CHECK(`date_to >= date_from`); GiST(`person_id`, `daterange(date_from, date_to, 
 | id | uuid PK | |
 | name, short_name | text | |
 | owner_unit_id | uuid | Подразделение-создатель |
-| assigned_unit_id | uuid NULL | Закреплённое подразделение (опционально) |
 | start_time | time | Начало, локальное время |
 | duration_minutes | int | CHECK 60 … 7·24·60 |
 | rest_hours | int | По умолчанию 48 |
-| load_weight | numeric(4,2) | Множитель нагрузки, по умолчанию 1.0 |
 | is_active | bool | |
 | version | int | |
 
-UNIQUE(`owner_unit_id`, `name`) WHERE `is_active`. `assigned_unit_id` — внутри поддерева владельца.
+UNIQUE(`owner_unit_id`, `name`) WHERE `is_active`. Закрепление за подразделением с фазы 8 — у роли (ADR-0018).
 
 ### `duty_role` (ADR-0009)
 | Колонка | Тип | Примечание |
@@ -177,10 +179,13 @@ UNIQUE(`owner_unit_id`, `name`) WHERE `is_active`. `assigned_unit_id` — вну
 | duty_type_id | uuid FK | |
 | code, name | text | UNIQUE(`duty_type_id`, `code`) |
 | headcount | smallint | ≥ 1 |
+| load_weight | numeric(4,2) | Вес нагрузки роли: нарядо-сутки × вес, по умолчанию 1.0 (ADR-0019) |
 | sort_order | smallint | |
 | min_rank_order | smallint NULL | Мин. звание (по `rank.order`) |
 | allowed_position_ids | uuid[] NULL | NULL = любая должность |
-| attribute_requirements | jsonb | `[{"code":"category","op":"in","value":["курсант"]}]`; операторы `eq`, `in`, `gte`, `lte` |
+| attribute_requirements | jsonb | `[{"code":"course_no","op":"gte","value":2}]`; операторы `eq`, `in`, `gte`, `lte` |
+| assigned_unit_id | uuid NULL | Закрепление за подразделением поддерева владельца: ячейки роли сами проходят цепочку делегирования до него (ADR-0018) |
+| allowed_category_ids | uuid[] NULL | Допустимые категории личного состава (`personnel.person_category`); NULL — любые. Жёсткое требование (ADR-0018) |
 | is_active | bool | |
 | version | int | |
 
@@ -274,6 +279,10 @@ UNIQUE(`owner_unit_id`, `name`) WHERE `is_active`. `assigned_unit_id` — вну
   - `unit_projection`, `rank_projection`, `processed_event`, `outbox` — общие таблицы;
   - `audit_view(id PK, service, occurred_at, actor_id, actor_name, actor_unit_id, action, entity_type, entity_id, scope_unit_id, before, after, comment, request_id)` — сводный журнал аудита из событий `audit.recorded` всех сервисов (ADR-0010, фаза 7b); только дополняется, хранится бессрочно;
 - **`auth_admin_db`**: `audit_log` (операции с операторами: `operator.create`, `update`, `block`, `unblock`, `reset_password`, `logout`; паролей в записях нет), `outbox`, `processed_event`. Сами операторы живут в Keycloak: `username`, ФИО, роль, атрибут `unit_id`, признак блокировки (фаза 7a, ADR-0016).
+
+### analytics: разрезы (фаза 8, ADR-0020)
+`duty_fact` дополнен `duty_type_name`, `role_name` (из события, у старых фактов — после перестроения).
+`person_dim(person_id PK, unit_id, category_id NULL, rank_id NULL, is_active, source_version)` — по событиям `person.*` personnel; `category_dim(category_id PK, name, sort_order, is_active)` — по `person_category.changed`. Пустые копии заполняются выгрузкой из personnel.
 
 ## 7. Общие таблицы (`libs/common`)
 

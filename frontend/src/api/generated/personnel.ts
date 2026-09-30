@@ -18,6 +18,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/people/counts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Численность по подразделениям */
+        get: operations["people_counts_people_counts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/people/{person_id}": {
         parameters: {
             query?: never;
@@ -334,6 +351,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/person-categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Person Categories */
+        get: operations["list_person_categories_person_categories_get"];
+        put?: never;
+        /** Create Person Category */
+        post: operations["create_person_category_person_categories_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/person-categories/{item_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Person Category */
+        put: operations["update_person_category_person_categories__item_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/attribute-definitions": {
         parameters: {
             query?: never;
@@ -469,7 +521,8 @@ export interface paths {
         put?: never;
         /**
          * References
-         * @description Должности и характеристики — для проверки ссылок в требованиях ролей (scheduling).
+         * @description Должности, категории и характеристики — для проверки ссылок в требованиях ролей
+         *     (scheduling).
          */
         post: operations["references_internal_references_post"];
         delete?: never;
@@ -719,6 +772,7 @@ export interface components {
         /**
          * ClearanceOption
          * @description Роль, к которой человеку можно выдать допуск, и его соответствие требованиям.
+         *     С жёстким нарушением (категория) выдать нельзя.
          */
         ClearanceOption: {
             /**
@@ -736,6 +790,10 @@ export interface components {
             owner_unit_id: string | null;
             /** Owner Unit Name */
             owner_unit_name: string | null;
+            /** Assigned Unit Id */
+            assigned_unit_id?: string | null;
+            /** Assigned Unit Name */
+            assigned_unit_name?: string | null;
             /** Sort Order */
             sort_order: number;
             /** Has Requirements */
@@ -762,6 +820,10 @@ export interface components {
             owner_unit_id: string | null;
             /** Owner Unit Name */
             owner_unit_name: string | null;
+            /** Assigned Unit Id */
+            assigned_unit_id?: string | null;
+            /** Assigned Unit Name */
+            assigned_unit_name?: string | null;
             /**
              * Id
              * Format: uuid
@@ -780,7 +842,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "active" | "future" | "expired" | "revoked" | "role_inactive";
+            status: "active" | "future" | "expired" | "revoked" | "role_inactive" | "category_mismatch";
             /** Overrides Requirements */
             overrides_requirements: boolean;
             /** Override Comment */
@@ -816,6 +878,10 @@ export interface components {
             owner_unit_id: string | null;
             /** Owner Unit Name */
             owner_unit_name: string | null;
+            /** Assigned Unit Id */
+            assigned_unit_id?: string | null;
+            /** Assigned Unit Name */
+            assigned_unit_name?: string | null;
             /** Sort Order */
             sort_order: number;
             /** Has Requirements */
@@ -1044,6 +1110,10 @@ export interface components {
             owner_unit_id: string | null;
             /** Owner Unit Name */
             owner_unit_name: string | null;
+            /** Assigned Unit Id */
+            assigned_unit_id?: string | null;
+            /** Assigned Unit Name */
+            assigned_unit_name?: string | null;
             /**
              * Clearance Id
              * Format: uuid
@@ -1158,6 +1228,8 @@ export interface components {
             rank_order: number | null;
             /** Position Id */
             position_id: string | null;
+            /** Category Id */
+            category_id?: string | null;
             /** Attributes */
             attributes: {
                 [key: string]: unknown;
@@ -1182,6 +1254,45 @@ export interface components {
             /** Rank Name */
             rank_name?: string | null;
         };
+        /** PersonCategoryIn */
+        PersonCategoryIn: {
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+            /**
+             * Is Active
+             * @default true
+             */
+            is_active: boolean;
+        };
+        /** PersonCategoryOut */
+        PersonCategoryOut: {
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+            /**
+             * Is Active
+             * @default true
+             */
+            is_active: boolean;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+        };
         /** PersonCreate */
         PersonCreate: {
             /** Last Name */
@@ -1203,6 +1314,11 @@ export interface components {
              * Format: uuid
              */
             unit_id: string;
+            /**
+             * Category Id
+             * Format: uuid
+             */
+            category_id: string;
             /** Attributes */
             attributes?: {
                 [key: string]: unknown;
@@ -1239,10 +1355,18 @@ export interface components {
             position_id: string | null;
             /** Position Name */
             position_name: string | null;
+            /** Category Id */
+            category_id: string | null;
+            /** Category Name */
+            category_name: string | null;
             /** Personal No */
             personal_no: string | null;
             /** Is Active */
             is_active: boolean;
+            /** Exempt Until */
+            exempt_until?: string | null;
+            /** Exempt Reason */
+            exempt_reason?: string | null;
             /** Version */
             version: number;
         };
@@ -1274,10 +1398,18 @@ export interface components {
             position_id: string | null;
             /** Position Name */
             position_name: string | null;
+            /** Category Id */
+            category_id: string | null;
+            /** Category Name */
+            category_name: string | null;
             /** Personal No */
             personal_no: string | null;
             /** Is Active */
             is_active: boolean;
+            /** Exempt Until */
+            exempt_until?: string | null;
+            /** Exempt Reason */
+            exempt_reason?: string | null;
             /** Version */
             version: number;
             /** Note */
@@ -1310,6 +1442,8 @@ export interface components {
             rank_id?: string | null;
             /** Position Id */
             position_id?: string | null;
+            /** Category Id */
+            category_id?: string | null;
             /** Personal No */
             personal_no?: string | null;
             /** Note */
@@ -1367,6 +1501,10 @@ export interface components {
             attributes: {
                 [key: string]: unknown;
             }[];
+            /** Categories */
+            categories?: {
+                [key: string]: unknown;
+            }[];
         };
         /** RevokeIn */
         RevokeIn: {
@@ -1405,6 +1543,16 @@ export interface components {
              */
             unit_id: string;
         };
+        /** UnitCount */
+        UnitCount: {
+            /**
+             * Unit Id
+             * Format: uuid
+             */
+            unit_id: string;
+            /** People */
+            people: number;
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -1424,11 +1572,16 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "rank" | "position" | "attribute";
+            kind: "category" | "rank" | "position" | "attribute";
             /** Code */
             code: string | null;
             /** Message */
             message: string;
+            /**
+             * Hard
+             * @default false
+             */
+            hard: boolean;
         };
     };
     responses: never;
@@ -1447,6 +1600,8 @@ export interface operations {
                 q?: string | null;
                 rank_id?: string | null;
                 position_id?: string | null;
+                category_id?: string | null;
+                exempt_today?: boolean;
                 include_archived?: boolean;
                 limit?: number;
                 offset?: number;
@@ -1506,6 +1661,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    people_counts_people_counts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnitCount"][];
                 };
             };
         };
@@ -2208,6 +2383,94 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PositionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_person_categories_person_categories_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonCategoryOut"][];
+                };
+            };
+        };
+    };
+    create_person_category_person_categories_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PersonCategoryIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonCategoryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_person_category_person_categories__item_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PersonCategoryIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonCategoryOut"];
                 };
             };
             /** @description Validation Error */

@@ -54,13 +54,16 @@ watch(visible, async (open) => {
   }
 })
 
-// Роли сгруппированы по нарядам; уже выданные — недоступны
+// Категория — строгое условие (ADR-0018): такой допуск не выдаётся даже с обоснованием
+const blockedBy = (o: ClearanceOption) => o.violations.find((v) => v.hard)
+
+// Роли сгруппированы по нарядам; уже выданные и недоступные по категории — не выбрать
 const groups = computed(() => {
   const byType = new Map<string, { label: string; items: (ClearanceOption & { label: string; disabled: boolean })[] }>()
   for (const o of options.value) {
     const key = o.duty_type_id ?? o.duty_type_name
     const group = byType.get(key) ?? { label: `${o.duty_type_name} — ${o.owner_unit_name ?? ''}`, items: [] }
-    group.items.push({ ...o, label: o.role_name, disabled: o.granted })
+    group.items.push({ ...o, label: o.role_name, disabled: o.granted || !!blockedBy(o) })
     byType.set(key, group)
   }
   return [...byType.values()]
@@ -106,6 +109,12 @@ function submit() {
           <span class="opt">
             <span>{{ option.label }}</span>
             <small v-if="option.granted" class="muted">уже выдан</small>
+            <small v-else-if="blockedBy(option)" class="muted" :title="blockedBy(option)?.message">
+              <i class="pi pi-lock" /> другая категория
+            </small>
+            <small v-else-if="option.assigned_unit_name" class="muted">
+              <i class="pi pi-map-marker" /> {{ option.assigned_unit_name }}
+            </small>
             <i
               v-else-if="option.violations.length"
               class="pi pi-exclamation-triangle warn"

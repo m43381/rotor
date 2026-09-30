@@ -72,6 +72,14 @@ async def upsert_duty_roles(session: AsyncSession, roles: Sequence[dict[str, Any
                 else None
             ),
             "attribute_requirements": r.get("attribute_requirements") or [],
+            "assigned_unit_id": (
+                _uuid(r["assigned_unit_id"]) if r.get("assigned_unit_id") is not None else None
+            ),
+            "allowed_category_ids": (
+                [_uuid(c) for c in r["allowed_category_ids"]]
+                if r.get("allowed_category_ids") is not None
+                else None
+            ),
             "is_active": bool(r["is_active"]),
             "source_version": int(r.get("version", 0)),
         }
@@ -90,6 +98,8 @@ async def upsert_duty_roles(session: AsyncSession, roles: Sequence[dict[str, Any
                 "min_rank_order": ex.min_rank_order,
                 "allowed_position_ids": ex.allowed_position_ids,
                 "attribute_requirements": ex.attribute_requirements,
+                "assigned_unit_id": ex.assigned_unit_id,
+                "allowed_category_ids": ex.allowed_category_ids,
                 "is_active": ex.is_active,
                 "source_version": ex.source_version,
             },

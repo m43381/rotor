@@ -23,14 +23,15 @@ test('оператор курса видит только людей своег�
   const own = await total(page)
   expect(own).toBeGreaterThan(50)
   expect(own).toBeLessThan(120)
-  const units = await page.locator('.p-datatable-tbody tr td:nth-child(5)').allInnerTexts()
+  // Столбцы: выбор, ФИО, категория, звание, должность, подразделение, личный №
+  const units = await page.locator('.p-datatable-tbody tr td:nth-child(6)').allInnerTexts()
   // Курс 1 факультета 1 состоит из групп 111–113 (и самого курса)
   for (const u of units.filter(Boolean)) expect(u).toMatch(/Группа 11\d|1 курс, факультет 1/)
 })
 
 test('поиск по фамилии и по личному номеру', async ({ page }) => {
   await login(page, 'faculty_admin')
-  const firstNo = (await page.locator('.p-datatable-tbody tr td:nth-child(6)').first().innerText()).trim()
+  const firstNo = (await page.locator('.p-datatable-tbody tr td:nth-child(7)').first().innerText()).trim()
   await page.getByLabel('Поиск').fill(firstNo)
   await expect(page.getByText('Найдено: 1', { exact: true })).toBeVisible()
   await page.getByLabel('Поиск').fill('несуществующаяфамилия')

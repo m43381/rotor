@@ -2,6 +2,7 @@
 исключение из списков и восстановление, освобождения. Все изменения — с аудитом (ADR-0010)
 и событиями (ADR-0004)."""
 
+import datetime as dt
 import uuid
 from collections.abc import Sequence
 from typing import Any
@@ -29,6 +30,7 @@ from personnel.models import (
     ExemptionReason,
     Person,
     PersonAttribute,
+    PersonCategory,
     Position,
     person_fio,
 )
@@ -43,6 +45,7 @@ from personnel.schemas import (
     PersonListItem,
     PersonOut,
     PersonUpdate,
+    UnitCount,
 )
 from personnel.scoped import ScopedService, check_version
 
@@ -62,18 +65,38 @@ def _like_pattern(q: str) -> str:
 class PeopleService(ScopedService):
     # --- список и карточка -----------------------------------------------------------------
 
-    def _list_query(self) -> Any:  # Select с четырьмя колонками; точный тип громоздок
+    def _list_query(self) -> Any:  # Select с пятью колонками; точный тип громоздок
         return (
             select(
                 Person,
                 UnitProjection.name.label("unit_name"),
                 RankProjection.name.label("rank_name"),
                 Position.name.label("position_name"),
+                PersonCategory.name.label("category_name"),
             )
             .join(UnitProjection, UnitProjection.unit_id == Person.unit_id)
             .outerjoin(RankProjection, RankProjection.rank_id == Person.rank_id)
             .outerjoin(Position, Position.id == Person.position_id)
+            .outerjoin(PersonCategory, PersonCategory.id == Person.category_id)
         )
+
+    async def _exempt_today(
+        self, person_ids: Sequence[uuid.UUID]
+    ) -> dict[uuid.UUID, tuple[dt.date, str]]:
+        """Действующие сегодня освобождения — одним запросом на страницу списка."""
+        if not person_ids:
+            return {}
+        today = dt.date.today()
+        rows = await self.session.execute(
+            select(Exemption.person_id, Exemption.date_to, ExemptionReason.name)
+            .join(ExemptionReason, ExemptionReason.id == Exemption.reason_id)
+            .where(
+                Exemption.person_id.in_(person_ids),
+                Exemption.date_from <= today,
+                Exemption.date_to >= today,
+            )
+        )
+        return {pid: (date_to, reason) for pid, date_to, reason in rows}
 
     async def list(self, flt: PeopleFilter, page: PageParams) -> Page[PersonListItem]:
         scope = self.policy.require(self.operator.roles, "person", "read")
@@ -92,41 +115,74 @@ class PeopleService(ScopedService):
             stmt = stmt.where(Person.rank_id == flt.rank_id)
         if flt.position_id is not None:
             stmt = stmt.where(Person.position_id == flt.position_id)
+        if flt.category_id is not None:
+            stmt = stmt.where(Person.category_id == flt.category_id)
+        if flt.exempt_today:
+            today = dt.date.today()
+            stmt = stmt.where(
+                select(Exemption.id)
+                .where(
+                    Exemption.person_id == Person.id,
+                    Exemption.date_from <= today,
+                    Exemption.date_to >= today,
+                )
+                .exists()
+            )
         if flt.q and flt.q.strip():
             q = flt.q.strip()
             stmt = stmt.where(
                 (person_fio.like(_like_pattern(q), escape="\\")) | (Person.personal_no == q)
             )
         total = await self.session.scalar(select(func.count()).select_from(stmt.subquery()))
-        rows = await self.session.execute(
-            stmt.order_by(Person.last_name, Person.first_name, Person.middle_name, Person.id)
-            .limit(page.limit)
-            .offset(page.offset)
-        )
+        rows = (
+            await self.session.execute(
+                stmt.order_by(Person.last_name, Person.first_name, Person.middle_name, Person.id)
+                .limit(page.limit)
+                .offset(page.offset)
+            )
+        ).all()
+        exempt = await self._exempt_today([r.Person.id for r in rows])
         return Page(
-            items=[self._item(r.Person, r.unit_name, r.rank_name, r.position_name) for r in rows],
+            items=[self._item(r, exempt.get(r.Person.id)) for r in rows],
             total=total or 0,
             limit=page.limit,
             offset=page.offset,
         )
 
+    async def counts(self) -> Sequence[UnitCount]:
+        """Численность по подразделениям scope — для дерева подразделений (один запрос)."""
+        scope = self.policy.require(self.operator.roles, "person", "read")
+        rows = await self.session.execute(
+            select(Person.unit_id, func.count())
+            .join(UnitProjection, UnitProjection.unit_id == Person.unit_id)
+            .where(
+                Person.is_active,
+                scope_clause(UnitProjection.path, await self.operator_path(), scope),
+            )
+            .group_by(Person.unit_id)
+        )
+        return [UnitCount(unit_id=u, people=n) for u, n in rows]
+
     @staticmethod
-    def _item(
-        p: Person, unit_name: str | None, rank_name: str | None, position_name: str | None
-    ) -> PersonListItem:
+    def _item(row: Any, exempt: tuple[dt.date, str] | None = None) -> PersonListItem:
+        p: Person = row.Person
         return PersonListItem(
             id=p.id,
             last_name=p.last_name,
             first_name=p.first_name,
             middle_name=p.middle_name,
             unit_id=p.unit_id,
-            unit_name=unit_name,
+            unit_name=row.unit_name,
             rank_id=p.rank_id,
-            rank_name=rank_name,
+            rank_name=row.rank_name,
             position_id=p.position_id,
-            position_name=position_name,
+            position_name=row.position_name,
+            category_id=p.category_id,
+            category_name=row.category_name,
             personal_no=p.personal_no,
             is_active=p.is_active,
+            exempt_until=exempt[0] if exempt else None,
+            exempt_reason=exempt[1] if exempt else None,
             version=p.version,
         )
 
@@ -144,7 +200,7 @@ class PeopleService(ScopedService):
             .order_by(Exemption.date_from.desc())
         )
         unit = await self._unit(person.unit_id)
-        item = self._item(person, row.unit_name, row.rank_name, row.position_name)
+        item = self._item(row, (await self._exempt_today([person.id])).get(person.id))
         return PersonOut(
             **item.model_dump(),
             note=person.note,
@@ -161,7 +217,16 @@ class PeopleService(ScopedService):
         rows = await self.session.scalars(select(AttributeDefinition))
         return {d.code: d for d in rows}
 
-    async def _check_refs(self, rank_id: uuid.UUID | None, position_id: uuid.UUID | None) -> None:
+    async def _check_refs(
+        self,
+        rank_id: uuid.UUID | None,
+        position_id: uuid.UUID | None,
+        category_id: uuid.UUID | None = None,
+    ) -> None:
+        if category_id is not None:
+            category = await self.session.get(PersonCategory, category_id)
+            if category is None or not category.is_active:
+                raise ValidationFailedError("Категория личного состава не найдена")
         if rank_id is not None and await self.session.get(RankProjection, rank_id) is None:
             raise ValidationFailedError("Звание не найдено")
         if position_id is not None:
@@ -214,7 +279,7 @@ class PeopleService(ScopedService):
         unit = await self._require_unit("person", "create", data.unit_id)
         if not unit.is_active:
             raise ValidationFailedError("Подразделение расформировано")
-        await self._check_refs(data.rank_id, data.position_id)
+        await self._check_refs(data.rank_id, data.position_id, data.category_id)
         await self._check_personal_no(data.personal_no)
         definitions = await self._definitions()
         values = validate_values(definitions, data.attributes, require_all=True)
@@ -255,9 +320,15 @@ class PeopleService(ScopedService):
             getattr(data, f) for f in {"last_name", "first_name"} & fields
         ):
             raise ValidationFailedError("Фамилия и имя обязательны")
+        if "category_id" in fields:
+            if data.category_id is None:
+                raise ValidationFailedError("Категорию можно сменить, но не сбросить")
+            if data.category_id == person.category_id:
+                fields -= {"category_id"}
         await self._check_refs(
             data.rank_id if "rank_id" in fields else None,
             data.position_id if "position_id" in fields else None,
+            data.category_id if "category_id" in fields else None,
         )
         if "personal_no" in fields:
             await self._check_personal_no(data.personal_no, exclude=person.id)
@@ -518,6 +589,7 @@ def _event(p: Person) -> dict[str, Any]:
         "unit_id": p.unit_id,
         "rank_id": p.rank_id,
         "position_id": p.position_id,
+        "category_id": p.category_id,
         "is_active": p.is_active,
         "version": p.version,
     }

@@ -32,8 +32,10 @@ async def test_fact_event_and_bulk_removal(
     assert (await assign(admin, s.cell("Дежурный", 5), a)).status_code == 201
     assert (await assign(admin, s.cell("Дневальный", 5), b)).status_code == 201
 
-    [created, _] = await events(sessionmaker, "assignment.created")
+    [created, orderly] = await events(sessionmaker, "assignment.created")
     day = MONTH.replace(day=5)
+    # Названия наряда и роли — для разрезов аналитики
+    assert (created["duty_type_name"], created["role_name"]) == ("Наряд", "Дежурный")
     assert created["person_name"] == "Алексеев И. П."
     assert created["schedule_id"] == s.schedule["id"]
     assert created["schedule_status"] == "draft"
@@ -43,6 +45,8 @@ async def test_fact_event_and_bulk_removal(
     assert (created["occupied_days"], created["load"]) == (2, 2.0)
     assert created["holiday"] is (day.weekday() >= 5)
     assert created["source"] == "manual"
+    # Вес — у роли (ADR-0019): дневальный в том же наряде весит 0,5
+    assert orderly["load"] == 1.0
 
     # Смена решения по ячейке со снятием людей — событие о снятом
     r = await admin.post(

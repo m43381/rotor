@@ -80,6 +80,8 @@ async def test_create_materializes_own_cells(admin: AsyncClient, org: Org) -> No
     assert all(c is not None for c in row(t, "Помощник")["cells"])
     assert states(t, "Дежурный") == {"own"}
     assert [c["name"] for c in t["children"]] == ["Курс A1"]
+    # Сводка заполненности: обе роли закрывает сам факультет, людей ещё нет
+    assert (t["schedule"]["to_fill"], t["schedule"]["unfilled"]) == (2 * DAYS, 2 * DAYS)
 
 
 async def test_delegate_accept_and_take_back(

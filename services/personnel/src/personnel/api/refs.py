@@ -1,4 +1,4 @@
-"""Справочники personnel: должности, характеристики, причины освобождений.
+"""Справочники personnel: должности, категории, характеристики, причины освобождений.
 
 Читают все операторы, меняет суперадминистратор. Удаления нет — только `is_active=false`:
 на записи ссылаются люди и история.
@@ -19,12 +19,14 @@ from dutyflow_common.ids import uuid7
 from dutyflow_common.outbox import add_event
 from dutyflow_common.policy import default_policy
 from personnel.api.deps import OperatorDep, SessionDep
-from personnel.models import AttributeDefinition, ExemptionReason, Position
+from personnel.models import AttributeDefinition, ExemptionReason, PersonCategory, Position
 from personnel.schemas import (
     AttributeDefinitionIn,
     AttributeDefinitionOut,
     ExemptionReasonIn,
     ExemptionReasonOut,
+    PersonCategoryIn,
+    PersonCategoryOut,
     PositionIn,
     PositionOut,
 )
@@ -122,6 +124,32 @@ async def update_position(
     item_id: uuid.UUID, data: PositionIn, session: SessionDep, operator: OperatorDep
 ) -> Any:
     return await _update(session, operator, "position", Position, item_id, data, _POSITION_DUP)
+
+
+# --- категории личного состава (ADR-0018) ------------------------------------------------------
+
+_CATEGORY = "person_category"
+_CATEGORY_DUP = "Категория с таким кодом или названием уже есть"
+
+
+@router.get("/person-categories", response_model=list[PersonCategoryOut])
+async def list_person_categories(session: SessionDep, operator: OperatorDep) -> list[Any]:
+    stmt = select(PersonCategory).order_by(PersonCategory.sort_order, PersonCategory.name)
+    return await _list(session, operator, _CATEGORY, stmt)
+
+
+@router.post("/person-categories", response_model=PersonCategoryOut, status_code=201)
+async def create_person_category(
+    data: PersonCategoryIn, session: SessionDep, operator: OperatorDep
+) -> Any:
+    return await _create(session, operator, _CATEGORY, PersonCategory, data, _CATEGORY_DUP)
+
+
+@router.put("/person-categories/{item_id}", response_model=PersonCategoryOut)
+async def update_person_category(
+    item_id: uuid.UUID, data: PersonCategoryIn, session: SessionDep, operator: OperatorDep
+) -> Any:
+    return await _update(session, operator, _CATEGORY, PersonCategory, item_id, data, _CATEGORY_DUP)
 
 
 # --- характеристики --------------------------------------------------------------------------

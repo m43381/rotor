@@ -3,6 +3,9 @@
 Требования хранит `scheduling` (`duty_role`), проверяет `personnel` при выдаче допуска и в отчёте
 о несоответствиях. Модуль — чистые функции без БД: одинаковый код для обеих сторон и для тестов.
 
+Категория личного состава (ADR-0018) — отдельное жёсткое требование: в отличие от звания,
+должности и характеристик, допуск-исключение её не перекрывает (`Violation.hard`).
+
 Требование к характеристике ссылается на `AttributeDefinition.code` (ADR-0005). Операторы:
 - `eq` — значение равно заданному;
 - `in` — значение входит в список;
@@ -36,6 +39,8 @@ class RoleRequirements:
     # None — подходит любая должность
     allowed_position_ids: frozenset[uuid.UUID] | None = None
     attributes: tuple[AttributeRequirement, ...] = ()
+    # None — подходит любая категория
+    allowed_category_ids: frozenset[uuid.UUID] | None = None
 
     @classmethod
     def from_row(
@@ -43,6 +48,7 @@ class RoleRequirements:
         min_rank_order: int | None,
         allowed_position_ids: Collection[uuid.UUID] | None,
         attribute_requirements: Sequence[Mapping[str, Any]] | None,
+        allowed_category_ids: Collection[uuid.UUID] | None = None,
     ) -> "RoleRequirements":
         return cls(
             min_rank_order=min_rank_order,
@@ -52,11 +58,19 @@ class RoleRequirements:
             attributes=tuple(
                 AttributeRequirement.model_validate(r) for r in attribute_requirements or []
             ),
+            allowed_category_ids=(
+                frozenset(allowed_category_ids) if allowed_category_ids is not None else None
+            ),
         )
 
     @property
     def is_empty(self) -> bool:
-        return self.min_rank_order is None and not self.allowed_position_ids and not self.attributes
+        return (
+            self.min_rank_order is None
+            and not self.allowed_position_ids
+            and not self.attributes
+            and not self.allowed_category_ids
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,16 +78,23 @@ class PersonTraits:
     rank_order: int | None
     position_id: uuid.UUID | None
     attributes: Mapping[str, Any]
+    category_id: uuid.UUID | None = None
 
 
 @dataclass(frozen=True, slots=True)
 class Violation:
-    """Нарушенное требование. `kind`: rank / position / attribute; `code` — код характеристики."""
+    """Нарушенное требование. `kind`: category / rank / position / attribute; `code` — код
+    характеристики."""
 
-    kind: Literal["rank", "position", "attribute"]
+    kind: Literal["category", "rank", "position", "attribute"]
     code: str | None
     expected: Any
     actual: Any
+
+    @property
+    def hard(self) -> bool:
+        """Категорию допуск-исключение не перекрывает (ADR-0018)."""
+        return self.kind == "category"
 
 
 def _attribute_ok(req: AttributeRequirement, actual: Any) -> bool:
@@ -97,6 +118,12 @@ def _attribute_ok(req: AttributeRequirement, actual: Any) -> bool:
 def check(person: PersonTraits, req: RoleRequirements) -> list[Violation]:
     """Список нарушенных требований; пустой — человек проходит роль."""
     violations: list[Violation] = []
+    if req.allowed_category_ids is not None and person.category_id not in req.allowed_category_ids:
+        violations.append(
+            Violation(
+                "category", None, sorted(map(str, req.allowed_category_ids)), person.category_id
+            )
+        )
     if req.min_rank_order is not None and (
         person.rank_order is None or person.rank_order < req.min_rank_order
     ):

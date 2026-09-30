@@ -42,7 +42,10 @@ class Setup:
 async def setup(admin: AsyncClient, org: Org, unit: uuid.UUID | None = None) -> Setup:
     owner = unit or org.fac_a
     t = await add_type(
-        admin, owner, "Наряд", roles=[role("Дежурный"), role("Дневальный", headcount=2)]
+        admin,
+        owner,
+        "Наряд",
+        roles=[role("Дежурный"), role("Дневальный", headcount=2, load_weight=0.5)],
     )
     r = await admin.post("/schedules", json={"unit_id": str(owner), "month": str(MONTH)})
     assert r.status_code == 201, r.text

@@ -22,7 +22,7 @@ from testcontainers.community.postgres import PostgresContainer
 from testcontainers.community.redis import RedisContainer
 
 from dutyflow_common.events import Event
-from dutyflow_common.ids import uuid7
+from dutyflow_common.ids import category_id, uuid7
 from dutyflow_common.projections import handle_rank_event, handle_unit_event
 from dutyflow_common.testing import TestIssuer
 from dutyflow_common.testing.audit_coverage import AuditCoverage, event_hooks
@@ -33,6 +33,11 @@ SERVICE_DIR = Path(__file__).resolve().parents[1]
 # Учёт покрытия аудита: исключения — маршруты, не меняющие данные, с причиной
 AUDIT = AuditCoverage(exempt={})
 INTERNAL_TOKEN = "test-internal-token"
+# Базовые категории заводит миграция 0003 (ADR-0018)
+CADET = category_id("Курсант")
+LISTENER = category_id("Слушатель")
+PERMANENT = category_id("Постоянный состав")
+SKILL_ID = uuid.UUID("00000000-0000-7000-8000-0000000051c1")
 
 
 @pytest.fixture(scope="session")
@@ -138,9 +143,21 @@ async def org(app: FastAPI, settings: PersonnelSettings) -> Org:
                 " audit_log, outbox, processed_event CASCADE"
             )
         )
-        # Справочники из миграции (причины, характеристика «категория») не трогаем,
-        # пользовательские — удаляем.
+        # Справочники из миграции (причины, категории, выведенная из действия характеристика
+        # «категория») не трогаем, пользовательские — удаляем.
         await conn.execute(text("DELETE FROM attribute_definition WHERE code <> 'category'"))
+        await conn.execute(
+            text("DELETE FROM person_category WHERE code NOT IN ('cadet','listener','permanent')")
+        )
+        # Действующая характеристика-перечисление для тестов требований (ADR-0005)
+        await conn.execute(
+            text(
+                "INSERT INTO attribute_definition (id, code, name, value_type, enum_options,"
+                " is_required, sort_order, is_active) VALUES (:id, 'skill', 'Классность', 'enum',"
+                ' \'["1 класс", "2 класс"]\', false, 1, true)'
+            ),
+            {"id": SKILL_ID},
+        )
         await conn.execute(
             text(
                 "DELETE FROM exemption_reason WHERE code NOT IN ('illness','leave','trip','other')"
@@ -205,9 +222,14 @@ async def internal(app: FastAPI) -> AsyncIterator[AsyncClient]:
 async def add_person(
     client: AsyncClient, unit_id: uuid.UUID, last: str, first: str = "Иван", **extra: object
 ) -> dict[str, object]:
-    r = await client.post(
-        "/people", json={"unit_id": str(unit_id), "last_name": last, "first_name": first, **extra}
-    )
+    body = {
+        "unit_id": str(unit_id),
+        "last_name": last,
+        "first_name": first,
+        "category_id": str(CADET),
+        **extra,
+    }
+    r = await client.post("/people", json=body)
     assert r.status_code == 201, r.text
     data: dict[str, object] = r.json()
     return data

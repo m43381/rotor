@@ -5,7 +5,7 @@ import { expect, test, type Page } from '@playwright/test'
 const PASSWORD = 'demo-password-1'
 
 async function login(page: Page, username: string) {
-  await page.goto('/')
+  await page.goto('/units')
   await page.locator('#username').fill(username)
   await page.locator('#password').fill(PASSWORD)
   await page.locator('#kc-login').click()
@@ -36,7 +36,8 @@ test('оператор курса видит только своё поддер�
 test('наблюдатель не может менять структуру', async ({ page }) => {
   await login(page, 'faculty_viewer')
   await expect(row(page, 'Инженерный факультет')).toBeVisible()
-  const actions = page.locator('.p-treetable-tbody button[aria-label]')
+  // Изменяющие действия; переход к графику подразделения — только навигация
+  const actions = page.locator('.p-treetable-tbody button[aria-label]:not([aria-label="График нарядов"])')
   const count = await actions.count()
   expect(count).toBeGreaterThan(0)
   for (let i = 0; i < count; i++) await expect(actions.nth(i)).toBeDisabled()

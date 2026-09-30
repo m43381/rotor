@@ -1,8 +1,11 @@
 """Демо-наряды и допуски стенда через API scheduling и personnel (после seed_org и seed_people).
 
-Наряды разных уровней и длительности (ADR-0008), состав по ролям с требованиями (ADR-0009):
+Наряды разных уровней и длительности (ADR-0008), состав по ролям с требованиями (ADR-0009),
+категориями личного состава и закреплением ролей (ADR-0018), весом нагрузки у роли
+(ADR-0019):
 - академия: дежурный по академии (офицеры) и вечерний патруль на 6 часов;
-- факультет: наряд по факультету (дежурный — офицер, помощник — курсант-сержант);
+- факультет: наряд по факультету (дежурный — офицер, помощник — курсант-сержант
+  4 курса: роль закреплена за курсом и уходит ему автоматически);
 - курс: суточный наряд (дежурный — командир отделения или замкомвзвода, дневальные).
 
 Допуски выдаются массово тем, кто проходит требования, плюс один демонстрационный допуск
@@ -22,8 +25,6 @@ import httpx
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from tools.gen.seed_org import FACULTIES, check, read_env, token, verify
 
-OFFICER = {"code": "category", "op": "eq", "value": "Постоянный состав"}
-CADET = {"code": "category", "op": "eq", "value": "Курсант"}
 COURSES_PER_FACULTY = 4
 
 
@@ -49,6 +50,9 @@ def main() -> int:
         root = get("/api/org/me")["unit"]["id"]
         ranks = {r["name"]: r["order"] for r in get("/api/org/ranks")}
         positions = {p["name"]: p["id"] for p in get("/api/personnel/positions")}
+        categories = {c["name"]: c["id"] for c in get("/api/personnel/person-categories")}
+        officer = [categories["Постоянный состав"]]
+        cadet = [categories["Курсант"]]
         existing = {
             (t["owner_unit_id"], t["name"])
             for t in get("/api/scheduling/duty-types", include_inactive="true")
@@ -82,17 +86,18 @@ def main() -> int:
             [
                 role(
                     "Дежурный по академии",
+                    load_weight=1.5,
                     min_rank_order=ranks["Капитан"],
-                    attribute_requirements=[OFFICER],
+                    allowed_category_ids=officer,
                 ),
                 role(
                     "Помощник дежурного по академии",
+                    load_weight=1.25,
                     min_rank_order=ranks["Лейтенант"],
-                    attribute_requirements=[OFFICER],
+                    allowed_category_ids=officer,
                 ),
             ],
             short_name="ДпА",
-            load_weight=1.5,
         )
         duty(
             root,
@@ -100,11 +105,10 @@ def main() -> int:
             "20:00",
             6,
             [
-                role("Старший патруля", attribute_requirements=[OFFICER]),
-                role("Патрульный", 2, attribute_requirements=[CADET]),
+                role("Старший патруля", allowed_category_ids=officer, load_weight=0.6),
+                role("Патрульный", 2, allowed_category_ids=cadet, load_weight=0.5),
             ],
             rest_hours=24,
-            load_weight=0.5,
         )
         for fi, faculty in enumerate(FACULTIES, start=1):
             f_id = units[faculty]["id"]
@@ -114,11 +118,12 @@ def main() -> int:
                 "18:00",
                 24,
                 [
-                    role("Дежурный по факультету", attribute_requirements=[OFFICER]),
+                    role("Дежурный по факультету", allowed_category_ids=officer, load_weight=1.25),
                     role(
                         "Помощник дежурного по факультету",
                         min_rank_order=ranks["Младший сержант"],
-                        attribute_requirements=[CADET],
+                        allowed_category_ids=cadet,
+                        assigned_unit_id=units[f"{COURSES_PER_FACULTY} курс, факультет {fi}"]["id"],
                     ),
                 ],
                 short_name="НпФ",
@@ -137,13 +142,37 @@ def main() -> int:
                                 positions["Командир отделения"],
                                 positions["Заместитель командира взвода"],
                             ],
-                            attribute_requirements=[CADET],
+                            allowed_category_ids=cadet,
                         ),
-                        role("Дневальный", 2, attribute_requirements=[CADET]),
+                        role("Дневальный", 2, allowed_category_ids=cadet, load_weight=0.8),
                     ],
                     short_name="СН",
                 )
         print(f"Добавлено нарядов: {created}")
+
+        # Закрепление помощника дежурного по факультету за старшим курсом (ADR-0018) — и на
+        # стендах, где наряд был создан раньше: роль обновляется, если закрепления ещё нет.
+        pinned = 0
+        for t in get("/api/scheduling/duty-types"):
+            if t["name"] != "Наряд по факультету" or not t["can_edit"]:
+                continue
+            owner = t["owner_unit_id"]
+            num = next((i for i, f in enumerate(FACULTIES, 1) if units[f]["id"] == owner), None)
+            senior = units.get(f"{COURSES_PER_FACULTY} курс, факультет {num}") if num else None
+            for r in t["roles"]:
+                helper = r["name"] == "Помощник дежурного по факультету"
+                if not helper or r["assigned_unit_id"] or not senior:
+                    continue
+                keys = (
+                    "name", "code", "headcount", "load_weight", "sort_order", "min_rank_order",
+                    "allowed_position_ids", "attribute_requirements", "allowed_category_ids",
+                    "is_active", "version",
+                )  # fmt: skip
+                body = {k: r[k] for k in keys} | {"assigned_unit_id": senior["id"]}
+                check(http.put(f"/api/scheduling/duty-roles/{r['id']}", headers=h, json=body))
+                pinned += 1
+        if pinned:
+            print(f"Закреплено ролей за курсами: {pinned}")
 
         # Требования ролей доходят до personnel событиями — ждём, пока появятся все роли.
         all_types = get("/api/scheduling/duty-types")

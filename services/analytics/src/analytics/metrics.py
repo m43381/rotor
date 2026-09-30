@@ -6,27 +6,86 @@
   metrics`, `docs/experiments.md`): σ, коэффициент Джини, индекс Джайна, размах. Считается
   среди людей, у которых в периоде был хотя бы один наряд: допусков read-model не знает.
 - Scope — поддерево, как у личного состава: общая политика и проекция подразделений.
+- Разрезы (фаза 8, ADR-0020): группировка фактов по одному или двум измерениям средствами
+  SQL — подразделение, наряд, роль, категория и звание человека, день недели, месяц,
+  источник назначения, тип дня; распределение нагрузки на человека по группам (квартили);
+  календарь по дням; кто в наряде в заданный день.
 """
 
 import datetime as dt
 import math
 import uuid
 from collections import defaultdict
-from typing import Any
+from typing import Any, Literal
 
-from sqlalchemy import Integer, Select, func, select
+from sqlalchemy import Integer, Select, String, case, cast, func, null, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from analytics.models import DutyFact
+from analytics.models import CategoryDim, DutyFact, PersonDim
 from dutyflow_common.context import Operator
 from dutyflow_common.errors import NotFoundError, ValidationFailedError
 from dutyflow_common.ltree import is_descendant_or_self
 from dutyflow_common.policy import Policy, default_policy
-from dutyflow_common.projections import UnitProjection, unit_path
+from dutyflow_common.projections import RankProjection, UnitProjection, unit_path
 from dutyflow_common.scope import in_scope
 
 MAX_DAYS = 400
 TOP = 10
+ROSTER_LIMIT = 500
+
+type Dimension = Literal[
+    "unit", "duty_type", "role", "category", "rank", "weekday", "month", "source", "day_kind"
+]
+WEEKDAYS = ["", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+SOURCES = {"manual": "Вручную", "auto": "Автоматически"}
+
+
+def _name(dim: str | None) -> Any:
+    """Подпись группы из самих фактов — для наряда и роли; для остальных измерений пусто."""
+    if dim == "duty_type":
+        return func.max(DutyFact.duty_type_name)
+    if dim == "role":
+        return func.max(
+            func.coalesce(DutyFact.duty_type_name, "")
+            + " — "
+            + func.coalesce(DutyFact.role_name, "")
+        )
+    return func.max(cast(null(), String))
+
+
+def lorenz(values: list[float], points: int = 20) -> list[list[float]]:
+    """Кривая Лоренца: доля людей (по возрастанию нагрузки) → доля всей нагрузки."""
+    ordered = sorted(values)
+    total = sum(ordered)
+    n = len(ordered)
+    if n == 0 or total <= 0:
+        return [[0.0, 0.0], [1.0, 1.0]]
+    result = [[0.0, 0.0]]
+    for k in range(1, points + 1):
+        m = round(n * k / points)
+        result.append([round(k / points, 4), round(sum(ordered[:m]) / total, 4)])
+    return result
+
+
+def quantiles(values: list[float]) -> dict[str, float]:
+    """Пять чисел для «ящика с усами» и среднее."""
+    ordered = sorted(values)
+    n = len(ordered)
+
+    def q(p: float) -> float:
+        pos = (n - 1) * p
+        lo = math.floor(pos)
+        hi = min(lo + 1, n - 1)
+        return ordered[lo] + (ordered[hi] - ordered[lo]) * (pos - lo)
+
+    return {
+        "min": round(ordered[0], 3),
+        "q1": round(q(0.25), 3),
+        "median": round(q(0.5), 3),
+        "q3": round(q(0.75), 3),
+        "max": round(ordered[-1], 3),
+        "mean": round(sum(ordered) / n, 3),
+    }
 
 
 def fairness(values: list[float]) -> dict[str, float]:
@@ -199,6 +258,7 @@ class MetricsService:
             ],
             "top": ranked[:TOP],
             "bottom": ranked[::-1][:TOP],
+            "lorenz": lorenz(loads),
         }
 
     async def people(
@@ -245,3 +305,263 @@ class MetricsService:
             "limit": limit,
             "offset": offset,
         }
+
+    # --- разрезы (фаза 8) --------------------------------------------------------------------
+
+    def _dimension(self, dim: Dimension, unit: UnitProjection, path: Any) -> Any:
+        """SQL-выражение ключа группы. Подразделение — ветка прямого дочернего (или само)."""
+        match dim:
+            case "unit":
+                depth = unit.path.count(".") + 1
+                return case(
+                    (func.nlevel(path) > depth, cast(func.subpath(path, 0, depth + 1), String)),
+                    else_=None,
+                )
+            case "duty_type":
+                return DutyFact.duty_type_id
+            case "role":
+                return DutyFact.duty_role_id
+            case "category":
+                return PersonDim.category_id
+            case "rank":
+                return PersonDim.rank_id
+            case "weekday":
+                return cast(func.extract("isodow", DutyFact.date), Integer)
+            case "month":
+                return func.to_char(DutyFact.date, "YYYY-MM")
+            case "source":
+                return DutyFact.source
+            case "day_kind":
+                return DutyFact.holiday
+        raise ValidationFailedError("Неизвестное измерение")  # pragma: no cover
+
+    async def _labels(
+        self, dim: Dimension, unit: UnitProjection, keys: set[Any]
+    ) -> dict[Any, tuple[str, float]]:
+        """Подпись и порядок сортировки каждого значения измерения."""
+        labels: dict[Any, tuple[str, float]] = {}
+        match dim:
+            case "unit":
+                children = {
+                    c.path: c
+                    for c in await self.session.scalars(
+                        select(UnitProjection).where(UnitProjection.parent_id == unit.unit_id)
+                    )
+                }
+                for k in keys:
+                    if k is None:
+                        labels[k] = (f"{unit.name} (само)", -1)
+                    else:
+                        labels[k] = (children[k].name if k in children else "?", 0)
+            case "category":
+                cats = {
+                    c.category_id: c
+                    for c in await self.session.scalars(
+                        select(CategoryDim).where(
+                            CategoryDim.category_id.in_([k for k in keys if k])
+                        )
+                    )
+                }
+                for k in keys:
+                    c = cats.get(k)
+                    labels[k] = (c.name, c.sort_order) if c else ("Не указана", 10_000)
+            case "rank":
+                ranks = {
+                    r.rank_id: r
+                    for r in await self.session.scalars(
+                        select(RankProjection).where(
+                            RankProjection.rank_id.in_([k for k in keys if k])
+                        )
+                    )
+                }
+                for k in keys:
+                    r = ranks.get(k)
+                    labels[k] = (r.name, -r.order) if r else ("Не указано", 10_000)
+            case "weekday":
+                labels = {k: (WEEKDAYS[k], k) for k in keys}
+            case "month":
+                labels = {k: (k, 0) for k in keys}
+            case "source":
+                labels = {k: (SOURCES.get(k, k), 0) for k in keys}
+            case "day_kind":
+                labels = {k: ("Выходные и праздники" if k else "Будни", int(bool(k))) for k in keys}
+            case _:
+                pass  # наряд и роль: подписи — из самих фактов
+        return labels
+
+    def _facts_people(
+        self, unit: UnitProjection, date_from: dt.date, date_to: dt.date, drafts: bool
+    ) -> Any:
+        return self._facts(unit, date_from, date_to, drafts).outerjoin(
+            PersonDim, PersonDim.person_id == DutyFact.person_id
+        )
+
+    async def breakdown(
+        self,
+        unit_id: uuid.UUID,
+        date_from: dt.date,
+        date_to: dt.date,
+        drafts: bool,
+        dimension: Dimension,
+        split: Dimension | None = None,
+    ) -> dict[str, Any]:
+        """Нагрузка в разрезе одного или двух измерений: наряды, нарядо-сутки, нагрузка, люди."""
+        if split == dimension:
+            split = None
+        unit = await self._unit(unit_id)
+        base = self._facts_people(unit, date_from, date_to, drafts)
+        a = self._dimension(dimension, unit, UnitProjection.path).label("a")
+        b = self._dimension(split, unit, UnitProjection.path).label("b") if split else None
+        columns: list[Any] = [
+            a,
+            *([b] if b is not None else []),
+            func.count().label("duties"),
+            func.sum(DutyFact.occupied_days).label("duty_days"),
+            func.sum(DutyFact.load).label("load"),
+            func.count(func.distinct(DutyFact.person_id)).label("people"),
+            func.sum(cast(DutyFact.holiday, Integer)).label("holidays"),
+            _name(dimension).label("a_name"),
+            _name(split).label("b_name"),
+        ]
+        group = [a, *([b] if b is not None else [])]
+        rows = (await self.session.execute(base.with_only_columns(*columns).group_by(*group))).all()
+        a_labels = await self._labels(dimension, unit, {r.a for r in rows})
+        b_labels = await self._labels(split, unit, {r.b for r in rows}) if split else {}
+
+        def label(dim: Dimension | None, key: Any, name: str | None, table: dict[Any, Any]) -> str:
+            if dim in ("duty_type", "role"):
+                return name or "?"
+            return str(table.get(key, (key, 0))[0])
+
+        items = [
+            {
+                "key": None if r.a is None else str(r.a),
+                "label": label(dimension, r.a, r.a_name, a_labels),
+                "order": a_labels.get(r.a, ("", 0))[1],
+                "split_key": None if not split or r.b is None else str(r.b),
+                "split_label": label(split, r.b, r.b_name, b_labels) if split else None,
+                "split_order": b_labels.get(r.b, ("", 0))[1] if split else 0,
+                "duties": r.duties,
+                "duty_days": int(r.duty_days or 0),
+                "load": round(float(r.load or 0), 2),
+                "people": r.people,
+                "holidays": int(r.holidays or 0),
+                "load_per_person": round(float(r.load or 0) / r.people, 2) if r.people else 0.0,
+            }
+            for r in rows
+        ]
+        items.sort(key=lambda i: (i["order"], i["label"], i["split_order"], i["split_label"] or ""))
+        return {"dimension": dimension, "split": split, "items": items}
+
+    async def distribution(
+        self,
+        unit_id: uuid.UUID,
+        date_from: dt.date,
+        date_to: dt.date,
+        drafts: bool,
+        dimension: Dimension,
+    ) -> dict[str, Any]:
+        """Нагрузка на человека внутри каждой группы: квартили, среднее, Джини."""
+        unit = await self._unit(unit_id)
+        a = self._dimension(dimension, unit, UnitProjection.path).label("a")
+        rows = (
+            await self.session.execute(
+                self._facts_people(unit, date_from, date_to, drafts)
+                .with_only_columns(
+                    a,
+                    DutyFact.person_id,
+                    func.sum(DutyFact.load).label("load"),
+                    _name(dimension).label("a_name"),
+                )
+                .group_by(a, DutyFact.person_id)
+            )
+        ).all()
+        groups: dict[Any, list[float]] = defaultdict(list)
+        group_names: dict[Any, str | None] = {}
+        for r in rows:
+            groups[r.a].append(float(r.load))
+            group_names[r.a] = r.a_name
+        labels = await self._labels(dimension, unit, set(groups))
+        items = []
+        for key, values in groups.items():
+            name = (
+                group_names.get(key) or "?"
+                if dimension in ("duty_type", "role")
+                else labels.get(key, (str(key), 0))[0]
+            )
+            items.append(
+                {
+                    "key": None if key is None else str(key),
+                    "label": name,
+                    "order": labels.get(key, ("", 0))[1],
+                    "people": len(values),
+                    **quantiles(values),
+                    "gini": fairness(values)["gini"],
+                }
+            )
+        items.sort(key=lambda i: (i["order"], i["label"]))
+        return {"dimension": dimension, "items": items}
+
+    async def calendar(
+        self, unit_id: uuid.UUID, date_from: dt.date, date_to: dt.date, drafts: bool
+    ) -> list[dict[str, Any]]:
+        """По дням заступления: наряды, нагрузка, люди."""
+        unit = await self._unit(unit_id)
+        rows = (
+            await self.session.execute(
+                self._facts(unit, date_from, date_to, drafts)
+                .with_only_columns(
+                    DutyFact.date,
+                    func.count().label("duties"),
+                    func.sum(DutyFact.load).label("load"),
+                    func.count(func.distinct(DutyFact.person_id)).label("people"),
+                )
+                .group_by(DutyFact.date)
+                .order_by(DutyFact.date)
+            )
+        ).all()
+        return [
+            {
+                "date": r.date,
+                "duties": r.duties,
+                "load": round(float(r.load), 2),
+                "people": r.people,
+            }
+            for r in rows
+        ]
+
+    async def roster(self, unit_id: uuid.UUID, day: dt.date) -> list[dict[str, Any]]:
+        """Кто в наряде в этот день (наряды, пересекающие сутки), включая черновики."""
+        unit = await self._unit(unit_id)
+        rows = (
+            await self.session.execute(
+                select(DutyFact, UnitProjection.name)
+                .join(UnitProjection, UnitProjection.unit_id == DutyFact.unit_id)
+                .where(
+                    is_descendant_or_self(UnitProjection.path, unit.path),
+                    DutyFact.date >= day - dt.timedelta(days=7),
+                    DutyFact.date <= day,
+                )
+                .order_by(DutyFact.start_at, DutyFact.duty_type_name, DutyFact.role_name)
+                .limit(ROSTER_LIMIT * 4)
+            )
+        ).all()
+        result = []
+        for f, unit_name in rows:
+            # Сутки наряда: от даты заступления на число занятых суток
+            if not (f.date <= day <= f.date + dt.timedelta(days=f.occupied_days - 1)):
+                continue
+            result.append(
+                {
+                    "person_id": f.person_id,
+                    "person_name": f.person_name,
+                    "unit_name": unit_name,
+                    "duty_type_name": f.duty_type_name,
+                    "role_name": f.role_name,
+                    "date": f.date,
+                    "start_at": f.start_at,
+                    "end_at": f.end_at,
+                    "schedule_status": f.schedule_status,
+                }
+            )
+        return result[:ROSTER_LIMIT]

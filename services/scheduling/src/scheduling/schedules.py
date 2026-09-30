@@ -6,7 +6,10 @@
   меняется исполнитель, а в графике дочернего появляется входящая ячейка `pending`;
 - дочернее принимает её или делегирует дальше (это тоже принятие); отклонения и сроков нет;
 - смена решения удаляет цепочку вниз каскадом БД;
-- состояние ячейки для таблицы (8 классов legacy) вычисляется одним JOIN с дочерней ячейкой.
+- состояние ячейки для таблицы (8 классов legacy) вычисляется одним JOIN с дочерней ячейкой;
+- ячейки роли, закреплённой за подразделением (ADR-0018), сами проходят цепочку до него:
+  промежуточные звенья принимают и передают дальше, закреплённое ждёт принятия. Звенья
+  до закреплённого подразделения поменять решение не могут.
 
 Все операции пакетные: одна операция — несколько запросов независимо от числа ячеек.
 """
@@ -18,7 +21,7 @@ from collections import defaultdict
 from collections.abc import Iterable, Sequence
 from typing import Any
 
-from sqlalchemy import delete, exists, func, select, update
+from sqlalchemy import ColumnElement, delete, exists, func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,7 +39,7 @@ from dutyflow_common.errors import (
     ValidationFailedError,
 )
 from dutyflow_common.ids import uuid7
-from dutyflow_common.ltree import is_descendant_or_self
+from dutyflow_common.ltree import is_ancestor_or_self, is_descendant_or_self
 from dutyflow_common.outbox import add_event
 from dutyflow_common.policy import Policy, default_policy
 from dutyflow_common.projections import UnitProjection, unit_path
@@ -57,6 +60,10 @@ from scheduling.schemas import (
 )
 
 INSERT_CHUNK = 1000
+
+
+class RoleLockedError(ValidationFailedError):
+    """Ячейки закреплённой роли передаются автоматически — вручную их не переставить."""
 
 
 class AssignmentsExistError(AppError):
@@ -143,10 +150,15 @@ async def materialize_own_cells(
     session: AsyncSession,
     schedules: Sequence[Schedule],
     role_ids: Iterable[uuid.UUID] | None = None,
+    *,
+    route_from: dt.date | None = None,
 ) -> int:
-    """Добавляет недостающие ячейки действующих ролей своих нарядов. Идемпотентно."""
+    """Добавляет недостающие ячейки действующих ролей своих нарядов и проводит ячейки
+    закреплённых ролей до закреплённого подразделения (с даты `route_from`). Идемпотентно."""
     if not schedules:
         return 0
+    if role_ids is not None:
+        role_ids = set(role_ids)
     owners = {s.unit_id for s in schedules}
     stmt = (
         select(DutyRole.id, DutyRole.duty_type_id, DutyType.owner_unit_id)
@@ -164,7 +176,259 @@ async def materialize_own_cells(
         for type_id, role_id in roles.get(s.unit_id, [])
         for day in month_days(s.month)
     ]
-    return await _insert_cells(session, rows)
+    inserted = await _insert_cells(session, rows)
+    await route_pinned_cells(session, schedules, role_ids, from_date=route_from)
+    return inserted
+
+
+# --- закреплённые роли (ADR-0018) --------------------------------------------------------------
+
+
+async def get_or_create_schedule(
+    session: AsyncSession, unit_id: uuid.UUID, month: dt.date
+) -> tuple[Schedule, bool]:
+    """График подразделения на месяц; новый — с ячейками своих нарядов. Без проверки прав:
+    графики создаются и автоматически, при делегировании."""
+    month = month_start(month)
+    # Вставка «если нет» — два оператора не должны получить два графика одного месяца.
+    result = await session.execute(
+        insert(Schedule)
+        .values(id=uuid7(), unit_id=unit_id, month=month, status="draft", version=1)
+        .on_conflict_do_nothing(index_elements=[Schedule.unit_id, Schedule.month])
+        .returning(Schedule.id)
+    )
+    created_id = result.scalar_one_or_none()
+    schedule = await session.scalar(
+        select(Schedule).where(Schedule.unit_id == unit_id, Schedule.month == month)
+    )
+    assert schedule is not None
+    if created_id is not None:
+        await materialize_own_cells(session, [schedule])
+        audit.record(
+            session,
+            action="schedule.create",
+            entity_type="schedule",
+            entity_id=schedule.id,
+            scope_unit_id=unit_id,
+            after={"unit_id": unit_id, "month": month},
+        )
+    return schedule, created_id is not None
+
+
+async def pin_hops(
+    session: AsyncSession, owner_unit_id: uuid.UUID, assigned_unit_id: uuid.UUID
+) -> list[UnitProjection] | None:
+    """Звенья цепочки от прямого дочернего владельца до закреплённого подразделения включительно.
+    [] — роль закреплена за самим владельцем; None — закреплённое подразделение не найдено,
+    расформировано или вне поддерева владельца (ячейки тогда остаются у владельца)."""
+    if assigned_unit_id == owner_unit_id:
+        return []
+    owner = await session.get(UnitProjection, owner_unit_id)
+    target = await session.get(UnitProjection, assigned_unit_id)
+    if owner is None or target is None or not target.is_active:
+        return None
+    if not _is_below(owner.path, target.path):
+        return None
+    units = list(
+        await session.scalars(
+            select(UnitProjection).where(
+                is_ancestor_or_self(UnitProjection.path, target.path),
+                is_descendant_or_self(UnitProjection.path, owner.path),
+                UnitProjection.unit_id != owner_unit_id,
+            )
+        )
+    )
+    return sorted(units, key=lambda u: len(u.path.split(".")))
+
+
+def _is_below(ancestor: str, path: str) -> bool:
+    a, p = ancestor.split("."), path.split(".")
+    return len(p) > len(a) and p[: len(a)] == a
+
+
+async def route_pinned_cells(
+    session: AsyncSession,
+    schedules: Sequence[Schedule],
+    role_ids: Iterable[uuid.UUID] | None = None,
+    *,
+    from_date: dt.date | None = None,
+) -> int:
+    """Проводит свои ячейки закреплённых ролей по цепочке до закреплённого подразделения:
+    у владельца и промежуточных звеньев ячейка передана дальше и закреплена (`is_pinned`),
+    у закреплённого — входящая и ждёт принятия. Правильные цепочки не трогает.
+
+    Возвращает число ячеек, которые перестроить нельзя: в их цепочке уже назначены люди
+    (снимать людей молча нельзя) или график звена в архиве. Все операции пакетные."""
+    owners = {s.unit_id for s in schedules if s.status != "archived"}
+    if not owners:
+        return 0
+    stmt = (
+        select(DutyRole.id, DutyRole.assigned_unit_id, DutyType.owner_unit_id)
+        .join(DutyType, DutyType.id == DutyRole.duty_type_id)
+        .where(
+            DutyType.owner_unit_id.in_(owners),
+            DutyRole.is_active,
+            DutyType.is_active,
+            DutyRole.assigned_unit_id.is_not(None),
+            DutyRole.assigned_unit_id != DutyType.owner_unit_id,
+        )
+    )
+    if role_ids is not None:
+        stmt = stmt.where(DutyRole.id.in_(set(role_ids)))
+    roles = (await session.execute(stmt)).all()
+    skipped = 0
+    for role_id, assigned_id, owner_id in roles:
+        assert assigned_id is not None  # отобраны только закреплённые
+        hops = await pin_hops(session, owner_id, assigned_id)
+        if not hops:
+            continue
+        own = {s.id: s for s in schedules if s.unit_id == owner_id and s.status != "archived"}
+        skipped += await _route_role(session, own, role_id, hops, from_date)
+    return skipped
+
+
+async def _route_role(
+    session: AsyncSession,
+    own: dict[uuid.UUID, Schedule],
+    role_id: uuid.UUID,
+    hops: list[UnitProjection],
+    from_date: dt.date | None,
+) -> int:
+    root_filter: list[ColumnElement[bool]] = [
+        DayPlan.schedule_id.in_(list(own)),
+        DayPlan.duty_role_id == role_id,
+        DayPlan.origin == "own",
+    ]
+    if from_date is not None:
+        root_filter.append(DayPlan.date >= from_date)
+    roots = {c.id: c for c in await session.scalars(select(DayPlan).where(*root_filter))}
+    if not roots:
+        return 0
+    chain = chain_cte(DayPlan.id.in_(list(roots)))
+    below: dict[uuid.UUID, DayPlan] = {}  # родитель → дочерняя ячейка цепочки
+    for cell in await session.scalars(
+        select(DayPlan).join(chain, chain.c.id == DayPlan.id).where(DayPlan.id.not_in(roots))
+    ):
+        if cell.parent_day_plan_id is not None:
+            below[cell.parent_day_plan_id] = cell
+    busy: set[uuid.UUID] = set(
+        await session.scalars(
+            select(chain.c.root).join(Assignment, Assignment.day_plan_id == chain.c.id).distinct()
+        )
+    )
+    targets = [h.unit_id for h in hops]
+
+    def correct(root: DayPlan) -> bool:
+        cell: DayPlan | None = root
+        for hop in targets:
+            if cell is None or cell.executor_unit_id != hop or not cell.is_pinned:
+                return False
+            cell = below.get(cell.id)
+        return cell is not None  # ячейка у закреплённого подразделения есть
+
+    wrong = [c for c in roots.values() if not correct(c)]
+    skipped = sum(c.id in busy for c in wrong)
+    wrong = [c for c in wrong if c.id not in busy]
+    if not wrong:
+        return skipped
+
+    # Графики звеньев по месяцам; архивный график звена — цепочку не построить
+    months = {own[c.schedule_id].month for c in wrong}
+    chain_schedules: dict[dt.date, list[Schedule]] = {}
+    for month in sorted(months):
+        linked = [(await get_or_create_schedule(session, h, month))[0] for h in targets]
+        if any(s.status == "archived" for s in linked):
+            continue
+        chain_schedules[month] = linked
+    ready = [c for c in wrong if own[c.schedule_id].month in chain_schedules]
+    skipped += len(wrong) - len(ready)
+    if not ready:
+        return skipped
+    ids = [c.id for c in ready]
+    # Прежние цепочки вниз удаляются (дальше — каскадом по parent_day_plan_id)
+    await session.execute(
+        delete(DayPlan)
+        .where(DayPlan.parent_day_plan_id.in_(ids))
+        .execution_options(synchronize_session=False)
+    )
+    await session.execute(
+        update(DayPlan)
+        .where(DayPlan.id.in_(ids))
+        .values(executor_unit_id=targets[0], is_pinned=True, version=DayPlan.version + 1)
+        .execution_options(synchronize_session=False)
+    )
+    parents = {c.id: c.id for c in ready}  # корень → ячейка предыдущего звена
+    last = len(targets) - 1
+    for level, hop in enumerate(targets):
+        rows = []
+        for c in ready:
+            cell_id = uuid7()
+            rows.append(
+                {
+                    "id": cell_id,
+                    "schedule_id": chain_schedules[own[c.schedule_id].month][level].id,
+                    "date": c.date,
+                    "duty_type_id": c.duty_type_id,
+                    "duty_role_id": c.duty_role_id,
+                    "origin": "incoming",
+                    "parent_day_plan_id": parents[c.id],
+                    "executor_unit_id": targets[level + 1] if level < last else hop,
+                    "delegation_status": "accepted" if level < last else "pending",
+                    "is_pinned": level < last,
+                    "version": 1,
+                }
+            )
+            parents[c.id] = cell_id
+        await _insert_cells(session, rows)
+    for schedule_id in {c.schedule_id for c in ready}:
+        audit.record(
+            session,
+            action="day_plan.route",
+            entity_type="schedule",
+            entity_id=schedule_id,
+            scope_unit_id=own[schedule_id].unit_id,
+            after={
+                "duty_role_id": role_id,
+                "executor_unit_id": targets[-1],
+                "cells": sum(c.schedule_id == schedule_id for c in ready),
+            },
+        )
+    return skipped
+
+
+async def unpin_role_cells(session: AsyncSession, role_id: uuid.UUID, from_date: dt.date) -> None:
+    """Роль открепили: цепочки остаются как есть, но звенья снова могут менять решение."""
+    await session.execute(
+        update(DayPlan)
+        .where(
+            DayPlan.duty_role_id == role_id,
+            DayPlan.date >= from_date,
+            DayPlan.is_pinned,
+        )
+        .values(is_pinned=False, version=DayPlan.version + 1)
+        .execution_options(synchronize_session=False)
+    )
+
+
+async def locked_cells(
+    session: AsyncSession, cells: Sequence[DayPlan], unit_path: str
+) -> str | None:
+    """Сообщение, если среди ячеек графика подразделения `unit_path` есть ячейки роли,
+    закреплённой за нижестоящим подразделением: решение по ним принимает не график."""
+    role_ids = {c.duty_role_id for c in cells}
+    if not role_ids:
+        return None
+    for name, target, target_path in await session.execute(
+        select(DutyRole.name, UnitProjection.name, UnitProjection.path)
+        .join(UnitProjection, UnitProjection.unit_id == DutyRole.assigned_unit_id)
+        .where(DutyRole.id.in_(role_ids))
+    ):
+        if _is_below(unit_path, target_path):
+            return (
+                f"Роль «{name}» закреплена за подразделением «{target}»: её ячейки передаются "
+                "ему автоматически. Чтобы изменить исполнителя, снимите закрепление в наряде."
+            )
+    return None
 
 
 async def sync_owner_cells(
@@ -185,7 +449,7 @@ async def sync_owner_cells(
     )
     if not schedules or not ids:
         return
-    await materialize_own_cells(session, schedules, ids)
+    await materialize_own_cells(session, schedules, ids, route_from=dt.date.today())
     inactive = (
         select(DutyRole.id)
         .join(DutyType, DutyType.id == DutyRole.duty_type_id)
@@ -279,6 +543,7 @@ class ScheduleService:
                 )
             ).all()
         )
+        fill = await self._fill_stats([s.id for s in schedules])
         result = []
         for s in schedules:
             unit = units.get(s.unit_id)
@@ -297,9 +562,41 @@ class ScheduleService:
                     version=s.version,
                     can_edit=can_edit,
                     pending_incoming=pending.get(s.id, 0),
+                    to_fill=fill.get(s.id, (0, 0))[0],
+                    unfilled=fill.get(s.id, (0, 0))[1],
                 )
             )
         return result
+
+    async def _fill_stats(self, schedule_ids: list[uuid.UUID]) -> dict[uuid.UUID, tuple[int, int]]:
+        """По графикам: сколько ячеек подразделение закрывает само и сколько из них
+        не укомплектовано. Один запрос на пачку графиков."""
+        filled = (
+            select(Assignment.day_plan_id, func.count().label("n"))
+            .join(DayPlan, DayPlan.id == Assignment.day_plan_id)
+            .where(DayPlan.schedule_id.in_(schedule_ids))
+            .group_by(Assignment.day_plan_id)
+            .subquery()
+        )
+        rows = await self.session.execute(
+            select(
+                DayPlan.schedule_id,
+                func.count(),
+                func.count().filter(func.coalesce(filled.c.n, 0) < DutyRole.headcount),
+            )
+            .join(Schedule, Schedule.id == DayPlan.schedule_id)
+            .join(DutyRole, DutyRole.id == DayPlan.duty_role_id)
+            .join(DutyType, DutyType.id == DayPlan.duty_type_id)
+            .outerjoin(filled, filled.c.day_plan_id == DayPlan.id)
+            .where(
+                DayPlan.schedule_id.in_(schedule_ids),
+                DayPlan.executor_unit_id == Schedule.unit_id,
+                DutyRole.is_active,
+                DutyType.is_active,
+            )
+            .group_by(DayPlan.schedule_id)
+        )
+        return {sid: (total, open_) for sid, total, open_ in rows}
 
     async def list_schedules(
         self, month: dt.date, unit_id: uuid.UUID | None = None
@@ -323,31 +620,7 @@ class ScheduleService:
         return (await self._out([schedule]))[0]
 
     async def _get_or_create(self, unit_id: uuid.UUID, month: dt.date) -> tuple[Schedule, bool]:
-        month = month_start(month)
-        # Вставка «если нет» — графики создаются и автоматически при делегировании,
-        # два оператора не должны получить два графика одного месяца.
-        result = await self.session.execute(
-            insert(Schedule)
-            .values(id=uuid7(), unit_id=unit_id, month=month, status="draft", version=1)
-            .on_conflict_do_nothing(index_elements=[Schedule.unit_id, Schedule.month])
-            .returning(Schedule.id)
-        )
-        created_id = result.scalar_one_or_none()
-        schedule = await self.session.scalar(
-            select(Schedule).where(Schedule.unit_id == unit_id, Schedule.month == month)
-        )
-        assert schedule is not None
-        if created_id is not None:
-            await materialize_own_cells(self.session, [schedule])
-            audit.record(
-                self.session,
-                action="schedule.create",
-                entity_type="schedule",
-                entity_id=schedule.id,
-                scope_unit_id=unit_id,
-                after={"unit_id": unit_id, "month": month},
-            )
-        return schedule, created_id is not None
+        return await get_or_create_schedule(self.session, unit_id, month)
 
     async def create(self, unit_id: uuid.UUID, month: dt.date) -> Schedule:
         unit = await self._unit(unit_id)
@@ -385,15 +658,19 @@ class ScheduleService:
         ).all()
         role_ids = {c.duty_role_id for c, _ in cells}
         owner = aliased(UnitProjection)
-        roles = {
-            role.id: (role, duty_type, owner_path, owner_name)
-            for role, duty_type, owner_path, owner_name in await self.session.execute(
-                select(DutyRole, DutyType, owner.path, owner.name)
-                .join(DutyType, DutyType.id == DutyRole.duty_type_id)
-                .outerjoin(owner, owner.unit_id == DutyType.owner_unit_id)
-                .where(DutyRole.id.in_(role_ids))
-            )
-        }
+        pinned_to = aliased(UnitProjection)
+        roles = {}
+        pins: dict[uuid.UUID, tuple[str | None, str | None]] = {}
+        role_rows = await self.session.execute(
+            select(DutyRole, DutyType, owner.path, owner.name, pinned_to.name, pinned_to.path)
+            .join(DutyType, DutyType.id == DutyRole.duty_type_id)
+            .outerjoin(owner, owner.unit_id == DutyType.owner_unit_id)
+            .outerjoin(pinned_to, pinned_to.unit_id == DutyRole.assigned_unit_id)
+            .where(DutyRole.id.in_(role_ids))
+        )
+        for role, duty_type, owner_path, owner_name, pin_name, pin_path in role_rows:
+            roles[role.id] = (role, duty_type, owner_path, owner_name)
+            pins[role.id] = (pin_name, pin_path)
         chain = chain_cte(DayPlan.schedule_id == schedule.id)
         filled: dict[uuid.UUID, int] = dict(
             (
@@ -447,6 +724,10 @@ class ScheduleService:
                 role_name=role.name,
                 headcount=role.headcount,
                 is_active=role.is_active and duty_type.is_active,
+                assigned_unit_id=role.assigned_unit_id,
+                assigned_unit_name=pins[role.id][0],
+                # Решение по ячейкам роли принимает не этот график, а закреплённое подразделение
+                locked=bool(pins[role.id][1] and _is_below(unit.path, pins[role.id][1] or "")),
                 cells=by_role[role.id],
             )
             for role, duty_type, _, owner_name in ordered
@@ -520,6 +801,9 @@ class ScheduleService:
             if not executor.is_active:
                 raise ValidationFailedError("Подразделение расформировано")
         cells = await self._cells(schedule, cell_ids)
+        locked = await locked_cells(self.session, cells, unit.path)
+        if locked:
+            raise RoleLockedError(locked)
         active = set(
             await self.session.scalars(
                 select(DutyRole.id)
@@ -677,6 +961,10 @@ class ScheduleService:
         """Закрепить выбор исполнителя: автораспределение (фаза 4) его не пересматривает."""
         schedule, unit = await self._schedule(schedule_id, "update")
         cells = [c for c in await self._cells(schedule, cell_ids) if c.is_pinned != pinned]
+        if not pinned:
+            locked = await locked_cells(self.session, cells, unit.path)
+            if locked:
+                raise RoleLockedError(locked)
         for c in cells:
             c.is_pinned = pinned
         if not cells:

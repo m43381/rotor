@@ -25,6 +25,8 @@ COLUMNS = (
     "schedule_status",
     "duty_type_id",
     "duty_role_id",
+    "duty_type_name",
+    "role_name",
     "date",
     "start_at",
     "end_at",
@@ -45,6 +47,9 @@ def row(payload: dict[str, Any]) -> dict[str, Any]:
         "schedule_status": str(payload["schedule_status"]),
         "duty_type_id": uuid.UUID(str(payload["duty_type_id"])),
         "duty_role_id": uuid.UUID(str(payload["duty_role_id"])),
+        # Названия есть в событиях с фазы 8
+        "duty_type_name": payload.get("duty_type_name"),
+        "role_name": payload.get("role_name"),
         "date": dt.date.fromisoformat(str(payload["date"])),
         "start_at": dt.datetime.fromisoformat(str(payload["start_at"])),
         "end_at": dt.datetime.fromisoformat(str(payload["end_at"])),

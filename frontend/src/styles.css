@@ -11,7 +11,77 @@
     sans-serif;
   font-size: 14px;
   color: var(--p-text-color);
-  background: var(--p-surface-50);
+  background: var(--app-bg);
+
+  /* Токены интерфейса (фаза 8). Тёмная тема переопределяет их ниже — компоненты пишутся
+     против ролей, а не конкретных цветов. */
+  --app-radius: 8px;
+  --app-gap: 0.75rem;
+  --app-bg: #f5f5f2;
+  --app-card-bg: #ffffff;
+  --app-subtle: #f9f9f7;
+  --app-hover: #f0efec;
+  --app-border: #e1e0d9;
+  --app-border-strong: #c3c2b7;
+  --app-ink: #0b0b0b;
+  --app-ink-2: #52514e;
+  --app-ink-3: #898781;
+  --app-accent: #256abf;
+  --app-accent-soft: #eef5fd;
+  --app-sidebar-bg: #fbfbf9;
+  --app-sidebar-width: 15rem;
+  --app-sidebar-collapsed: 3.75rem;
+
+  /* Состояния — всегда вместе с подписью или значком, не одним цветом */
+  --state-good: #0ca30c;
+  --state-warn: #fab219;
+  --state-serious: #ec835a;
+  --state-critical: #d03b3b;
+
+  --chip-unit-bg: #e3eefb;
+  --chip-unit-fg: #184f95;
+  --chip-category-bg: #ece9f8;
+  --chip-category-fg: #4a3aa7;
+  --chip-rank-bg: #fbf0d6;
+  --chip-rank-fg: #7a4f00;
+  --chip-req-bg: #f0efec;
+  --chip-req-fg: #52514e;
+  --chip-ok-bg: #e2f3e2;
+  --chip-ok-fg: #006300;
+  --chip-warn-bg: #fdeadf;
+  --chip-warn-fg: #9a3d12;
+  --chip-danger-bg: #fbe4e4;
+  --chip-danger-fg: #a12a2a;
+}
+
+.app-dark {
+  --app-bg: #0f0f0e;
+  --app-card-bg: #1a1a19;
+  --app-subtle: #202020;
+  --app-hover: #252523;
+  --app-border: #2c2c2a;
+  --app-border-strong: #383835;
+  --app-ink: #f4f3ef;
+  --app-ink-2: #c3c2b7;
+  --app-ink-3: #898781;
+  --app-accent: #6da7ec;
+  --app-accent-soft: #16263b;
+  --app-sidebar-bg: #141413;
+
+  --chip-unit-bg: #16263b;
+  --chip-unit-fg: #86b6ef;
+  --chip-category-bg: #221f3b;
+  --chip-category-fg: #b3abf1;
+  --chip-rank-bg: #33280f;
+  --chip-rank-fg: #e8b94a;
+  --chip-req-bg: #252523;
+  --chip-req-fg: #c3c2b7;
+  --chip-ok-bg: #122a12;
+  --chip-ok-fg: #5fcf5f;
+  --chip-warn-bg: #36200f;
+  --chip-warn-fg: #f09a6c;
+  --chip-danger-bg: #3a1616;
+  --chip-danger-fg: #f08a8a;
 }
 
 html,
@@ -21,8 +91,129 @@ body,
   height: 100%;
 }
 
+/* Цифры в таблицах и сводках выравниваются по разрядам */
+.num,
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
 /* Недоступные для выбора узлы в TreeSelect (оверлей рисуется вне компонентов, поэтому стиль глобальный). */
 .move-target-disabled > .p-tree-node-content {
   opacity: 0.45;
   cursor: default;
+}
+
+/* --- Метки («чипы»): короткие смысловые пометки — закрепление, категория, звание… --------- */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  white-space: nowrap;
+  background: var(--chip-req-bg);
+  color: var(--chip-req-fg);
+}
+.chip .pi {
+  font-size: 0.72rem;
+}
+.chip--unit {
+  background: var(--chip-unit-bg);
+  color: var(--chip-unit-fg);
+}
+.chip--category {
+  background: var(--chip-category-bg);
+  color: var(--chip-category-fg);
+}
+.chip--rank {
+  background: var(--chip-rank-bg);
+  color: var(--chip-rank-fg);
+}
+.chip--ok {
+  background: var(--chip-ok-bg);
+  color: var(--chip-ok-fg);
+}
+.chip--warn {
+  background: var(--chip-warn-bg);
+  color: var(--chip-warn-fg);
+}
+.chip--danger {
+  background: var(--chip-danger-bg);
+  color: var(--chip-danger-fg);
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+/* Точка состояния перед подписью */
+.dot {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--app-ink-3);
+  flex: none;
+}
+.dot--good {
+  background: var(--state-good);
+}
+.dot--warn {
+  background: var(--state-warn);
+}
+.dot--serious {
+  background: var(--state-serious);
+}
+.dot--critical {
+  background: var(--state-critical);
+}
+
+/* --- Карточки и пояснения ------------------------------------------------------------------ */
+.card {
+  background: var(--app-card-bg);
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  padding: 1rem 1.1rem;
+}
+.panel-title {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--app-ink-3);
+}
+.hint-box {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--app-radius);
+  background: var(--app-subtle);
+  border: 1px solid var(--app-border);
+  color: var(--app-ink-2);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+.hint-box .pi {
+  margin-top: 0.15rem;
+  color: var(--app-accent);
+}
+.empty-state {
+  display: grid;
+  justify-items: center;
+  gap: 0.4rem;
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--p-text-muted-color);
+}
+.empty-state .pi {
+  font-size: 1.6rem;
+  color: var(--app-ink-3);
+}
+.empty-state strong {
+  color: var(--p-text-color);
 }

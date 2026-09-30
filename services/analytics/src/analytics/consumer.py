@@ -3,8 +3,9 @@
 Подразделения — проекция org (`events:unit`, при пустой проекции — полная синхронизация).
 Факты нарядов — `events:assignment` и `events:schedule` от scheduling. При первом запуске
 (фактов нет) read-model заполняется выгрузкой из scheduling — как `analytics.rebuild`.
-Сводный журнал аудита — `events:audit` от всех сервисов; пустой журнал заполняется выгрузкой
-`/internal/audit` из каждого сервиса (фаза 7b).
+Люди и категории для разрезов — `events:person`, `events:person_category` от personnel
+(пустая копия — выгрузкой, фаза 8). Сводный журнал аудита — `events:audit` от всех
+сервисов; пустой журнал заполняется выгрузкой `/internal/audit` из каждого сервиса (фаза 7b).
 """
 
 import asyncio
@@ -18,6 +19,7 @@ from sqlalchemy import func, select
 from analytics.facts import handle_assignment_event, handle_schedule_event
 from analytics.journal import handle_audit_event, rebuild_journal
 from analytics.models import AuditEntry, DutyFact
+from analytics.people import handle_category_event, handle_person_event, resync_people
 from analytics.rebuild import rebuild
 from analytics.settings import AnalyticsSettings
 from dutyflow_common.app import setup_logging
@@ -35,6 +37,7 @@ async def main(settings: AnalyticsSettings) -> None:
     redis = Redis.from_url(settings.redis_url)
     org = InternalClient(settings.org_url, settings.internal_token, retries=10)
     scheduling = InternalClient(settings.scheduling_url, settings.internal_token, retries=10)
+    personnel = InternalClient(settings.personnel_url, settings.internal_token, retries=10)
     sources = {
         name: InternalClient(url, settings.internal_token, retries=3)
         for name, url in settings.audit_sources().items()
@@ -54,6 +57,8 @@ async def main(settings: AnalyticsSettings) -> None:
             "events:assignment": handle_assignment_event,
             "events:schedule": handle_schedule_event,
             "events:audit": handle_audit_event,
+            "events:person": handle_person_event,
+            "events:person_category": handle_category_event,
         },
     )
     try:
@@ -61,6 +66,7 @@ async def main(settings: AnalyticsSettings) -> None:
         # (обработчики идемпотентны)
         await consumer.ensure_groups()
         await resync_org(db.sessionmaker, org, only_if_empty=True)
+        await resync_people(db.sessionmaker, personnel, only_if_empty=True)
         async with db.sessionmaker() as session:
             empty = not await session.scalar(select(func.count()).select_from(DutyFact))
             no_journal = not await session.scalar(select(func.count()).select_from(AuditEntry))
@@ -72,6 +78,7 @@ async def main(settings: AnalyticsSettings) -> None:
     finally:
         await org.aclose()
         await scheduling.aclose()
+        await personnel.aclose()
         for client in sources.values():
             await client.aclose()
         await redis.aclose()

@@ -11,7 +11,6 @@ import { computed, ref, watch } from 'vue'
 
 import type { DutyType, DutyTypeCreate, DutyTypeUpdate, Unit } from '@/api/client'
 import UnitTreeSelect from '@/components/UnitTreeSelect.vue'
-import { useUnitsStore } from '@/stores/units'
 import { formatDuration, formatInterval } from '@/utils/duty'
 
 const props = defineProps<{ dutyType?: DutyType | null; busy: boolean; defaultOwnerId?: string | null }>()
@@ -20,19 +19,16 @@ const emit = defineEmits<{
   create: [value: DutyTypeCreate]
   update: [value: DutyTypeUpdate]
 }>()
-const units = useUnitsStore()
 
 const name = ref('')
 const shortName = ref('')
 const ownerId = ref<string | null>(null)
-const assignedId = ref<string | null>(null)
 const start = ref<Date | null>(null)
 const hours = ref(24)
 const minutes = ref(0)
 const restHours = ref(48)
-const loadWeight = ref(1)
 const active = ref(true)
-const roles = ref<{ name: string; headcount: number }[]>([])
+const roles = ref<{ name: string; headcount: number; weight: number }[]>([])
 
 watch(visible, (open) => {
   if (!open) return
@@ -40,26 +36,16 @@ watch(visible, (open) => {
   name.value = t?.name ?? ''
   shortName.value = t?.short_name ?? ''
   ownerId.value = t?.owner_unit_id ?? props.defaultOwnerId ?? null
-  assignedId.value = t?.assigned_unit_id ?? null
   const [h = 18, m = 0] = (t?.start_time ?? '18:00').split(':').map(Number)
   start.value = new Date(2000, 0, 1, h, m)
   hours.value = Math.floor((t?.duration_minutes ?? 1440) / 60)
   minutes.value = (t?.duration_minutes ?? 1440) % 60
   restHours.value = t?.rest_hours ?? 48
-  loadWeight.value = t?.load_weight ?? 1
   active.value = t?.is_active ?? true
-  roles.value = [{ name: 'Дежурный', headcount: 1 }]
+  roles.value = [{ name: 'Дежурный', headcount: 1, weight: 1 }]
 })
 
-const owner = computed(() => (ownerId.value ? units.byId.get(ownerId.value) : undefined))
 const canOwn = (u: Unit) => u.is_active && u.permissions?.create_child !== false
-// Закреплённое подразделение — внутри поддерева владельца (сам владелец или ниже)
-const insideOwner = (u: Unit) =>
-  !!owner.value && u.is_active && (u.path === owner.value.path || u.path.startsWith(`${owner.value.path}.`))
-watch(ownerId, () => {
-  const a = assignedId.value ? units.byId.get(assignedId.value) : undefined
-  if (a && !insideOwner(a)) assignedId.value = null
-})
 
 const startTime = computed(() => {
   const d = start.value
@@ -81,11 +67,9 @@ function submit() {
   const base = {
     name: name.value.trim(),
     short_name: shortName.value.trim() || null,
-    assigned_unit_id: assignedId.value,
     start_time: startTime.value,
     duration_minutes: duration.value,
     rest_hours: restHours.value,
-    load_weight: loadWeight.value,
   }
   const t = props.dutyType
   if (t) {
@@ -97,6 +81,7 @@ function submit() {
       roles: roles.value.map((r, i) => ({
         name: r.name.trim(),
         headcount: r.headcount,
+        load_weight: r.weight,
         sort_order: i,
         is_active: true,
       })),
@@ -135,17 +120,11 @@ function submit() {
           />
           <InputText v-else id="dt-owner" :model-value="dutyType.owner_unit_name ?? ''" disabled />
         </div>
-        <div class="field grow">
-          <label for="dt-assigned">Закреплён за (необязательно)</label>
-          <UnitTreeSelect
-            v-model="assignedId"
-            input-id="dt-assigned"
-            :selectable="insideOwner"
-            placeholder="Не закреплён"
-            show-clear
-          />
-        </div>
       </div>
+      <p v-if="!dutyType" class="hint">
+        <i class="pi pi-info-circle" /> За каким подразделением закреплена каждая роль и людей какой
+        категории на неё ставить, задаётся в роли после создания наряда.
+      </p>
 
       <div class="row">
         <div class="field">
@@ -162,18 +141,6 @@ function submit() {
         <div class="field">
           <label for="dt-rest">Отдых после, ч</label>
           <InputNumber v-model="restHours" input-id="dt-rest" :min="0" :max="720" class="num" />
-        </div>
-        <div class="field">
-          <label for="dt-weight">Вес нагрузки</label>
-          <InputNumber
-            v-model="loadWeight"
-            input-id="dt-weight"
-            :min="0.1"
-            :max="99"
-            :min-fraction-digits="1"
-            :max-fraction-digits="2"
-            class="num"
-          />
         </div>
       </div>
       <p class="hint" :class="{ error: !durationOk }">
@@ -196,6 +163,17 @@ function submit() {
             class="num"
             :aria-label="`Численность роли ${i + 1}`"
           />
+          <InputNumber
+            v-model="r.weight"
+            v-tooltip.top="'Вес нагрузки роли: нарядо-сутки умножаются на него'"
+            :min="0.1"
+            :max="99"
+            :min-fraction-digits="1"
+            :max-fraction-digits="2"
+            prefix="вес "
+            class="num"
+            :aria-label="`Вес роли ${i + 1}`"
+          />
           <Button
             icon="pi pi-times"
             text
@@ -212,10 +190,13 @@ function submit() {
             icon="pi pi-plus"
             text
             size="small"
-            @click="roles.push({ name: '', headcount: 1 })"
+            @click="roles.push({ name: '', headcount: 1, weight: 1 })"
           />
         </div>
-        <p class="hint">Требования к званию, должности и характеристикам задаются у каждой роли после создания.</p>
+        <p class="hint">
+          Вес нагрузки — у каждой роли: дежурный обычно тяжелее дневального. Требования к званию,
+          должности и категории задаются у роли после создания.
+        </p>
       </template>
       <label v-else class="check">
         <Checkbox v-model="active" binary input-id="dt-active" />

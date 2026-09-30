@@ -1,6 +1,7 @@
 """Личный состав и освобождения."""
 
 import uuid
+from collections.abc import Sequence
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
@@ -20,6 +21,7 @@ from personnel.schemas import (
     PersonOut,
     PersonUpdate,
     TransferIn,
+    UnitCount,
 )
 
 router = APIRouter(tags=["people"])
@@ -34,6 +36,8 @@ async def list_people(
     q: Annotated[str | None, Query(max_length=100)] = None,
     rank_id: Annotated[uuid.UUID | None, Query()] = None,
     position_id: Annotated[uuid.UUID | None, Query()] = None,
+    category_id: Annotated[uuid.UUID | None, Query()] = None,
+    exempt_today: Annotated[bool, Query()] = False,
     include_archived: Annotated[bool, Query()] = False,
 ) -> Page[PersonListItem]:
     flt = PeopleFilter(
@@ -42,9 +46,18 @@ async def list_people(
         q=q,
         rank_id=rank_id,
         position_id=position_id,
+        category_id=category_id,
+        exempt_today=exempt_today,
         include_archived=include_archived,
     )
     return await svc.list(flt, page)
+
+
+@router.get(
+    "/people/counts", response_model=list[UnitCount], summary="Численность по подразделениям"
+)
+async def people_counts(svc: PeopleServiceDep) -> Sequence[UnitCount]:
+    return await svc.counts()
 
 
 @router.post("/people", response_model=PersonOut, status_code=201)

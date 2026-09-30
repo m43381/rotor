@@ -68,7 +68,6 @@ class DutyType(UuidPkMixin, TimestampMixin, VersionedMixin, Base):
             f"duration_minutes BETWEEN {MIN_DURATION} AND {MAX_DURATION}", name="duration"
         ),
         CheckConstraint("rest_hours BETWEEN 0 AND 720", name="rest_hours"),
-        CheckConstraint("load_weight > 0", name="load_weight"),
         # Два действующих наряда с одним именем у одного подразделения путали бы операторов.
         Index(
             "uq_duty_type_owner_name_active",
@@ -82,11 +81,9 @@ class DutyType(UuidPkMixin, TimestampMixin, VersionedMixin, Base):
     name: Mapped[str] = mapped_column(String(200))
     short_name: Mapped[str | None] = mapped_column(String(50))
     owner_unit_id: Mapped[uuid.UUID] = mapped_column(index=True)
-    assigned_unit_id: Mapped[uuid.UUID | None]
     start_time: Mapped[dt.time] = mapped_column(Time)
     duration_minutes: Mapped[int] = mapped_column(Integer)
     rest_hours: Mapped[int] = mapped_column(SmallInteger, default=DEFAULT_REST_HOURS)
-    load_weight: Mapped[float] = mapped_column(Numeric(4, 2, asdecimal=False), default=1.0)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
     def snapshot(self) -> dict[str, Any]:
@@ -94,11 +91,9 @@ class DutyType(UuidPkMixin, TimestampMixin, VersionedMixin, Base):
             "name": self.name,
             "short_name": self.short_name,
             "owner_unit_id": self.owner_unit_id,
-            "assigned_unit_id": self.assigned_unit_id,
             "start_time": self.start_time,
             "duration_minutes": self.duration_minutes,
             "rest_hours": self.rest_hours,
-            "load_weight": self.load_weight,
             "is_active": self.is_active,
         }
 
@@ -108,18 +103,25 @@ class DutyRole(UuidPkMixin, TimestampMixin, VersionedMixin, Base):
 
     Требования используются только при выдаче допуска и в отчёте о несоответствиях —
     движок распределения их не видит, он смотрит на допуск.
+
+    Закрепление за подразделением (ADR-0018): ячейки роли сразу проходят цепочку делегирования
+    до `assigned_unit_id` (`schedules.route_pinned_cells`). Допустимые категории личного
+    состава — жёсткое требование, его соблюдает personnel при выдаче и чтении допусков.
     """
 
     __tablename__ = "duty_role"
     __table_args__ = (
         UniqueConstraint("duty_type_id", "code"),
         CheckConstraint("headcount BETWEEN 1 AND 100", name="headcount"),
+        CheckConstraint("load_weight > 0", name="load_weight"),
     )
 
     duty_type_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("duty_type.id"), index=True)
     code: Mapped[str] = mapped_column(String(50))
     name: Mapped[str] = mapped_column(String(200))
     headcount: Mapped[int] = mapped_column(SmallInteger, default=1)
+    # Вес нагрузки роли (ADR-0019): дежурный тяжелее дневального в том же наряде
+    load_weight: Mapped[float] = mapped_column(Numeric(4, 2, asdecimal=False), default=1.0)
     sort_order: Mapped[int] = mapped_column(SmallInteger, default=0)
     min_rank_order: Mapped[int | None] = mapped_column(SmallInteger)
     allowed_position_ids: Mapped[list[uuid.UUID] | None] = mapped_column(ARRAY(Uuid()))
@@ -127,6 +129,10 @@ class DutyRole(UuidPkMixin, TimestampMixin, VersionedMixin, Base):
     attribute_requirements: Mapped[list[dict[str, Any]]] = mapped_column(
         JSONB, server_default=text("'[]'::jsonb")
     )
+    # Подразделение в поддереве владельца наряда; None — не закреплена
+    assigned_unit_id: Mapped[uuid.UUID | None]
+    # personnel.person_category; None — любая категория
+    allowed_category_ids: Mapped[list[uuid.UUID] | None] = mapped_column(ARRAY(Uuid()))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
     def snapshot(self) -> dict[str, Any]:
@@ -135,6 +141,7 @@ class DutyRole(UuidPkMixin, TimestampMixin, VersionedMixin, Base):
             "code": self.code,
             "name": self.name,
             "headcount": self.headcount,
+            "load_weight": self.load_weight,
             "sort_order": self.sort_order,
             "min_rank_order": self.min_rank_order,
             "allowed_position_ids": (
@@ -143,6 +150,12 @@ class DutyRole(UuidPkMixin, TimestampMixin, VersionedMixin, Base):
                 else None
             ),
             "attribute_requirements": self.attribute_requirements,
+            "assigned_unit_id": self.assigned_unit_id,
+            "allowed_category_ids": (
+                sorted(map(str, self.allowed_category_ids))
+                if self.allowed_category_ids is not None
+                else None
+            ),
             "is_active": self.is_active,
         }
 

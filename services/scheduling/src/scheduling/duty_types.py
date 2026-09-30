@@ -5,8 +5,12 @@
 выдают нижестоящие операторы (ADR-0009). Менять можно только наряды своего scope.
 Все изменения — с аудитом (ADR-0010) и событиями `duty_type.changed` / `duty_role.changed`,
 по которым personnel держит локальную копию требований.
+
+Роль можно закрепить за подразделением поддерева владельца и ограничить категориями личного
+состава (ADR-0018). Смена закрепления перестраивает цепочки ячеек с сегодняшнего дня.
 """
 
+import datetime as dt
 import uuid
 from collections import defaultdict
 from typing import Any
@@ -33,7 +37,7 @@ from dutyflow_common.requirements import validate_requirement
 from dutyflow_common.scope import in_scope, scope_clause
 from scheduling.models import DutyRole, DutyType
 from scheduling.refs import PersonnelRefs, RefsLoader
-from scheduling.schedules import sync_owner_cells
+from scheduling.schedules import sync_owner_cells, unpin_role_cells
 from scheduling.schemas import (
     DutyRoleIn,
     DutyRoleOut,
@@ -79,15 +83,13 @@ class DutyTypeService:
 
     # --- чтение ------------------------------------------------------------------------------
 
-    async def _visible(self) -> Any:  # Select с четырьмя колонками; точный тип громоздок
+    async def _visible(self) -> Any:  # Select с тремя колонками; точный тип громоздок
         scope = self.policy.require(self.operator.roles, "duty_type", "read")
         op_path = await self.operator_path()
         owner = aliased(UnitProjection)
-        assigned = aliased(UnitProjection)
         return (
-            select(DutyType, owner.path, owner.name, assigned.name)
+            select(DutyType, owner.path, owner.name)
             .join(owner, owner.unit_id == DutyType.owner_unit_id)
-            .outerjoin(assigned, assigned.unit_id == DutyType.assigned_unit_id)
             .where(
                 or_(
                     scope_clause(owner.path, op_path, scope),
@@ -121,14 +123,17 @@ class DutyTypeService:
         ids = [r[0].id for r in rows]
         roles: dict[uuid.UUID, list[DutyRoleOut]] = defaultdict(list)
         if ids:
-            for role in await self.session.scalars(
-                select(DutyRole)
+            for role, assigned_name in await self.session.execute(
+                select(DutyRole, UnitProjection.name)
+                .outerjoin(UnitProjection, UnitProjection.unit_id == DutyRole.assigned_unit_id)
                 .where(DutyRole.duty_type_id.in_(ids))
                 .order_by(DutyRole.sort_order, DutyRole.name)
             ):
-                roles[role.duty_type_id].append(DutyRoleOut.model_validate(role))
+                out = DutyRoleOut.model_validate(role)
+                out.assigned_unit_name = assigned_name
+                roles[role.duty_type_id].append(out)
         result = []
-        for t, owner_path, owner_name, assigned_name in rows:
+        for t, owner_path, owner_name in rows:
             result.append(
                 DutyTypeOut(
                     id=t.id,
@@ -136,12 +141,9 @@ class DutyTypeService:
                     short_name=t.short_name,
                     owner_unit_id=t.owner_unit_id,
                     owner_unit_name=owner_name,
-                    assigned_unit_id=t.assigned_unit_id,
-                    assigned_unit_name=assigned_name,
                     start_time=t.start_time,
                     duration_minutes=t.duration_minutes,
                     rest_hours=t.rest_hours,
-                    load_weight=t.load_weight,
                     is_active=t.is_active,
                     version=t.version,
                     roles=roles.get(t.id, []),
@@ -153,7 +155,8 @@ class DutyTypeService:
     # --- типы ----------------------------------------------------------------------------------
 
     async def _check_assigned(self, owner: UnitProjection, assigned_id: uuid.UUID | None) -> None:
-        """Закреплённое подразделение — внутри поддерева владельца (сам владелец или ниже)."""
+        """Закреплённое за ролью подразделение — внутри поддерева владельца (сам владелец
+        или ниже, ADR-0018)."""
         if assigned_id is None:
             return
         unit = await self.session.scalar(
@@ -164,7 +167,7 @@ class DutyTypeService:
         )
         if unit is None:
             raise ValidationFailedError(
-                "Закреплённое подразделение должно входить в подразделение-владельца наряда"
+                "Роль можно закрепить только за подразделением-владельцем наряда или нижестоящим"
             )
         if not unit.is_active:
             raise ValidationFailedError("Закреплённое подразделение расформировано")
@@ -189,7 +192,6 @@ class DutyTypeService:
             raise ForbiddenError("Подразделение вне зоны ответственности оператора")
         if not owner.is_active:
             raise ValidationFailedError("Подразделение расформировано")
-        await self._check_assigned(owner, data.assigned_unit_id)
 
         duty_type = DutyType(**data.model_dump(exclude={"roles"}), is_active=True)
         self.session.add(duty_type)
@@ -205,9 +207,8 @@ class DutyTypeService:
         return duty_type
 
     async def update(self, type_id: uuid.UUID, data: DutyTypeUpdate) -> DutyType:
-        duty_type, owner = await self._type_for_update(type_id)
+        duty_type, _ = await self._type_for_update(type_id)
         _check_version(duty_type.version, data.version)
-        await self._check_assigned(owner, data.assigned_unit_id)
         before = duty_type.snapshot()
         for key, value in data.model_dump(exclude={"version"}).items():
             setattr(duty_type, key, value)
@@ -244,16 +245,29 @@ class DutyTypeService:
             self._refs = await self.refs_loader()
         return self._refs
 
-    async def _validate_role(self, data: DutyRoleIn, previous: DutyRole | None) -> None:
+    async def _validate_role(
+        self, data: DutyRoleIn, previous: DutyRole | None, owner: UnitProjection
+    ) -> None:
+        if previous is None or data.assigned_unit_id != previous.assigned_unit_id:
+            await self._check_assigned(owner, data.assigned_unit_id)
         if data.min_rank_order is not None:
             exists = await self.session.scalar(
                 select(RankProjection.rank_id).where(RankProjection.order == data.min_rank_order)
             )
             if exists is None:
                 raise ValidationFailedError("Звание для минимального требования не найдено")
-        if not data.allowed_position_ids and not data.attribute_requirements:
+        if (
+            not data.allowed_position_ids
+            and not data.attribute_requirements
+            and not data.allowed_category_ids
+        ):
             return
         refs = await self._refs_cached()
+        old_categories = set(previous.allowed_category_ids or []) if previous else set()
+        for cid in data.allowed_category_ids or []:
+            active = refs.categories.get(cid)
+            if active is None or (not active and cid not in old_categories):
+                raise ValidationFailedError("Категория личного состава из требований не найдена")
         old_positions = set(previous.allowed_position_ids or []) if previous else set()
         for pid in data.allowed_position_ids or []:
             active = refs.positions.get(pid)
@@ -275,17 +289,20 @@ class DutyTypeService:
         return {
             "name": data.name.strip(),
             "headcount": data.headcount,
+            "load_weight": data.load_weight,
             "sort_order": data.sort_order,
             "min_rank_order": data.min_rank_order,
             "allowed_position_ids": data.allowed_position_ids,
             "attribute_requirements": [r.model_dump() for r in data.attribute_requirements],
+            "assigned_unit_id": data.assigned_unit_id,
+            "allowed_category_ids": data.allowed_category_ids,
             "is_active": data.is_active,
         }
 
     async def _new_role(
         self, duty_type: DutyType, owner: UnitProjection, data: DutyRoleIn, codes: set[str]
     ) -> DutyRole:
-        await self._validate_role(data, None)
+        await self._validate_role(data, None, owner)
         if not codes:
             codes |= set(
                 await self.session.scalars(
@@ -303,6 +320,8 @@ class DutyTypeService:
         return role
 
     async def add_role(self, type_id: uuid.UUID, data: DutyRoleIn) -> DutyRole:
+        """Новая роль сразу получает ячейки в графиках владельца; закреплённая — уже
+        переданные закреплённому подразделению."""
         duty_type, owner = await self._type_for_update(type_id)
         role = await self._new_role(duty_type, owner, data, set())
         await self._sync(duty_type, [role.id])
@@ -315,7 +334,7 @@ class DutyTypeService:
             raise NotFoundError("Роль не найдена")
         duty_type, owner = await self._type_for_update(role.duty_type_id)
         _check_version(role.version, data.version)
-        await self._validate_role(data, role)
+        await self._validate_role(data, role, owner)
         before = role.snapshot()
         if data.code and data.code != role.code:
             role.code = data.code
@@ -323,7 +342,10 @@ class DutyTypeService:
             setattr(role, key, value)
         await self._flush()
         self._record_role("duty_role.update", role, owner, before=before)
-        if before["is_active"] != role.is_active:
+        pin_changed = before["assigned_unit_id"] != role.assigned_unit_id
+        if pin_changed and before["assigned_unit_id"] is not None:
+            await unpin_role_cells(self.session, role.id, dt.date.today())
+        if before["is_active"] != role.is_active or pin_changed:
             await self._sync(duty_type, [role.id])
         await self._commit()
         return role

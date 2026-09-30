@@ -13,7 +13,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Response
 from pydantic_core import to_json
-from sqlalchemy import func, or_, select
+from sqlalchemy import any_, func, or_, select
 from sqlalchemy.dialects.postgresql import aggregate_order_by
 
 from dutyflow_common.auth import require_internal
@@ -25,9 +25,11 @@ from personnel.api.deps import SessionDep
 from personnel.models import (
     AttributeDefinition,
     Clearance,
+    DutyRoleProjection,
     Exemption,
     Person,
     PersonAttribute,
+    PersonCategory,
     Position,
 )
 from personnel.schemas import (
@@ -43,6 +45,14 @@ router = APIRouter(prefix="/internal", tags=["internal"], dependencies=[Depends(
 
 def _json(content: Any) -> Response:
     return Response(content=to_json(content), media_type="application/json")
+
+
+# Допуск действует, только если роль допускает категорию человека (ADR-0018). Роль, которой
+# ещё нет в локальной копии, не отсекает допуск — её требования неизвестны.
+_category_allowed = or_(
+    DutyRoleProjection.allowed_category_ids.is_(None),
+    Person.category_id == any_(DutyRoleProjection.allowed_category_ids),
+)
 
 
 @router.post("/people/batch", response_model=list[PeopleBatchPerson])
@@ -72,7 +82,11 @@ async def people_batch(data: PeopleBatchIn, session: SessionDep) -> Response:
     if data.duty_role_ids:
         people_q = people_q.where(
             select(Clearance.id)
+            .outerjoin(
+                DutyRoleProjection, DutyRoleProjection.duty_role_id == Clearance.duty_role_id
+            )
             .where(
+                _category_allowed,
                 Clearance.person_id == Person.id,
                 in_array(Clearance.duty_role_id, data.duty_role_ids),
                 Clearance.revoked_at.is_(None),
@@ -91,6 +105,7 @@ async def people_batch(data: PeopleBatchIn, session: SessionDep) -> Response:
             Person.rank_id,
             RankProjection.order.label("rank_order"),
             Person.position_id,
+            Person.category_id,
             Person.last_name,
             Person.first_name,
             Person.middle_name,
@@ -126,7 +141,10 @@ async def people_batch(data: PeopleBatchIn, session: SessionDep) -> Response:
             func.array_agg(aggregate_order_by(Clearance.valid_to, Clearance.duty_role_id)),
         )
         .join(ids, ids.c.id == Clearance.person_id)
+        .join(Person, Person.id == Clearance.person_id)
+        .outerjoin(DutyRoleProjection, DutyRoleProjection.duty_role_id == Clearance.duty_role_id)
         .where(
+            _category_allowed,
             Clearance.revoked_at.is_(None),
             or_(Clearance.valid_from.is_(None), Clearance.valid_from <= data.date_to),
             or_(Clearance.valid_to.is_(None), Clearance.valid_to >= data.date_from),
@@ -147,6 +165,7 @@ async def people_batch(data: PeopleBatchIn, session: SessionDep) -> Response:
             "rank_id": p.rank_id,
             "rank_order": p.rank_order,
             "position_id": p.position_id,
+            "category_id": p.category_id,
             "attributes": attrs.get(pid, {}),
             "exemptions": exemptions.get(pid, []),
             "clearances": clearances.get(pid, []),
@@ -195,10 +214,15 @@ async def availability_batch(data: AvailabilityIn, session: SessionDep) -> Respo
 
 @router.post("/references", response_model=ReferencesOut)
 async def references(session: SessionDep) -> ReferencesOut:
-    """Должности и характеристики — для проверки ссылок в требованиях ролей (scheduling)."""
+    """Должности, категории и характеристики — для проверки ссылок в требованиях ролей
+    (scheduling)."""
     positions = await session.execute(select(Position.id, Position.name, Position.is_active))
+    categories = await session.execute(
+        select(PersonCategory.id, PersonCategory.name, PersonCategory.is_active)
+    )
     attributes = await session.scalars(select(AttributeDefinition))
     return ReferencesOut(
+        categories=[{"id": i, "name": n, "is_active": a} for i, n, a in categories],
         positions=[{"id": i, "name": n, "is_active": a} for i, n, a in positions],
         attributes=[
             {

@@ -1,15 +1,19 @@
 <script setup lang="ts">
 // Личный состав в зоне ответственности: постраничная навигация (open-questions №33),
-// фильтр по дереву, поиск, массовое освобождение и массовая выдача допусков.
+// фильтры по дереву, категории, званию и освобождению, поиск; массовое освобождение
+// и массовая выдача допусков для выбранных.
 import Button from 'primevue/button'
 import Checkbox from 'primevue/checkbox'
 import Column from 'primevue/column'
 import DataTable, { type DataTablePageEvent } from 'primevue/datatable'
+import IconField from 'primevue/iconfield'
+import InputIcon from 'primevue/inputicon'
 import InputText from 'primevue/inputtext'
+import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 import { useToast } from 'primevue/usetoast'
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import { ApiError, personnel, unwrap, type PersonCreate, type PersonListItem } from '@/api/client'
 import BulkClearanceDialog from '@/components/BulkClearanceDialog.vue'
@@ -18,14 +22,20 @@ import PersonFormDialog from '@/components/PersonFormDialog.vue'
 import UnitTreeSelect from '@/components/UnitTreeSelect.vue'
 import { useRefsStore } from '@/stores/refs'
 import { useUnitsStore } from '@/stores/units'
+import { formatDate } from '@/utils/dates'
 
 const units = useUnitsStore()
 const refs = useRefsStore()
 const toast = useToast()
 const router = useRouter()
+const route = useRoute()
 
-const unitId = ref<string | null>(null)
+// Фильтры можно открыть ссылкой: /people?exempt=1 (с рабочего стола), ?unit=…
+const unitId = ref<string | null>((route.query.unit as string | undefined) ?? null)
 const query = ref('')
+const categoryId = ref<string | null>(null)
+const rankId = ref<string | null>(null)
+const exemptToday = ref(route.query.exempt === '1')
 const includeExcluded = ref(false)
 const rows = ref<PersonListItem[]>([])
 const total = ref(0)
@@ -50,6 +60,9 @@ async function load() {
             limit: pageSize.value,
             unit_id: unitId.value ?? undefined,
             q: query.value.trim() || undefined,
+            category_id: categoryId.value ?? undefined,
+            rank_id: rankId.value ?? undefined,
+            exempt_today: exemptToday.value || undefined,
             include_archived: includeExcluded.value,
           },
         },
@@ -84,7 +97,16 @@ watch(query, () => {
   clearTimeout(searchTimer)
   searchTimer = setTimeout(reload, 300)
 })
-watch([unitId, includeExcluded], reload)
+watch([unitId, includeExcluded, categoryId, rankId, exemptToday], reload)
+
+const filtered = computed(
+  () => !!(unitId.value || query.value.trim() || categoryId.value || rankId.value || exemptToday.value),
+)
+function resetFilters() {
+  unitId.value = categoryId.value = rankId.value = null
+  query.value = ''
+  exemptToday.value = false
+}
 
 onMounted(async () => {
   await Promise.all([units.me ? Promise.resolve() : units.load(), refs.ensure()]).catch(showError)
@@ -165,7 +187,8 @@ async function onBulkExemption(value: {
       <div>
         <h1>Личный состав</h1>
         <p class="muted">
-          Найдено: {{ total }}<span v-if="selection.length"> · выбрано: {{ selection.length }}</span>
+          Люди, которые заступают в наряды: категория, звание, должность, освобождения и допуски.
+          <span class="found">Найдено: {{ total }}</span>
         </p>
       </div>
       <div class="actions">
@@ -178,21 +201,13 @@ async function onBulkExemption(value: {
         />
         <Button
           v-if="canEdit"
-          label="Допуск"
-          icon="pi pi-verified"
+          label="Импорт"
+          icon="pi pi-upload"
           severity="secondary"
-          :disabled="!selection.length"
-          @click="clearanceVisible = true"
+          text
+          @click="router.push('/import')"
         />
-        <Button
-          v-if="canEdit"
-          label="Освобождение"
-          icon="pi pi-calendar-minus"
-          severity="secondary"
-          :disabled="!selection.length"
-          @click="exemptionVisible = true"
-        />
-        <Button v-if="canEdit" label="Добавить" icon="pi pi-plus" @click="createVisible = true" />
+        <Button v-if="canEdit" label="Добавить человека" icon="pi pi-user-plus" @click="createVisible = true" />
       </div>
     </header>
 
@@ -200,14 +215,53 @@ async function onBulkExemption(value: {
       <div class="unit-filter">
         <UnitTreeSelect v-model="unitId" placeholder="Все подразделения" show-clear />
       </div>
-      <span class="search">
-        <i class="pi pi-search" />
+      <IconField class="search">
+        <InputIcon class="pi pi-search" />
         <InputText v-model="query" placeholder="ФИО или личный номер" aria-label="Поиск" />
-      </span>
-      <label class="excluded">
+      </IconField>
+      <Select
+        v-model="categoryId"
+        :options="refs.categories"
+        option-label="name"
+        option-value="id"
+        placeholder="Все категории"
+        show-clear
+        class="small-filter"
+        aria-label="Категория"
+      />
+      <Select
+        v-model="rankId"
+        :options="refs.activeRanks"
+        option-label="name"
+        option-value="id"
+        placeholder="Любое звание"
+        show-clear
+        filter
+        class="small-filter"
+        aria-label="Звание"
+      />
+      <label class="check">
+        <Checkbox v-model="exemptToday" binary input-id="exempt" />
+        <span>Освобождены сегодня</span>
+      </label>
+      <label class="check">
         <Checkbox v-model="includeExcluded" binary input-id="excluded" />
         <span>Показывать исключённых из списков</span>
       </label>
+      <Button v-if="filtered" label="Сбросить" icon="pi pi-filter-slash" text size="small" @click="resetFilters" />
+    </div>
+
+    <div v-if="selection.length && canEdit" class="selection-bar">
+      <span><i class="pi pi-check-square" /> Выбрано: <strong>{{ selection.length }}</strong></span>
+      <Button label="Выдать допуск" icon="pi pi-verified" size="small" @click="clearanceVisible = true" />
+      <Button
+        label="Оформить освобождение"
+        icon="pi pi-calendar-minus"
+        size="small"
+        severity="secondary"
+        @click="exemptionVisible = true"
+      />
+      <Button label="Снять выбор" text size="small" @click="selection = []" />
     </div>
 
     <DataTable
@@ -230,12 +284,31 @@ async function onBulkExemption(value: {
       @page="onPage"
       @row-click="openRow"
     >
-      <template #empty>Никого не найдено</template>
-      <Column selection-mode="multiple" style="width: 3rem" />
+      <template #empty>
+        <div class="empty-state">
+          <i class="pi pi-users" />
+          <strong>Никого не найдено</strong>
+          <span v-if="filtered">Измените условия поиска или сбросьте фильтры.</span>
+        </div>
+      </template>
+      <Column v-if="canEdit" selection-mode="multiple" style="width: 3rem" />
       <Column header="ФИО">
         <template #body="{ data }">
           <span class="fio">{{ fio(data) }}</span>
           <Tag v-if="!data.is_active" value="Исключён из списков" severity="secondary" class="tag" />
+          <span
+            v-else-if="data.exempt_until"
+            v-tooltip.top="'Сегодня освобождён от нарядов'"
+            class="chip chip--warn tag"
+          >
+            <i class="pi pi-calendar-times" /> {{ data.exempt_reason }} до {{ formatDate(data.exempt_until) }}
+          </span>
+        </template>
+      </Column>
+      <Column header="Категория" style="width: 11rem">
+        <template #body="{ data }">
+          <span v-if="data.category_name" class="chip chip--category">{{ data.category_name }}</span>
+          <span v-else v-tooltip.top="'Укажите категорию в карточке'" class="chip chip--danger">не указана</span>
         </template>
       </Column>
       <Column field="rank_name" header="Звание" style="width: 11rem" />
@@ -293,25 +366,36 @@ h1 {
   width: 22rem;
   max-width: 100%;
 }
-.search {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-}
-.search .pi {
-  position: absolute;
-  left: 0.75rem;
-  color: var(--p-text-muted-color);
-}
 .search :deep(input) {
-  padding-left: 2.25rem;
-  width: 18rem;
+  width: 16rem;
 }
-.excluded {
+.found {
+  font-weight: 600;
+  color: var(--p-text-color);
+  margin-left: 0.25rem;
+}
+.small-filter {
+  width: 12rem;
+}
+.check {
   display: inline-flex;
   gap: 0.4rem;
   align-items: center;
-  margin-left: 0.5rem;
+  margin-left: 0.25rem;
+}
+.selection-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  padding: 0.5rem 0.8rem;
+  border-radius: var(--app-radius);
+  background: var(--app-accent-soft);
+  border: 1px solid var(--app-border-strong);
+}
+.selection-bar .pi {
+  color: var(--app-accent);
+  margin-right: 0.2rem;
 }
 .table {
   flex: 1;

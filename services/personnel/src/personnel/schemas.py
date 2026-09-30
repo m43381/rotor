@@ -23,6 +23,18 @@ class PositionOut(PositionIn):
     id: uuid.UUID
 
 
+class PersonCategoryIn(BaseModel):
+    code: str = Field(min_length=1, max_length=50, pattern=r"^[a-z][a-z0-9_]*$")
+    name: str = Field(min_length=1, max_length=200)
+    sort_order: int = Field(default=0, ge=0, le=10_000)
+    is_active: bool = True
+
+
+class PersonCategoryOut(PersonCategoryIn):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+
+
 class AttributeDefinitionIn(BaseModel):
     code: str = Field(min_length=1, max_length=50, pattern=r"^[a-z][a-z0-9_]*$")
     name: str = Field(min_length=1, max_length=200)
@@ -77,6 +89,8 @@ class PersonBase(BaseModel):
 
 class PersonCreate(PersonBase):
     unit_id: uuid.UUID
+    # Категория обязательна: от неё зависит, в какие роли человек может заступать (ADR-0018)
+    category_id: uuid.UUID
     # Значения характеристик по коду: {"category": "Курсант"}
     attributes: dict[str, Any] = Field(default_factory=dict)
 
@@ -90,6 +104,8 @@ class PersonUpdate(BaseModel):
     middle_name: str | None = Field(default=None, max_length=100)
     rank_id: uuid.UUID | None = None
     position_id: uuid.UUID | None = None
+    # Сбросить категорию нельзя — только сменить
+    category_id: uuid.UUID | None = None
     personal_no: str | None = Field(default=None, max_length=50)
     note: str | None = Field(default=None, max_length=2000)
     # Передаются только изменяемые характеристики; значение null удаляет характеристику.
@@ -109,8 +125,13 @@ class PersonListItem(BaseModel):
     rank_name: str | None
     position_id: uuid.UUID | None
     position_name: str | None
+    category_id: uuid.UUID | None
+    category_name: str | None
     personal_no: str | None
     is_active: bool
+    # Действующее сегодня освобождение: до какого числа (включительно) и причина
+    exempt_until: dt.date | None = None
+    exempt_reason: str | None = None
     version: int
 
 
@@ -140,7 +161,16 @@ class PeopleFilter(BaseModel):
     q: str | None = None
     rank_id: uuid.UUID | None = None
     position_id: uuid.UUID | None = None
+    category_id: uuid.UUID | None = None
+    # Только освобождённые сегодня
+    exempt_today: bool = False
     include_archived: bool = False
+
+
+class UnitCount(BaseModel):
+    unit_id: uuid.UUID
+    # Действующие люди, числящиеся прямо в подразделении (без нижестоящих)
+    people: int
 
 
 class TransferIn(BaseModel):
@@ -214,11 +244,13 @@ class PeopleBatchPerson(BaseModel):
     rank_id: uuid.UUID | None
     rank_order: int | None
     position_id: uuid.UUID | None
+    category_id: uuid.UUID | None = None
     attributes: dict[str, Any]
     # Освобождения, пересекающие период, как пары [from, to] включительно
     exemptions: list[tuple[dt.date, dt.date]]
     # Неотозванные допуски, действующие хотя бы в часть периода: [роль, с, по] (NULL — без границы).
-    # Требования ролей здесь не проверяются: допуск важнее требований (ADR-0009).
+    # Требования ролей здесь не проверяются: допуск важнее требований (ADR-0009). Исключение —
+    # категория: допуски к ролям, не допускающим категорию человека, сюда не попадают (ADR-0018).
     clearances: list[tuple[uuid.UUID, dt.date | None, dt.date | None]]
     # Только при include_names
     last_name: str | None = None
@@ -257,7 +289,10 @@ class AuditEntryOut(BaseModel):
 
 # --- допуски (ADR-0009) -----------------------------------------------------------------------
 
-ClearanceStatus = Literal["active", "future", "expired", "revoked", "role_inactive"]
+# category_mismatch — категория человека больше не допускается ролью: допуск не действует
+ClearanceStatus = Literal[
+    "active", "future", "expired", "revoked", "role_inactive", "category_mismatch"
+]
 
 
 class ClearanceDates(BaseModel):
@@ -302,9 +337,11 @@ class BulkClearanceIn(ClearanceDates, OverrideIn):
 
 
 class ViolationOut(BaseModel):
-    kind: Literal["rank", "position", "attribute"]
+    kind: Literal["category", "rank", "position", "attribute"]
     code: str | None
     message: str
+    # Жёсткое нарушение (категория) допуском-исключением не перекрывается (ADR-0018)
+    hard: bool = False
 
 
 class RoleRef(BaseModel):
@@ -316,6 +353,9 @@ class RoleRef(BaseModel):
     duty_type_name: str
     owner_unit_id: uuid.UUID | None
     owner_unit_name: str | None
+    # Подразделение, за которым закреплена роль (ADR-0018)
+    assigned_unit_id: uuid.UUID | None = None
+    assigned_unit_name: str | None = None
 
 
 class ClearanceOut(RoleRef):
@@ -335,7 +375,8 @@ class ClearanceOut(RoleRef):
 
 
 class ClearanceOption(RoleRef):
-    """Роль, к которой человеку можно выдать допуск, и его соответствие требованиям."""
+    """Роль, к которой человеку можно выдать допуск, и его соответствие требованиям.
+    С жёстким нарушением (категория) выдать нельзя."""
 
     sort_order: int
     has_requirements: bool
@@ -373,6 +414,7 @@ class ReferencesOut(BaseModel):
 
     positions: list[dict[str, Any]]
     attributes: list[dict[str, Any]]
+    categories: list[dict[str, Any]] = Field(default_factory=list)
 
 
 # --- пакетный импорт (фаза 6a, open-questions №54–55) ------------------------------------------

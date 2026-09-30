@@ -1,10 +1,13 @@
 <script setup lang="ts">
-// Типы нарядов: свои и своего поддерева (можно менять), а также вышестоящих подразделений
-// (только просмотр: их роли могут прийти по делегированию). Состав по ролям с требованиями.
+// Наряды и роли: свои и своего поддерева (можно менять), а также вышестоящих подразделений
+// (только просмотр: их роли могут прийти по делегированию). Наряды сгруппированы по владельцу,
+// роли видны сразу: кто заступает (закрепление, категория, ADR-0018) и требования (ADR-0009).
 import Button from 'primevue/button'
 import Checkbox from 'primevue/checkbox'
-import Column from 'primevue/column'
-import DataTable from 'primevue/datatable'
+import IconField from 'primevue/iconfield'
+import InputIcon from 'primevue/inputicon'
+import InputText from 'primevue/inputtext'
+import Skeleton from 'primevue/skeleton'
 import Tag from 'primevue/tag'
 import { useToast } from 'primevue/usetoast'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -25,7 +28,7 @@ import DutyTypeDialog from '@/components/DutyTypeDialog.vue'
 import UnitTreeSelect from '@/components/UnitTreeSelect.vue'
 import { useRefsStore } from '@/stores/refs'
 import { useUnitsStore } from '@/stores/units'
-import { describeRequirements, formatDuration, formatInterval } from '@/utils/duty'
+import { formatDuration, formatInterval, roleChips } from '@/utils/duty'
 
 const units = useUnitsStore()
 const refs = useRefsStore()
@@ -37,7 +40,7 @@ const loading = ref(false)
 const busy = ref(false)
 const unitId = ref<string | null>(null)
 const includeInactive = ref(false)
-const expanded = ref<Record<string, boolean>>({})
+const search = ref('')
 
 const canCreate = computed(() => (units.me?.roles ?? []).some((r) => r !== 'viewer'))
 
@@ -77,7 +80,6 @@ async function run(action: () => Promise<DutyType>, success: string): Promise<bo
   try {
     const t = await action()
     replace(t)
-    expanded.value = { ...expanded.value, [t.id]: true }
     toast.add({ severity: 'success', summary: success, life: 3000 })
     return true
   } catch (e) {
@@ -89,14 +91,37 @@ async function run(action: () => Promise<DutyType>, success: string): Promise<bo
   }
 }
 
-const composition = (t: DutyType) =>
-  t.roles
-    .filter((r) => r.is_active)
-    .map((r) => `${r.name} ×${r.headcount}`)
-    .join(', ')
+const people = (t: DutyType) => t.roles.filter((r) => r.is_active).reduce((n, r) => n + r.headcount, 0)
+const chips = (r: DutyRole) => roleChips(r, refs)
+const sortedRoles = (t: DutyType) =>
+  [...t.roles].sort((a, b) => Number(b.is_active) - Number(a.is_active) || a.sort_order - b.sort_order)
 
-const requirementsText = (r: DutyRole) =>
-  describeRequirements(r, refs.ranks, refs.positions, refs.attributes).join('; ') || 'без требований'
+// Наряды группами по подразделению-владельцу: сначала вышестоящие, затем свои и нижестоящие
+const groups = computed(() => {
+  const q = search.value.trim().toLowerCase()
+  const visible = types.value.filter(
+    (t) =>
+      !q ||
+      t.name.toLowerCase().includes(q) ||
+      t.roles.some((r) => r.name.toLowerCase().includes(q)) ||
+      (t.owner_unit_name ?? '').toLowerCase().includes(q),
+  )
+  const byOwner = new Map<string, DutyType[]>()
+  for (const t of visible) {
+    const list = byOwner.get(t.owner_unit_id) ?? []
+    list.push(t)
+    byOwner.set(t.owner_unit_id, list)
+  }
+  const depth = (id: string) => (units.byId.get(id)?.path ?? '').split('.').length
+  return [...byOwner.entries()]
+    .map(([ownerId, list]) => ({
+      ownerId,
+      name: list[0]?.owner_unit_name ?? '—',
+      upper: list.every((t) => !t.can_edit),
+      types: [...list].sort((a, b) => a.name.localeCompare(b.name, 'ru')),
+    }))
+    .sort((a, b) => depth(a.ownerId) - depth(b.ownerId) || a.name.localeCompare(b.name, 'ru'))
+})
 
 // --- тип наряда -------------------------------------------------------------------------------
 const typeVisible = ref(false)
@@ -165,10 +190,10 @@ async function onRole(value: DutyRoleIn) {
   <section class="page">
     <header class="page-header">
       <div>
-        <h1>Наряды</h1>
+        <h1>Наряды и роли</h1>
         <p class="muted">
-          Свои наряды и наряды вышестоящих подразделений. Состав — по ролям, у роли — требования
-          к человеку.
+          Из каких ролей состоит наряд, сколько людей нужно и кто может заступать: закрепление за
+          подразделением, категория личного состава, звание и другие требования.
         </p>
       </div>
       <div class="actions">
@@ -187,97 +212,117 @@ async function onRole(value: DutyRoleIn) {
       <div class="unit-filter">
         <UnitTreeSelect v-model="unitId" placeholder="Касаются подразделения…" show-clear />
       </div>
+      <IconField class="search">
+        <InputIcon class="pi pi-search" />
+        <InputText v-model="search" placeholder="Поиск по наряду или роли" aria-label="Поиск" />
+      </IconField>
       <label class="check">
         <Checkbox v-model="includeInactive" binary input-id="inactive" />
         <span>Показывать выведенные из действия</span>
       </label>
     </div>
 
-    <DataTable
-      v-model:expanded-rows="expanded"
-      :value="types"
-      data-key="id"
-      :loading="loading"
-      class="table"
-      :row-class="(row: DutyType) => (row.is_active ? '' : 'inactive-row')"
-    >
-      <template #empty>Нарядов нет</template>
-      <Column expander style="width: 3rem" />
-      <Column header="Наряд">
-        <template #body="{ data }">
-          <span class="name">{{ data.name }}</span>
-          <span v-if="data.short_name" class="muted-inline"> ({{ data.short_name }})</span>
-          <Tag v-if="!data.is_active" value="Не действует" severity="secondary" class="tag" />
-          <Tag v-else-if="!data.can_edit" value="Вышестоящий" severity="info" class="tag" />
-        </template>
-      </Column>
-      <Column header="Подразделение" style="width: 14rem">
-        <template #body="{ data }">
-          {{ data.owner_unit_name }}
-          <div v-if="data.assigned_unit_name" class="muted-inline">закреплён: {{ data.assigned_unit_name }}</div>
-        </template>
-      </Column>
-      <Column header="Время" style="width: 15rem">
-        <template #body="{ data }">
-          {{ formatInterval(data.start_time, data.duration_minutes) }}
-          <div class="muted-inline">{{ formatDuration(data.duration_minutes) }}, отдых {{ data.rest_hours }} ч</div>
-        </template>
-      </Column>
-      <Column header="Состав">
-        <template #body="{ data }">{{ composition(data) }}</template>
-      </Column>
-      <Column style="width: 4rem">
-        <template #body="{ data }">
-          <Button
-            v-if="data.can_edit"
-            icon="pi pi-pencil"
-            text
-            rounded
-            aria-label="Изменить наряд"
-            @click="openType(data)"
-          />
-        </template>
-      </Column>
-      <template #expansion="{ data }">
-        <div class="roles">
-          <DataTable :value="data.roles" data-key="id" size="small">
-            <Column header="Роль">
-              <template #body="{ data: role }">
-                {{ role.name }}
-                <Tag v-if="!role.is_active" value="Не действует" severity="secondary" class="tag" />
-              </template>
-            </Column>
-            <Column field="headcount" header="Человек" style="width: 6rem" />
-            <Column header="Требования">
-              <template #body="{ data: role }">
-                <span :class="{ 'muted-inline': requirementsText(role) === 'без требований' }">
-                  {{ requirementsText(role) }}
+    <div class="legend" aria-label="Обозначения">
+      <span class="chip chip--unit"><i class="pi pi-map-marker" /> закреплена за подразделением</span>
+      <span class="chip chip--category"><i class="pi pi-users" /> категория личного состава</span>
+      <span class="chip chip--rank"><i class="pi pi-star" /> звание не ниже</span>
+      <span class="chip"><i class="pi pi-tag" /> другие требования</span>
+    </div>
+
+    <div v-if="loading && !types.length" class="list">
+      <Skeleton v-for="i in 3" :key="i" height="9rem" border-radius="10px" />
+    </div>
+    <div v-else-if="!groups.length" class="card empty-state">
+      <i class="pi pi-shield" />
+      <strong>{{ search ? 'Ничего не найдено' : 'Нарядов пока нет' }}</strong>
+      <span v-if="!search">
+        Создайте наряд, задайте время и состав по ролям — после этого он появится в графиках.
+      </span>
+      <Button v-if="canCreate && !search" label="Новый наряд" icon="pi pi-plus" @click="openType(null)" />
+    </div>
+    <div v-else class="list">
+      <section v-for="g in groups" :key="g.ownerId" class="group">
+        <h2 class="group-title">
+          <i class="pi pi-sitemap" /> {{ g.name }}
+          <Tag v-if="g.upper" value="вышестоящее — только просмотр" severity="info" />
+        </h2>
+        <article v-for="t in g.types" :key="t.id" class="card duty" :class="{ inactive: !t.is_active }">
+          <header class="duty-head">
+            <div class="duty-title">
+              <span class="name">{{ t.name }}</span>
+              <span v-if="t.short_name" class="short">{{ t.short_name }}</span>
+              <Tag v-if="!t.is_active" value="Не действует" severity="secondary" />
+            </div>
+            <div class="duty-meta">
+              <span v-tooltip.top="'Время наряда'">
+                <i class="pi pi-clock" /> {{ formatInterval(t.start_time, t.duration_minutes) }}
+              </span>
+              <span v-tooltip.top="'Длительность и обязательный отдых после наряда'">
+                <i class="pi pi-hourglass" /> {{ formatDuration(t.duration_minutes) }}, отдых {{ t.rest_hours }} ч
+              </span>
+              <span v-tooltip.top="'Человек в сутки по действующим ролям'">
+                <i class="pi pi-user" /> {{ people(t) }} чел.
+              </span>
+            </div>
+            <Button
+              v-if="t.can_edit"
+              icon="pi pi-pencil"
+              text
+              rounded
+              severity="secondary"
+              aria-label="Изменить наряд"
+              @click="openType(t)"
+            />
+          </header>
+          <ul class="roles">
+            <li v-for="r in sortedRoles(t)" :key="r.id" class="role" :class="{ inactive: !r.is_active }">
+              <span class="role-name">
+                {{ r.name }} <span class="count">×{{ r.headcount }}</span>
+                <span
+                  v-tooltip.top="'Вес нагрузки роли: нарядо-сутки × вес'"
+                  class="weight"
+                  :class="{ heavy: r.load_weight > 1, light: r.load_weight < 1 }"
+                >
+                  вес {{ r.load_weight.toLocaleString('ru-RU') }}
                 </span>
-              </template>
-            </Column>
-            <Column v-if="data.can_edit" style="width: 4rem">
-              <template #body="{ data: role }">
-                <Button
-                  icon="pi pi-pencil"
-                  text
-                  rounded
-                  :aria-label="`Изменить роль ${role.name}`"
-                  @click="openRole(data, role)"
-                />
-              </template>
-            </Column>
-          </DataTable>
+                <Tag v-if="!r.is_active" value="Не действует" severity="secondary" class="tag" />
+              </span>
+              <span class="chips">
+                <span
+                  v-for="(c, i) in chips(r)"
+                  :key="i"
+                  v-tooltip.top="c.hint"
+                  class="chip"
+                  :class="c.kind !== 'req' ? `chip--${c.kind}` : ''"
+                >
+                  <i :class="c.icon" /> {{ c.text }}
+                </span>
+                <span v-if="!chips(r).length" class="none">любой из личного состава с допуском</span>
+              </span>
+              <Button
+                v-if="t.can_edit"
+                icon="pi pi-pencil"
+                text
+                rounded
+                size="small"
+                severity="secondary"
+                :aria-label="`Изменить роль ${r.name}`"
+                @click="openRole(t, r)"
+              />
+            </li>
+          </ul>
           <Button
-            v-if="data.can_edit"
+            v-if="t.can_edit"
             label="Добавить роль"
             icon="pi pi-plus"
             text
             size="small"
-            @click="openRole(data, null)"
+            class="add-role"
+            @click="openRole(t, null)"
           />
-        </div>
-      </template>
-    </DataTable>
+        </article>
+      </section>
+    </div>
 
     <DutyTypeDialog
       v-model:visible="typeVisible"
@@ -291,6 +336,7 @@ async function onRole(value: DutyRoleIn) {
       v-model:visible="roleVisible"
       :role="editingRole"
       :busy="busy"
+      :owner-unit-id="roleType?.owner_unit_id ?? null"
       :title="editingRole ? `Роль: ${editingRole.name}` : `Новая роль — ${roleType?.name ?? ''}`"
       @submit="onRole"
     />
@@ -301,8 +347,8 @@ async function onRole(value: DutyRoleIn) {
 .page {
   display: flex;
   flex-direction: column;
-  height: 100%;
   gap: 0.75rem;
+  max-width: 90rem;
 }
 .page-header {
   display: flex;
@@ -318,10 +364,7 @@ h1 {
 .muted {
   color: var(--p-text-muted-color);
   margin: 0.25rem 0 0;
-}
-.muted-inline {
-  color: var(--p-text-muted-color);
-  font-size: 0.9rem;
+  max-width: 52rem;
 }
 .filters {
   display: flex;
@@ -333,32 +376,124 @@ h1 {
   width: 22rem;
   max-width: 100%;
 }
+.search :deep(input) {
+  width: 18rem;
+}
 .check {
   display: inline-flex;
   gap: 0.4rem;
   align-items: center;
 }
-.table {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  opacity: 0.85;
 }
-.table :deep(.inactive-row) {
+.list {
+  display: grid;
+  gap: 1.1rem;
+}
+.group {
+  display: grid;
+  gap: 0.6rem;
+}
+.group-title {
+  margin: 0;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   color: var(--p-text-muted-color);
 }
-.name {
-  font-weight: 600;
-}
 .tag {
-  margin-left: 0.5rem;
+  margin-left: 0.25rem;
+}
+.duty {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.8rem 1rem 0.6rem;
+}
+.duty.inactive {
+  opacity: 0.6;
+}
+.duty-head {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.duty-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 14rem;
+}
+.name {
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+.short {
+  color: var(--p-text-muted-color);
+  font-size: 0.85rem;
+  border: 1px solid var(--app-border);
+  border-radius: 6px;
+  padding: 0 0.35rem;
+}
+.duty-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  color: var(--p-text-muted-color);
+  font-size: 0.9rem;
+}
+.duty-meta .pi {
+  font-size: 0.8rem;
+  margin-right: 0.15rem;
 }
 .roles {
-  padding: 0.25rem 0 0.25rem 2.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: grid;
-  gap: 0.25rem;
-  justify-items: start;
 }
-.roles > :first-child {
-  width: 100%;
+.role {
+  display: grid;
+  grid-template-columns: minmax(14rem, 24rem) 1fr auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.45rem 0.25rem;
+  border-top: 1px solid var(--app-border);
+}
+.role.inactive {
+  opacity: 0.55;
+}
+.role-name {
+  font-weight: 600;
+}
+.count {
+  color: var(--p-text-muted-color);
+  font-weight: 400;
+}
+.weight {
+  margin-left: 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--p-text-muted-color);
+  font-variant-numeric: tabular-nums;
+}
+.weight.heavy {
+  color: var(--chip-warn-fg);
+}
+.weight.light {
+  color: var(--chip-unit-fg);
+}
+.none {
+  color: var(--p-text-muted-color);
+  font-size: 0.85rem;
+}
+.add-role {
+  justify-self: start;
 }
 </style>

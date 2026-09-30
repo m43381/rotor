@@ -91,3 +91,62 @@ export function defaultRequirement(def: AttributeDefinition): AttributeRequireme
       return { code: def.code, op: 'eq', value: null }
   }
 }
+
+export interface RoleChip {
+  kind: 'unit' | 'category' | 'rank' | 'req'
+  icon: string
+  text: string
+  hint: string
+}
+
+/** Кто заступает на роль и требования к нему — метками для списков нарядов (ADR-0018). */
+export function roleChips(
+  role: Pick<
+    DutyRoleIn,
+    'min_rank_order' | 'allowed_position_ids' | 'attribute_requirements' | 'allowed_category_ids'
+  > & { assigned_unit_name?: string | null; assigned_unit_id?: string | null },
+  refs: { ranks: Rank[]; positions: Position[]; attributes: AttributeDefinition[]; categories: { id: string; name: string }[] },
+): RoleChip[] {
+  const chips: RoleChip[] = []
+  if (role.assigned_unit_id) {
+    chips.push({
+      kind: 'unit',
+      icon: 'pi pi-map-marker',
+      text: role.assigned_unit_name ?? 'подразделение',
+      hint: 'Роль закреплена за подразделением: ячейки уходят ему автоматически',
+    })
+  }
+  if (role.allowed_category_ids?.length) {
+    const names = role.allowed_category_ids.map((id) => refs.categories.find((c) => c.id === id)?.name ?? '?')
+    chips.push({
+      kind: 'category',
+      icon: 'pi pi-users',
+      text: names.join(', '),
+      hint: 'Допустимые категории личного состава (строгое условие)',
+    })
+  }
+  if (role.min_rank_order !== null && role.min_rank_order !== undefined) {
+    const rank = refs.ranks.find((r) => r.order === role.min_rank_order)
+    chips.push({
+      kind: 'rank',
+      icon: 'pi pi-star',
+      text: `от ${rank?.name ?? role.min_rank_order}`,
+      hint: 'Звание не ниже',
+    })
+  }
+  if (role.allowed_position_ids?.length) {
+    const names = role.allowed_position_ids.map((id) => refs.positions.find((p) => p.id === id)?.name ?? '?')
+    chips.push({ kind: 'req', icon: 'pi pi-briefcase', text: names.join(', '), hint: 'Допустимые должности' })
+  }
+  for (const r of role.attribute_requirements ?? []) {
+    const def = refs.attributes.find((a) => a.code === r.code)
+    const op = r.op === 'eq' ? '' : `${OPS[r.op] ?? r.op} `
+    chips.push({
+      kind: 'req',
+      icon: 'pi pi-tag',
+      text: `${def?.name ?? r.code}: ${op}${valueText(r.value, def)}`,
+      hint: 'Требование к характеристике',
+    })
+  }
+  return chips
+}

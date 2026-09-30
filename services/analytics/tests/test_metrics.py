@@ -14,7 +14,10 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from allocation.engine.metrics import fairness as engine_fairness
 from analytics.metrics import fairness
 from analytics.models import DutyFact
+from analytics.people import handle_category_event, handle_person_event
 from analytics.rebuild import rebuild
+from dutyflow_common.events import Event
+from dutyflow_common.ids import uuid7
 
 NOV = dt.date(2026, 11, 1)
 PERIOD = {"date_from": "2026-11-01", "date_to": "2026-11-30"}
@@ -181,3 +184,97 @@ async def test_rebuild_replaces_facts(
     total = await rebuild(sessionmaker, FakeScheduling(fresh))  # type: ignore[arg-type]
     assert total == 5
     assert await count(sessionmaker) == 5
+
+
+async def test_breakdowns_and_dimensions(
+    client_for: ClientFactory, org: Org, sessionmaker: async_sessionmaker[AsyncSession]
+) -> None:
+    """Разрезы фазы 8: измерения, два измерения, распределение, календарь, Лоренц, наряд дня."""
+    people = await seed(sessionmaker, org)
+    cadet, officer = uuid.uuid4(), uuid.uuid4()
+    async with sessionmaker() as session, session.begin():
+        await handle_category_event(
+            session, Event(uuid7(), "person_category.changed", cadet, {"name": "Курсант"})
+        )
+        await handle_category_event(
+            session,
+            Event(
+                uuid7(),
+                "person_category.changed",
+                officer,
+                {"name": "Постоянный состав", "sort_order": 1},
+            ),
+        )
+        for last, cat in (("Алексеев", cadet), ("Борисов", cadet), ("Григорьев", officer)):
+            payload = {
+                "person_id": str(people[last]),
+                "unit_id": str(org.fac_a),
+                "category_id": str(cat),
+                "is_active": True,
+                "version": 2,
+            }
+            await handle_person_event(
+                session, Event(uuid7(), "person.updated", people[last], payload)
+            )
+        # Устаревшее событие (версия 1) категорию не возвращает
+        stale = {"person_id": str(people["Алексеев"]), "unit_id": str(org.fac_a), "version": 1}
+        await handle_person_event(
+            session, Event(uuid7(), "person.created", people["Алексеев"], stale)
+        )
+
+    op = client_for(org.fac_a, "operator")
+    base = {"unit_id": str(org.fac_a), **PERIOD}
+
+    async def get(path: str, **params: Any) -> Any:
+        r = await op.get(path, params={**base, **params})
+        assert r.status_code == 200, r.text
+        return r.json()
+
+    units = await get("/metrics/breakdown", dimension="unit")
+    assert [(i["label"], i["duties"]) for i in units["items"]] == [
+        ("Факультет A (само)", 1),
+        ("Курс A1", 4),
+        ("Курс A2", 2),
+    ]
+    cats = {i["label"]: i for i in (await get("/metrics/breakdown", dimension="category"))["items"]}
+    assert (cats["Курсант"]["people"], cats["Курсант"]["load"]) == (2, 4.0)
+    assert cats["Постоянный состав"]["duties"] == 1
+    assert cats["Не указана"]["people"] == 1  # Васильев — нет в проекции людей
+
+    week = await get("/metrics/breakdown", dimension="weekday")
+    assert sum(i["duties"] for i in week["items"]) == 7
+    assert [i["label"] for i in week["items"]] == sorted(
+        (i["label"] for i in week["items"]), key=["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"].index
+    )
+    kinds = {
+        i["label"]: i["duties"]
+        for i in (await get("/metrics/breakdown", dimension="day_kind"))["items"]
+    }
+    assert kinds == {"Будни": 6, "Выходные и праздники": 1}
+
+    # Два измерения: подразделение × роль
+    pivot = await get("/metrics/breakdown", dimension="unit", split="role")
+    assert {i["split_label"] for i in pivot["items"]} == {"Наряд — Дежурный"}
+    assert pivot["split"] == "role"
+
+    dist = await get("/metrics/distribution", dimension="unit")
+    a1 = next(i for i in dist["items"] if i["label"] == "Курс A1")
+    assert (a1["people"], a1["min"], a1["max"], a1["median"]) == (2, 1.0, 3.0, 2.0)
+
+    cal = await get("/metrics/calendar")
+    assert [d["date"] for d in cal][:2] == ["2026-11-02", "2026-11-03"]
+    assert sum(d["duties"] for d in cal) == 7
+
+    overview = await get("/metrics/overview")
+    assert overview["lorenz"][0] == [0.0, 0.0]
+    assert overview["lorenz"][-1] == [1.0, 1.0]
+
+    # Наряд дня: Васильев заступил 4-го на двое суток — в наряде и 5-го
+    roster = (
+        await op.get("/metrics/roster", params={"unit_id": str(org.fac_a), "day": "2026-11-05"})
+    ).json()
+    assert {r["person_name"] for r in roster} == {"Васильев В. В.", "Григорьев Г. Г."}
+    assert roster[0]["duty_type_name"] == "Наряд"
+
+    bad = await op.get("/metrics/breakdown", params={**base, "dimension": "nope"})
+    assert bad.status_code == 422

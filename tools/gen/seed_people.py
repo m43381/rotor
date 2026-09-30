@@ -53,6 +53,7 @@ def main() -> int:
             return check(http.post(path, headers=h, json=body))
 
         existing_pos = {p["name"]: p["id"] for p in get("/api/personnel/positions")}
+        categories = {c["name"]: c["id"] for c in get("/api/personnel/person-categories")}
         for order, name in enumerate(POSITIONS):
             if name not in existing_pos:
                 existing_pos[name] = post(
@@ -95,7 +96,7 @@ def main() -> int:
                 "rank_id": ranks.get(rank),
                 "position_id": existing_pos[position],
                 "personal_no": personal_no,
-                "attributes": {"category": category},
+                "category_id": categories[category],
             }
             p = post("/api/personnel/people", body)
             created += 1

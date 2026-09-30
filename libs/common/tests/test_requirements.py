@@ -101,3 +101,17 @@ def test_validate_requirement(
     else:
         assert result is not None
         assert error in result
+
+
+def test_category_is_hard_requirement() -> None:
+    cadet, officer = uuid.uuid4(), uuid.uuid4()
+    r = RoleRequirements.from_row(None, None, None, [officer])
+    assert not r.is_empty
+    violations = check(PersonTraits(None, None, {}, category_id=cadet), r)
+    assert [(v.kind, v.hard) for v in violations] == [("category", True)]
+    assert check(PersonTraits(None, None, {}, category_id=officer), r) == []
+    # Категория не указана — не подходит
+    assert [v.kind for v in check(PersonTraits(None, None, {}), r)] == ["category"]
+    # Без ограничения категории подходит любой, остальные нарушения мягкие
+    soft = check(PersonTraits(10, None, {}, category_id=cadet), req(min_rank_order=60))
+    assert [(v.kind, v.hard) for v in soft] == [("rank", False)]

@@ -179,6 +179,7 @@ async def populate(people: int, operators: int, active: int, resume: bool = Fals
                             "first_name": full.first,
                             "middle_name": full.middle,
                             "unit": label[org.units[person.unit].name],
+                            "category": "Курсант",
                         },
                     }
                 )

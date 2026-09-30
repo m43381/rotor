@@ -89,6 +89,7 @@ DEFAULT_RULES: dict[RuleKey, Scope] = {
             "rank",
             "calendar",
             "position",
+            "person_category",
             "attribute_definition",
             "exemption_reason",
         )

@@ -2980,6 +2980,33 @@
             "type": "array",
             "title": "Attribute Requirements"
           },
+          "assigned_unit_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Unit Id"
+          },
+          "allowed_category_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allowed Category Ids"
+          },
           "is_active": {
             "type": "boolean",
             "title": "Is Active"
@@ -3038,6 +3065,13 @@
             "title": "Headcount",
             "default": 1
           },
+          "load_weight": {
+            "type": "number",
+            "maximum": 99.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Load Weight",
+            "default": 1.0
+          },
           "sort_order": {
             "type": "integer",
             "maximum": 1000.0,
@@ -3081,6 +3115,33 @@
             "maxItems": 20,
             "title": "Attribute Requirements"
           },
+          "assigned_unit_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Unit Id"
+          },
+          "allowed_category_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allowed Category Ids"
+          },
           "is_active": {
             "type": "boolean",
             "title": "Is Active",
@@ -3116,6 +3177,10 @@
           "headcount": {
             "type": "integer",
             "title": "Headcount"
+          },
+          "load_weight": {
+            "type": "number",
+            "title": "Load Weight"
           },
           "sort_order": {
             "type": "integer",
@@ -3154,6 +3219,44 @@
             "type": "array",
             "title": "Attribute Requirements"
           },
+          "assigned_unit_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Unit Id"
+          },
+          "assigned_unit_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Unit Name"
+          },
+          "allowed_category_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allowed Category Ids"
+          },
           "is_active": {
             "type": "boolean",
             "title": "Is Active"
@@ -3170,10 +3273,13 @@
           "code",
           "name",
           "headcount",
+          "load_weight",
           "sort_order",
           "min_rank_order",
           "allowed_position_ids",
           "attribute_requirements",
+          "assigned_unit_id",
+          "allowed_category_ids",
           "is_active",
           "version"
         ],
@@ -3207,6 +3313,13 @@
             "minimum": 1.0,
             "title": "Headcount",
             "default": 1
+          },
+          "load_weight": {
+            "type": "number",
+            "maximum": 99.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Load Weight",
+            "default": 1.0
           },
           "sort_order": {
             "type": "integer",
@@ -3250,6 +3363,33 @@
             "type": "array",
             "maxItems": 20,
             "title": "Attribute Requirements"
+          },
+          "assigned_unit_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Unit Id"
+          },
+          "allowed_category_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allowed Category Ids"
           },
           "is_active": {
             "type": "boolean",
@@ -3355,18 +3495,6 @@
             ],
             "title": "Short Name"
           },
-          "assigned_unit_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Assigned Unit Id"
-          },
           "start_time": {
             "type": "string",
             "format": "time",
@@ -3384,13 +3512,6 @@
             "minimum": 0.0,
             "title": "Rest Hours",
             "default": 48
-          },
-          "load_weight": {
-            "type": "number",
-            "maximum": 99.0,
-            "exclusiveMinimum": 0.0,
-            "title": "Load Weight",
-            "default": 1.0
           },
           "owner_unit_id": {
             "type": "string",
@@ -3455,29 +3576,6 @@
             ],
             "title": "Owner Unit Name"
           },
-          "assigned_unit_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Assigned Unit Id"
-          },
-          "assigned_unit_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Assigned Unit Name"
-          },
           "start_time": {
             "type": "string",
             "format": "time",
@@ -3490,10 +3588,6 @@
           "rest_hours": {
             "type": "integer",
             "title": "Rest Hours"
-          },
-          "load_weight": {
-            "type": "number",
-            "title": "Load Weight"
           },
           "is_active": {
             "type": "boolean",
@@ -3522,12 +3616,9 @@
           "short_name",
           "owner_unit_id",
           "owner_unit_name",
-          "assigned_unit_id",
-          "assigned_unit_name",
           "start_time",
           "duration_minutes",
           "rest_hours",
-          "load_weight",
           "is_active",
           "version",
           "roles",
@@ -3555,18 +3646,6 @@
             ],
             "title": "Short Name"
           },
-          "assigned_unit_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Assigned Unit Id"
-          },
           "start_time": {
             "type": "string",
             "format": "time",
@@ -3584,13 +3663,6 @@
             "minimum": 0.0,
             "title": "Rest Hours",
             "default": 48
-          },
-          "load_weight": {
-            "type": "number",
-            "maximum": 99.0,
-            "exclusiveMinimum": 0.0,
-            "title": "Load Weight",
-            "default": 1.0
           },
           "version": {
             "type": "integer",
@@ -4420,6 +4492,16 @@
           "pending_incoming": {
             "type": "integer",
             "title": "Pending Incoming"
+          },
+          "to_fill": {
+            "type": "integer",
+            "title": "To Fill",
+            "default": 0
+          },
+          "unfilled": {
+            "type": "integer",
+            "title": "Unfilled",
+            "default": 0
           }
         },
         "type": "object",
@@ -4584,6 +4666,34 @@
           "is_active": {
             "type": "boolean",
             "title": "Is Active"
+          },
+          "assigned_unit_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Unit Id"
+          },
+          "assigned_unit_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Unit Name"
+          },
+          "locked": {
+            "type": "boolean",
+            "title": "Locked",
+            "default": false
           },
           "cells": {
             "items": {

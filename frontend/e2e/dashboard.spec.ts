@@ -19,13 +19,21 @@ test('дашборд показывает нагрузку поддерева и
   await page.locator('#username').fill('faculty_admin')
   await page.locator('#password').fill(PASSWORD)
   await page.locator('#kc-login').click()
-  await expect(page.getByRole('heading', { name: 'Нагрузка', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Аналитика', exact: true })).toBeVisible()
 
-  const duties = page.locator('.kpi', { hasText: 'нарядов' }).first().locator('span')
+  const duties = page.locator('.stat', { has: page.getByText('Нарядов', { exact: true }) }).locator('.value')
   await expect(duties).not.toHaveText('0')
-  await expect(page.getByText('Сколько нарядов у людей')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'По дням недели' })).toBeVisible()
   await expect(page.locator('canvas').first()).toBeVisible()
-  await expect(page.getByText('Больше всех')).toBeVisible()
+
+  // Справедливость: кривая Лоренца, гистограмма и самые загруженные
+  await page.getByRole('tab', { name: /Справедливость/ }).click()
+  await expect(page.getByRole('heading', { name: 'Сколько нарядов у людей' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Больше всех' })).toBeVisible()
+
+  // Конструктор: разрез по категориям с разбивкой по дням недели — график и таблица
+  await page.getByRole('tab', { name: /Конструктор/ }).click()
+  await expect(page.locator('.table-card .p-datatable-tbody tr').first()).toBeVisible()
 
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Отчёт XLSX' }).click()

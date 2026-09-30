@@ -35,6 +35,8 @@ async def duty_roles_batch(data: DutyRolesBatchIn, session: SessionDep) -> list[
             "min_rank_order": role.min_rank_order,
             "allowed_position_ids": role.allowed_position_ids,
             "attribute_requirements": role.attribute_requirements,
+            "assigned_unit_id": role.assigned_unit_id,
+            "allowed_category_ids": role.allowed_category_ids,
             "is_active": role.is_active,
             "version": role.version,
             "duty_type": {

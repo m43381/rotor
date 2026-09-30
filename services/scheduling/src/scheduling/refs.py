@@ -1,4 +1,5 @@
-"""Справочники personnel, на которые ссылаются требования ролей: должности и характеристики.
+"""Справочники personnel, на которые ссылаются требования ролей: должности, категории
+личного состава (ADR-0018) и характеристики.
 
 Владелец — personnel; scheduling их не хранит, а проверяет ссылки при записи роли через
 внутренний API владельца (`docs/data-model.md` §1, «Ссылки между сервисами»).
@@ -25,6 +26,8 @@ class AttributeDef:
 class PersonnelRefs:
     # id должности → действует ли она
     positions: dict[uuid.UUID, bool] = field(default_factory=dict)
+    # id категории → действует ли она
+    categories: dict[uuid.UUID, bool] = field(default_factory=dict)
     attributes: dict[str, AttributeDef] = field(default_factory=dict)
 
 
@@ -40,6 +43,9 @@ def http_refs_loader(settings: SchedulingSettings) -> RefsLoader:
             await client.aclose()
         return PersonnelRefs(
             positions={uuid.UUID(p["id"]): bool(p["is_active"]) for p in data["positions"]},
+            categories={
+                uuid.UUID(c["id"]): bool(c["is_active"]) for c in data.get("categories", [])
+            },
             attributes={
                 a["code"]: AttributeDef(
                     a["code"], a["name"], a["value_type"], a.get("enum_options"), a["is_active"]

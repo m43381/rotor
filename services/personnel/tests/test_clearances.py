@@ -4,7 +4,7 @@ import uuid
 from typing import Any
 
 import httpx
-from conftest import ClientFactory, Org, add_person
+from conftest import CADET, PERMANENT, ClientFactory, Org, add_person
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -17,7 +17,7 @@ from dutyflow_common.outbox import OutboxEvent
 from personnel.duty_roles import handle_duty_event, resync_scheduling
 from personnel.models import DutyRoleProjection
 
-CADET = [{"code": "category", "op": "eq", "value": "Курсант"}]
+FIRST_CLASS = [{"code": "skill", "op": "eq", "value": "1 класс"}]
 
 
 async def duty_role(
@@ -67,6 +67,8 @@ async def duty_role(
                     "min_rank_order": requirements.get("min_rank_order"),
                     "allowed_position_ids": requirements.get("allowed_position_ids"),
                     "attribute_requirements": requirements.get("attribute_requirements", []),
+                    "assigned_unit_id": requirements.get("assigned_unit_id"),
+                    "allowed_category_ids": requirements.get("allowed_category_ids"),
                     "is_active": True,
                     "version": version,
                 },
@@ -125,14 +127,14 @@ async def test_requirements_warning_and_override(
         org.fac_a,
         "Дежурный по факультету",
         min_rank_order=100,
-        attribute_requirements=[{"code": "category", "op": "eq", "value": "Постоянный состав"}],
+        attribute_requirements=FIRST_CLASS,
     )
     cadet = await add_person(
         admin,
         org.course_a1,
         "Петров",
         rank_id=str(org.rank_private),
-        attributes={"category": "Курсант"},
+        attributes={"skill": "2 класс"},
     )
     r = await grant(admin, cadet, role)
     assert r.status_code == 422
@@ -141,7 +143,7 @@ async def test_requirements_warning_and_override(
     messages = [v["message"] for v in body["details"]["violations"]]
     assert messages == [
         "Звание ниже требуемого: нужно не ниже «Майор», у человека — «Рядовой»",
-        "«Категория»: требуется «Постоянный состав», у человека — «Курсант»",
+        "«Классность»: требуется «1 класс», у человека — «2 класс»",
     ]
 
     # Подтверждение без комментария не принимается
@@ -168,8 +170,8 @@ async def test_requirements_warning_and_override(
 async def test_override_flag_only_when_needed(
     admin: AsyncClient, org: Org, sessionmaker: async_sessionmaker[AsyncSession]
 ) -> None:
-    role = await duty_role(sessionmaker, org.fac_a, attribute_requirements=CADET)
-    person = await add_person(admin, org.course_a1, "Сидоров", attributes={"category": "Курсант"})
+    role = await duty_role(sessionmaker, org.fac_a, attribute_requirements=FIRST_CLASS)
+    person = await add_person(admin, org.course_a1, "Сидоров", attributes={"skill": "1 класс"})
     r = await grant(admin, person, role, confirm_override=True, override_comment="на всякий случай")
     [c] = r.json()
     assert c["overrides_requirements"] is False
@@ -264,10 +266,10 @@ async def test_mismatch_report(
         "Дневальный",
         type_id=type_id,
         role_id=role_id,
-        attribute_requirements=CADET,
+        attribute_requirements=FIRST_CLASS,
     )
-    ok = await add_person(admin, org.course_a1, "Алексеев", attributes={"category": "Курсант"})
-    other = await add_person(admin, org.course_a1, "Борисов", attributes={"category": "Слушатель"})
+    ok = await add_person(admin, org.course_a1, "Алексеев", attributes={"skill": "1 класс"})
+    other = await add_person(admin, org.course_a1, "Борисов", attributes={"skill": "2 класс"})
     assert (await grant(admin, ok, role_id)).status_code == 201
     r = await grant(admin, other, role_id, confirm_override=True, override_comment="Нехватка людей")
     assert r.status_code == 201
@@ -278,12 +280,13 @@ async def test_mismatch_report(
     assert item["person_name"] == "Борисов Иван"
     assert item["overrides_requirements"] is True
     assert item["unit_name"] == "Курс A1"
-    assert item["violations"][0]["message"].startswith("«Категория»")
+    assert item["violations"][0]["message"].startswith("«Классность»")
+    assert item["violations"][0]["hard"] is False
 
     # Характеристика изменилась — ранее обычный допуск тоже попадает в отчёт
     r = await admin.patch(
         f"/people/{ok['id']}",
-        json={"version": ok["version"], "attributes": {"category": "Постоянный состав"}},
+        json={"version": ok["version"], "attributes": {"skill": "2 класс"}},
     )
     assert r.status_code == 200, r.text
     report = (await admin.get("/reports/clearance-mismatches")).json()
@@ -302,7 +305,7 @@ async def test_mismatch_report(
         type_id=type_id,
         role_id=role_id,
         version=1,
-        attribute_requirements=CADET,
+        attribute_requirements=FIRST_CLASS,
     )
     assert (await admin.get("/reports/clearance-mismatches")).json()["total"] == 0
 
@@ -317,11 +320,17 @@ async def test_bulk_grant(
     org: Org,
     sessionmaker: async_sessionmaker[AsyncSession],
 ) -> None:
-    duty = await duty_role(sessionmaker, org.fac_a, "Дежурный", attribute_requirements=CADET)
-    orderly = await duty_role(sessionmaker, org.fac_a, "Дневальный")
-    cadet = await add_person(admin, org.course_a1, "Григорьев", attributes={"category": "Курсант"})
+    duty = await duty_role(sessionmaker, org.fac_a, "Дежурный", attribute_requirements=FIRST_CLASS)
+    orderly = await duty_role(
+        sessionmaker, org.fac_a, "Дневальный", allowed_category_ids=[str(CADET)]
+    )
+    cadet = await add_person(admin, org.course_a1, "Григорьев", attributes={"skill": "1 класс"})
     officer = await add_person(
-        admin, org.course_a1, "Дмитриев", attributes={"category": "Постоянный состав"}
+        admin,
+        org.course_a1,
+        "Дмитриев",
+        category_id=str(PERMANENT),
+        attributes={"skill": "2 класс"},
     )
     foreign = await add_person(admin, org.fac_b, "Егоров")
     body = {
@@ -332,10 +341,11 @@ async def test_bulk_grant(
     r = await course_op.post("/clearances/bulk", json=body)
     assert r.status_code == 200, r.text
     result = r.json()
-    assert result["done"] == 3  # курсант — обе роли, офицер — только дневальный
+    assert result["done"] == 2  # курсант — обе роли; офицеру дежурный — с подтверждением
     assert result["needs_override"] == 1
     reasons = sorted(s["reason"] for s in result["skipped"])
     assert reasons == [
+        "Категория не допускается ролью",
         "Не проходит требования роли",
         "Человек не найден или вне зоны ответственности",
     ]
@@ -345,9 +355,10 @@ async def test_bulk_grant(
         json={**body, "confirm_override": True, "override_comment": "Решение командира"},
     )
     result = r.json()
-    assert result["done"] == 1
+    assert result["done"] == 1  # подтверждение не помогает против категории (ADR-0018)
     assert result["needs_override"] == 0
-    assert sum(s["reason"] == "Допуск уже выдан" for s in result["skipped"]) == 3
+    assert sum(s["reason"] == "Допуск уже выдан" for s in result["skipped"]) == 2
+    assert sum(s["reason"] == "Категория не допускается ролью" for s in result["skipped"]) == 1
 
     roles = (await course_op.get("/clearance-roles")).json()
     assert {r["role_name"] for r in roles} == {"Дежурный", "Дневальный"}
@@ -397,7 +408,8 @@ async def test_snapshot_includes_clearances(
     assert expired.json() == []
 
     refs = (await internal.post("/internal/references", json={})).json()
-    assert [a["code"] for a in refs["attributes"]] == ["category"]
+    assert {a["code"] for a in refs["attributes"]} == {"category", "skill"}
+    assert {c["name"] for c in refs["categories"]} >= {"Курсант", "Постоянный состав"}
 
 
 async def test_resync_from_scheduling(
@@ -442,3 +454,77 @@ async def test_resync_from_scheduling(
         role = await session.get(DutyRoleProjection, role_id)
     assert role is not None
     assert (role.name, role.source_version) == ("Из scheduling", 3)
+
+
+async def test_category_is_hard(
+    admin: AsyncClient,
+    internal: AsyncClient,
+    org: Org,
+    sessionmaker: async_sessionmaker[AsyncSession],
+) -> None:
+    """Категория не перекрывается допуском-исключением (ADR-0018)."""
+    role = await duty_role(
+        sessionmaker, org.fac_a, "Дежурный по факультету", allowed_category_ids=[str(PERMANENT)]
+    )
+    cadet = await add_person(admin, org.course_a1, "Курсантов")
+    officer = await add_person(admin, org.course_a1, "Офицеров", category_id=str(PERMANENT))
+
+    [option] = (await admin.get(f"/people/{cadet['id']}/clearance-options")).json()
+    assert [(v["kind"], v["hard"]) for v in option["violations"]] == [("category", True)]
+    for extra in ({}, {"confirm_override": True, "override_comment": "Очень нужно"}):
+        r = await grant(admin, cadet, role, **extra)
+        assert r.status_code == 422
+        assert r.json()["code"] == "category_not_allowed"
+        assert "«Курсант» не допускается ролью" in r.json()["message"]
+
+    r = await grant(admin, officer, role)
+    assert r.status_code == 201, r.text
+    period = {"unit_ids": [str(org.fac_a)], "date_from": "2026-10-01", "date_to": "2026-10-31"}
+    batch = {
+        p["id"]: p for p in (await internal.post("/internal/people/batch", json=period)).json()
+    }
+    assert batch[officer["id"]]["clearances"] == [[str(role), None, None]]
+    assert batch[officer["id"]]["category_id"] == str(PERMANENT)
+
+    # Категорию сменили — допуск остаётся в карточке, но не действует
+    r = await admin.patch(
+        f"/people/{officer['id']}",
+        json={"version": officer["version"], "category_id": str(CADET)},
+    )
+    assert r.status_code == 200, r.text
+    [c] = (await admin.get(f"/people/{officer['id']}/clearances")).json()
+    assert c["status"] == "category_mismatch"
+    batch = {
+        p["id"]: p for p in (await internal.post("/internal/people/batch", json=period)).json()
+    }
+    assert batch[officer["id"]]["clearances"] == []
+    candidates = await internal.post(
+        "/internal/people/batch", json={**period, "duty_role_ids": [str(role)]}
+    )
+    assert candidates.json() == []
+    [item] = (await admin.get("/reports/clearance-mismatches")).json()["items"]
+    assert item["violations"][0]["hard"] is True
+
+    # Сбросить категорию нельзя
+    r = await admin.patch(
+        f"/people/{officer['id']}", json={"version": r.json()["version"], "category_id": None}
+    )
+    assert r.status_code == 422
+
+
+async def test_pinned_role_only_for_assigned_subtree(
+    admin: AsyncClient, org: Org, sessionmaker: async_sessionmaker[AsyncSession]
+) -> None:
+    """Роль, закреплённая за курсом, доступна только людям курса (ADR-0018)."""
+    role = await duty_role(
+        sessionmaker, org.fac_a, "Дневальный", assigned_unit_id=str(org.course_a1)
+    )
+    staff = await add_person(admin, org.fac_a, "Управленцев")
+    cadet = await add_person(admin, org.course_a1, "Курсов")
+    assert (await admin.get(f"/people/{staff['id']}/clearance-options")).json() == []
+    r = await grant(admin, staff, role)
+    assert r.status_code == 422
+    assert "закреплена за подразделением «Курс A1»" in r.json()["message"]
+    [option] = (await admin.get(f"/people/{cadet['id']}/clearance-options")).json()
+    assert option["assigned_unit_name"] == "Курс A1"
+    assert (await grant(admin, cadet, role)).status_code == 201

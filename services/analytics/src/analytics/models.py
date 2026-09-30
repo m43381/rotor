@@ -7,7 +7,7 @@ import datetime as dt
 import uuid
 from typing import Any
 
-from sqlalchemy import Boolean, Date, DateTime, Float, Index, SmallInteger, String, Text
+from sqlalchemy import Boolean, Date, DateTime, Float, Index, Integer, SmallInteger, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -17,8 +17,10 @@ from dutyflow_common.projections import RankProjection, UnitProjection
 
 __all__ = [
     "AuditEntry",
+    "CategoryDim",
     "DutyFact",
     "OutboxEvent",
+    "PersonDim",
     "ProcessedEvent",
     "RankProjection",
     "UnitProjection",
@@ -42,6 +44,9 @@ class DutyFact(Base):
     schedule_status: Mapped[str] = mapped_column(String(10))
     duty_type_id: Mapped[uuid.UUID]
     duty_role_id: Mapped[uuid.UUID]
+    # Названия на момент назначения — для разрезов (фаза 8); у старых фактов пусто до перестроения
+    duty_type_name: Mapped[str | None] = mapped_column(String(200))
+    role_name: Mapped[str | None] = mapped_column(String(200))
     date: Mapped[dt.date] = mapped_column(Date)
     start_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True))
     end_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True))
@@ -49,6 +54,31 @@ class DutyFact(Base):
     load: Mapped[float] = mapped_column(Float)
     holiday: Mapped[bool] = mapped_column(Boolean)
     source: Mapped[str] = mapped_column(String(10))
+
+
+class PersonDim(Base):
+    """Человек для разрезов аналитики (фаза 8): категория и звание. Копия personnel по событиям
+    `person.*`, при пустой копии — выгрузкой `POST /internal/people/batch` (ADR-0020)."""
+
+    __tablename__ = "person_dim"
+
+    person_id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    unit_id: Mapped[uuid.UUID]
+    category_id: Mapped[uuid.UUID | None]
+    rank_id: Mapped[uuid.UUID | None]
+    is_active: Mapped[bool] = mapped_column(Boolean)
+    source_version: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class CategoryDim(Base):
+    """Справочник категорий личного состава (ADR-0018) — названия для разрезов."""
+
+    __tablename__ = "category_dim"
+
+    category_id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(200))
+    sort_order: Mapped[int] = mapped_column(SmallInteger, default=0)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
 class AuditEntry(Base):

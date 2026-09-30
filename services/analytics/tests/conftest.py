@@ -105,7 +105,12 @@ async def emit(
 async def org(app: FastAPI, settings: AnalyticsSettings) -> Org:
     engine = create_async_engine(settings.database_url)
     async with engine.begin() as conn:
-        await conn.execute(text("TRUNCATE duty_fact, audit_view, unit_projection, processed_event"))
+        await conn.execute(
+            text(
+                "TRUNCATE duty_fact, audit_view, unit_projection, processed_event, person_dim,"
+                " category_dim"
+            )
+        )
     await engine.dispose()
     maker: async_sessionmaker[AsyncSession] = app.state.db.sessionmaker
     o = Org(uuid7(), uuid7(), uuid7(), uuid7(), uuid7())
@@ -143,6 +148,9 @@ def fact(
     weight: float = 1.0,
     holiday: bool = False,
     name: str = "Иванов И. И.",
+    duty: str = "Наряд",
+    role: str = "Дежурный",
+    source: str = "auto",
 ) -> dict[str, Any]:
     start = dt.datetime.combine(date, dt.time(15), tzinfo=dt.UTC)
     return {
@@ -154,14 +162,16 @@ def fact(
         "person_name": name,
         "unit_id": str(unit),
         "duty_type_id": str(uuid.UUID(int=1)),
-        "duty_role_id": str(uuid.UUID(int=2)),
+        "duty_role_id": str(uuid.uuid5(uuid.NAMESPACE_OID, f"{duty}:{role}")),
+        "duty_type_name": duty,
+        "role_name": role,
         "date": date.isoformat(),
         "start_at": start.isoformat(),
         "end_at": (start + dt.timedelta(days=days)).isoformat(),
         "occupied_days": days,
         "load": days * weight,
         "holiday": holiday,
-        "source": "auto",
+        "source": source,
     }
 
 

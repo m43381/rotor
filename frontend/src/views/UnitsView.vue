@@ -1,15 +1,19 @@
 <script setup lang="ts">
-// Дерево подразделений оператора: просмотр и изменение структуры (сценарий фазы 1).
+// Дерево подразделений оператора: просмотр и изменение структуры (сценарий фазы 1),
+// численность личного состава по узлам (фаза 8) и быстрый переход к людям и графику.
 import Button from 'primevue/button'
 import Column from 'primevue/column'
+import IconField from 'primevue/iconfield'
+import InputIcon from 'primevue/inputicon'
 import InputText from 'primevue/inputtext'
 import Tag from 'primevue/tag'
 import TreeTable from 'primevue/treetable'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 
-import { ApiError, type Unit } from '@/api/client'
+import { ApiError, personnel, unwrap, type Unit } from '@/api/client'
 import MoveUnitDialog from '@/components/MoveUnitDialog.vue'
 import UnitFormDialog from '@/components/UnitFormDialog.vue'
 import { useUnitsStore } from '@/stores/units'
@@ -18,6 +22,7 @@ import { expandedKeys } from '@/utils/tree'
 const store = useUnitsStore()
 const toast = useToast()
 const confirm = useConfirm()
+const router = useRouter()
 
 const expanded = ref<Record<string, boolean>>({})
 const filter = ref('')
@@ -36,10 +41,43 @@ const formTypes = computed(() => {
   return parent ? store.childTypes(parent) : store.types
 })
 
+// Численность: люди прямо в подразделении и во всём поддереве (один запрос к personnel)
+const direct = ref<Map<string, number>>(new Map())
+async function loadCounts() {
+  try {
+    const rows = await unwrap(personnel.GET('/people/counts'))
+    direct.value = new Map(rows.map((r) => [r.unit_id, r.people]))
+  } catch {
+    direct.value = new Map() // численность — справочная, без неё дерево работает
+  }
+}
+const subtreeCount = computed(() => {
+  const totals = new Map<string, number>()
+  const byPath = new Map(store.units.map((u) => [u.path, u.id]))
+  for (const u of store.units) {
+    const n = direct.value.get(u.id) ?? 0
+    if (!n) continue
+    // Путь ltree — метки предков: добавляем к себе и к каждому видимому предку
+    const labels = u.path.split('.')
+    for (let i = labels.length; i > 0; i--) {
+      const id = byPath.get(labels.slice(0, i).join('.'))
+      if (id) totals.set(id, (totals.get(id) ?? 0) + n)
+    }
+  }
+  return totals
+})
+
 onMounted(async () => {
-  await run(store.load)
+  await Promise.all([run(store.load), loadCounts()])
   expanded.value = expandedKeys(store.tree, 2)
 })
+
+function openPeople(unit: Unit) {
+  void router.push({ path: '/people', query: { unit: unit.id } })
+}
+function openSchedule(unit: Unit) {
+  void router.push({ path: '/schedules', query: { unit: unit.id } })
+}
 
 async function run(action: () => Promise<unknown>, success?: string): Promise<boolean> {
   busy.value = true
@@ -128,12 +166,15 @@ function canParent(parent: Unit, child: Unit): boolean {
     <header class="page-header">
       <div>
         <h1>Структура подразделений</h1>
-        <p class="muted">Показаны подразделения в зоне ответственности: {{ store.units.length }}</p>
+        <p class="muted">
+          Подразделений в зоне ответственности: <strong>{{ store.units.length }}</strong> · личного
+          состава: <strong>{{ [...direct.values()].reduce((a, b) => a + b, 0) }}</strong>
+        </p>
       </div>
-      <span class="search">
-        <i class="pi pi-search" />
+      <IconField class="search">
+        <InputIcon class="pi pi-search" />
         <InputText v-model="filter" placeholder="Поиск по названию" aria-label="Поиск по названию" />
-      </span>
+      </IconField>
     </header>
 
     <TreeTable
@@ -153,19 +194,47 @@ function canParent(parent: Unit, child: Unit): boolean {
           <span v-if="node.data.short_name" class="muted"> · {{ node.data.short_name }}</span>
         </template>
       </Column>
-      <Column header="Тип" style="width: 14rem">
+      <Column header="Тип" style="width: 12rem">
         <template #body="{ node }">
           <Tag :value="store.typeById.get(node.data.unit_type_id)?.name ?? '—'" severity="secondary" />
         </template>
       </Column>
-      <Column header="Действия" style="width: 13rem">
+      <Column header="Личный состав" style="width: 11rem">
+        <template #body="{ node }">
+          <button
+            v-if="subtreeCount.get(node.data.id)"
+            v-tooltip.top="
+              direct.get(node.data.id) !== subtreeCount.get(node.data.id)
+                ? `Всего с нижестоящими; прямо в подразделении — ${direct.get(node.data.id) ?? 0}`
+                : 'Открыть список'
+            "
+            type="button"
+            class="count-link"
+            @click="openPeople(node.data)"
+          >
+            <i class="pi pi-users" /> {{ subtreeCount.get(node.data.id) }}
+          </button>
+          <span v-else class="muted-cell">—</span>
+        </template>
+      </Column>
+      <Column header="Действия" style="width: 15rem">
         <template #body="{ node }">
           <div class="row-actions">
+            <Button
+              v-tooltip.top="'График нарядов'"
+              icon="pi pi-calendar"
+              text
+              rounded
+              severity="secondary"
+              aria-label="График нарядов"
+              @click="openSchedule(node.data)"
+            />
             <Button
               v-tooltip.top="'Добавить дочернее'"
               icon="pi pi-plus"
               text
               rounded
+              severity="secondary"
               aria-label="Добавить дочернее"
               :disabled="!node.data.permissions?.create_child"
               @click="openCreate(node.data)"
@@ -175,6 +244,7 @@ function canParent(parent: Unit, child: Unit): boolean {
               icon="pi pi-pencil"
               text
               rounded
+              severity="secondary"
               aria-label="Изменить"
               :disabled="!node.data.permissions?.update"
               @click="openEdit(node.data)"
@@ -184,6 +254,7 @@ function canParent(parent: Unit, child: Unit): boolean {
               icon="pi pi-arrow-right-arrow-left"
               text
               rounded
+              severity="secondary"
               aria-label="Перенести"
               :disabled="!node.data.permissions?.move"
               @click="openMove(node.data)"
@@ -244,18 +315,7 @@ h1 {
   color: var(--p-text-muted-color);
   margin: 0.25rem 0 0;
 }
-.search {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-}
-.search .pi {
-  position: absolute;
-  left: 0.75rem;
-  color: var(--p-text-muted-color);
-}
 .search :deep(input) {
-  padding-left: 2.25rem;
   width: 18rem;
   max-width: 100%;
 }
@@ -266,6 +326,31 @@ h1 {
 .row-actions {
   display: flex;
   gap: 0.125rem;
+  opacity: 0.35;
+  transition: opacity 0.15s;
+}
+/* Действия строки проявляются при наведении или фокусе — таблица не пестрит иконками */
+.tree :deep(tr:hover) .row-actions,
+.row-actions:focus-within {
+  opacity: 1;
+}
+.count-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: none;
+  background: none;
+  padding: 0.15rem 0.4rem;
+  border-radius: 6px;
+  font: inherit;
+  color: var(--app-accent);
+  cursor: pointer;
+}
+.count-link:hover {
+  background: var(--app-accent-soft);
+}
+.muted-cell {
+  color: var(--p-text-muted-color);
 }
 .inactive {
   text-decoration: line-through;

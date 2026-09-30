@@ -3,11 +3,11 @@
 
 from typing import Any
 
-from conftest import ClientFactory, Org, add_person
+from conftest import PERMANENT, ClientFactory, Org, add_person
 from httpx import AsyncClient
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
-from test_clearances import CADET, duty_role
+from test_clearances import FIRST_CLASS, duty_role
 
 from dutyflow_common.audit import AuditLog
 from dutyflow_common.outbox import OutboxEvent
@@ -32,7 +32,10 @@ async def test_template_lists_scope_options(
     t = (await admin.get("/imports/people/template")).json()
     unit = next(c for c in t["columns"] if c["key"] == "unit")
     assert "Академия / Факультет A / Курс A1" in unit["options"]
-    assert any(c["key"] == "attr:category" for c in t["columns"])
+    category = next(c for c in t["columns"] if c["key"] == "category")
+    assert category["required"] is True
+    assert category["options"] == ["Курсант", "Слушатель", "Постоянный состав"]
+    assert not any(c["key"] == "attr:category" for c in t["columns"])  # выведена из действия
     # Оператор факультета видит подписи от своего подразделения и только своё поддерево
     op = client_for(org.fac_a, "unit_admin")
     t = (await op.get("/imports/people/template")).json()
@@ -44,9 +47,7 @@ async def test_template_lists_scope_options(
 async def test_people_preview_apply_and_update(
     admin: AsyncClient, org: Org, sessionmaker: async_sessionmaker[AsyncSession]
 ) -> None:
-    await add_person(
-        admin, org.fac_a, "Старый", personal_no="A-1", attributes={"category": "Курсант"}
-    )
+    await add_person(admin, org.fac_a, "Старый", personal_no="A-1", attributes={"skill": "1 класс"})
     items = rows(
         {
             "personal_no": "A-2",
@@ -54,7 +55,7 @@ async def test_people_preview_apply_and_update(
             "first_name": "Пётр",
             "unit": "Академия / Факультет A / Курс A1",
             "rank": "Рядовой",
-            "attr:category": "Курсант",
+            "category": "Курсант",
         },
         # Известный номер: пустые ячейки не трогают значения, заполненные — заменяют
         {"personal_no": "A-1", "rank": "Майор", "unit": "Академия / Факультет B"},
@@ -107,13 +108,13 @@ async def test_people_preview_apply_and_update(
 
 
 async def test_duplicate_warning_and_stale_preview(admin: AsyncClient, org: Org) -> None:
-    await add_person(admin, org.fac_a, "Двойник", "Иван", attributes={"category": "Курсант"})
+    await add_person(admin, org.fac_a, "Двойник", "Иван", attributes={"skill": "1 класс"})
     items = rows(
         {
             "last_name": "Двойник",
             "first_name": "Иван",
             "unit": "Академия / Факультет A",
-            "attr:category": "Курсант",
+            "category": "Курсант",
         }
     )
     preview = await run(admin, "people", items)
@@ -121,7 +122,7 @@ async def test_duplicate_warning_and_stale_preview(admin: AsyncClient, org: Org)
     assert "дубликат" in preview["rows"][0]["warnings"][0]["message"]
 
     # Данные изменились после предпросмотра — применение отклоняется
-    await add_person(admin, org.fac_a, "Кто-то", attributes={"category": "Курсант"})
+    await add_person(admin, org.fac_a, "Кто-то", attributes={"skill": "1 класс"})
     other = rows({"personal_no": "Z", "last_name": "Z", "first_name": "Z"})
     stale = await admin.post(
         "/imports/people",
@@ -134,9 +135,7 @@ async def test_duplicate_warning_and_stale_preview(admin: AsyncClient, org: Org)
 async def test_rights_are_checked_per_row(
     client_for: ClientFactory, admin: AsyncClient, org: Org
 ) -> None:
-    await add_person(
-        admin, org.fac_b, "Чужой", personal_no="B-1", attributes={"category": "Курсант"}
-    )
+    await add_person(admin, org.fac_b, "Чужой", personal_no="B-1", attributes={"skill": "1 класс"})
     op = client_for(org.fac_a, "unit_admin")
     preview = await run(
         op,
@@ -147,7 +146,7 @@ async def test_rights_are_checked_per_row(
                 "last_name": "Свой",
                 "first_name": "Иван",
                 "unit": "Факультет A",
-                "attr:category": "Курсант",
+                "category": "Курсант",
             },
         ),
     )
@@ -161,17 +160,18 @@ async def test_clearances_and_exemptions(
     await duty_role(sessionmaker, org.root, "Дежурный", type_name="Наряд академии")
     await duty_role(
         sessionmaker, org.fac_a, "Дневальный", type_name="Наряд факультета",
-        attribute_requirements=CADET,
+        attribute_requirements=FIRST_CLASS,
     )  # fmt: skip
     cadet = await add_person(
-        admin, org.fac_a, "Курсантов", personal_no="C-1", attributes={"category": "Курсант"}
+        admin, org.fac_a, "Курсантов", personal_no="C-1", attributes={"skill": "1 класс"}
     )
     officer = await add_person(
         admin,
         org.fac_a,
         "Офицеров",
         personal_no="C-2",
-        attributes={"category": "Постоянный состав"},
+        category_id=str(PERMANENT),
+        attributes={"skill": "2 класс"},
     )
     template = (await admin.get("/imports/clearances/template")).json()
     roles = next(c for c in template["columns"] if c["key"] == "role")["options"]
@@ -256,7 +256,7 @@ async def test_bulk_import_without_n_plus_one(
                 "last_name": f"Фамилия{i}",
                 "first_name": "Имя",
                 "unit": "Академия / Факультет A / Курс A1",
-                "attr:category": "Курсант",
+                "category": "Курсант",
             }
             for i in range(2_000)
         )

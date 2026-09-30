@@ -759,6 +759,17 @@ function archive() {
                 <tr v-for="r in g.roles" :key="r.row.duty_role_id">
                   <td class="sticky role-col role" :class="{ inactive: !r.row.is_active }" @click="selectRow(r.index)">
                     {{ r.row.role_name }} <small class="muted">×{{ r.row.headcount }}</small>
+                    <span
+                      v-if="r.row.assigned_unit_name"
+                      v-tooltip.right="
+                        r.row.locked
+                          ? `Роль закреплена за «${r.row.assigned_unit_name}»: ячейки передаются ему автоматически, изменить исполнителя здесь нельзя`
+                          : `Роль закреплена за «${r.row.assigned_unit_name}»`
+                      "
+                      class="chip chip--unit role-pin"
+                    >
+                      <i :class="r.row.locked ? 'pi pi-lock' : 'pi pi-map-marker'" /> {{ r.row.assigned_unit_name }}
+                    </span>
                   </td>
                   <td
                     v-for="(c, col) in r.row.cells"
@@ -1074,5 +1085,43 @@ thead .sticky {
 .dialog-actions {
   display: flex;
   justify-content: flex-end;
+}
+.role-pin {
+  margin-left: 0.35rem;
+  font-size: 0.72rem;
+  padding: 0 0.4rem;
+}
+</style>
+
+<style>
+/* Не scoped: селектор темы стоит на <html>. Scoped-вариант с :global() свёл бы правило
+   к одному `.app-dark` и перекрасил всю страницу. */
+.app-dark :is(td, .swatch).cell.own {
+  background-color: rgb(27 175 122 / 0.1);
+}
+.app-dark :is(td, .swatch).cell.incoming_active {
+  background-color: rgb(27 175 122 / 0.22);
+  color: #6fd9ae;
+}
+.app-dark :is(td, .swatch).cell.delegated_pending,
+.app-dark :is(td, .swatch).cell.incoming_delegated_pending {
+  background-color: rgb(201 133 0 / 0.22);
+  color: #f0c060;
+}
+.app-dark :is(td, .swatch).cell.delegated_accepted,
+.app-dark :is(td, .swatch).cell.incoming_delegated_accepted {
+  background-color: rgb(57 135 229 / 0.22);
+  color: #9ec5f4;
+}
+.app-dark :is(td, .swatch).cell.incoming_pending {
+  background-color: rgb(217 89 38 / 0.3);
+  color: #f5a27a;
+}
+.app-dark :is(td, .swatch).cell.inactive {
+  background-color: var(--app-hover);
+}
+.app-dark :is(td, .swatch).cell.proposed {
+  background-color: rgb(144 133 233 / 0.25);
+  color: #c9c2f5;
 }
 </style>

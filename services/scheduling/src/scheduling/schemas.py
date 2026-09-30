@@ -19,11 +19,17 @@ class DutyRoleIn(BaseModel):
         default=None, min_length=1, max_length=50, pattern=r"^[a-z][a-z0-9_]*$"
     )
     headcount: int = Field(default=1, ge=1, le=100)
+    # Вес нагрузки роли: нарядо-сутки × вес (ADR-0019)
+    load_weight: float = Field(default=1.0, gt=0, le=99)
     sort_order: int = Field(default=0, ge=0, le=1000)
     min_rank_order: int | None = Field(default=None, ge=0, le=32767)
     # None — любая должность; пустой список не допускается (роль стала бы недостижимой)
     allowed_position_ids: list[uuid.UUID] | None = None
     attribute_requirements: list[AttributeRequirement] = Field(default_factory=list, max_length=20)
+    # ADR-0018: закрепление за подразделением поддерева владельца (ячейки уходят ему сами)
+    # и допустимые категории личного состава (None — любые; жёсткое требование)
+    assigned_unit_id: uuid.UUID | None = None
+    allowed_category_ids: list[uuid.UUID] | None = None
     is_active: bool = True
 
     @model_validator(mode="after")
@@ -32,6 +38,10 @@ class DutyRoleIn(BaseModel):
             if not self.allowed_position_ids:
                 raise ValueError("Укажите хотя бы одну должность или снимите ограничение")
             self.allowed_position_ids = list(dict.fromkeys(self.allowed_position_ids))
+        if self.allowed_category_ids is not None:
+            if not self.allowed_category_ids:
+                raise ValueError("Укажите хотя бы одну категорию или снимите ограничение")
+            self.allowed_category_ids = list(dict.fromkeys(self.allowed_category_ids))
         codes = [r.code for r in self.attribute_requirements]
         if len(set(codes)) != len(codes):
             raise ValueError("Для каждой характеристики допускается одно требование")
@@ -50,10 +60,14 @@ class DutyRoleOut(BaseModel):
     code: str
     name: str
     headcount: int
+    load_weight: float
     sort_order: int
     min_rank_order: int | None
     allowed_position_ids: list[uuid.UUID] | None
     attribute_requirements: list[AttributeRequirement]
+    assigned_unit_id: uuid.UUID | None
+    assigned_unit_name: str | None = None
+    allowed_category_ids: list[uuid.UUID] | None
     is_active: bool
     version: int
 
@@ -64,11 +78,9 @@ class DutyRoleOut(BaseModel):
 class DutyTypeBase(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     short_name: str | None = Field(default=None, max_length=50)
-    assigned_unit_id: uuid.UUID | None = None
     start_time: dt.time
     duration_minutes: int = Field(ge=MIN_DURATION, le=MAX_DURATION)
     rest_hours: int = Field(default=DEFAULT_REST_HOURS, ge=0, le=720)
-    load_weight: float = Field(default=1.0, gt=0, le=99)
 
     @model_validator(mode="after")
     def _clean(self) -> "DutyTypeBase":
@@ -97,12 +109,9 @@ class DutyTypeOut(BaseModel):
     short_name: str | None
     owner_unit_id: uuid.UUID
     owner_unit_name: str | None
-    assigned_unit_id: uuid.UUID | None
-    assigned_unit_name: str | None
     start_time: dt.time
     duration_minutes: int
     rest_hours: int
-    load_weight: float
     is_active: bool
     version: int
     roles: list[DutyRoleOut]
@@ -138,6 +147,8 @@ class DutyRoleBatchItem(BaseModel):
     min_rank_order: int | None
     allowed_position_ids: list[uuid.UUID] | None
     attribute_requirements: list[dict[str, Any]]
+    assigned_unit_id: uuid.UUID | None = None
+    allowed_category_ids: list[uuid.UUID] | None = None
     is_active: bool
     version: int
     duty_type: DutyTypeBrief
@@ -190,6 +201,10 @@ class ScheduleOut(BaseModel):
     can_edit: bool
     # Входящие ячейки, ожидающие принятия этим подразделением
     pending_incoming: int
+    # Ячейки действующих ролей, которые подразделение закрывает своими людьми, и сколько
+    # из них ещё не укомплектовано (фаза 8: рабочий стол и сводка графика)
+    to_fill: int = 0
+    unfilled: int = 0
 
 
 class CellPerson(BaseModel):
@@ -228,6 +243,11 @@ class TableRow(BaseModel):
     role_name: str
     headcount: int
     is_active: bool
+    # Закрепление роли за подразделением (ADR-0018); `locked` — ячейки передаются
+    # автоматически дальше по цепочке, этот график решение по ним не меняет
+    assigned_unit_id: uuid.UUID | None = None
+    assigned_unit_name: str | None = None
+    locked: bool = False
     # По дням месяца, в порядке `days`; null — ячейки в этот день нет
     cells: list[CellOut | None]
 

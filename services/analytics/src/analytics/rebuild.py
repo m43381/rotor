@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from analytics.facts import upsert_facts
 from analytics.journal import rebuild_journal
 from analytics.models import DutyFact
+from analytics.people import resync_people
 from analytics.settings import AnalyticsSettings
 from dutyflow_common.app import setup_logging
 from dutyflow_common.db import Database
@@ -47,16 +48,20 @@ async def rebuild(
 async def main(settings: AnalyticsSettings) -> None:
     db = Database(settings.database_url)
     scheduling = InternalClient(settings.scheduling_url, settings.internal_token, timeout=60.0)
+    personnel = InternalClient(settings.personnel_url, settings.internal_token, timeout=120.0)
     sources = {
         name: InternalClient(url, settings.internal_token, timeout=60.0)
         for name, url in settings.audit_sources().items()
     }
     try:
         await rebuild(db.sessionmaker, scheduling)
+        # Люди для разрезов (категория, звание) — полностью из personnel
+        await resync_people(db.sessionmaker, personnel, only_if_empty=False)
         # Журнал только дополняется: недостающие записи берутся из сервисов
         await rebuild_journal(db.sessionmaker, sources)
     finally:
         await scheduling.aclose()
+        await personnel.aclose()
         for client in sources.values():
             await client.aclose()
         await db.dispose()

@@ -66,20 +66,28 @@ async def load(url: str, people: int) -> dict[str, Any]:
             ],
         )
         leaves = [i for i, d in enumerate(tree.depth) if d >= max(tree.depth) - 1]
-        category_id = await conn.fetchval(
-            "SELECT id FROM attribute_definition WHERE code = 'category'"
-        )
+        category_id = await conn.fetchval("SELECT id FROM person_category WHERE code = 'cadet'")
         reason_id = await conn.fetchval("SELECT id FROM exemption_reason WHERE code = 'leave'")
         now = dt.datetime.now(dt.UTC)
         roles = [uuid.uuid5(uuid.NAMESPACE_OID, f"role-{i}") for i in range(ROLES)]
-        person_rows, attr_rows, ex_rows, cl_rows = [], [], [], []
+        person_rows, ex_rows, cl_rows = [], [], []
         for k in range(people):
             pid = uuid.uuid5(uuid.NAMESPACE_OID, f"person-{people}-{k}")
             f = fio(rng)
             person_rows.append(
-                (pid, unit_ids[rng.choice(leaves)], f.last, f.first, f.middle, True, now, now, 1)
+                (
+                    pid,
+                    unit_ids[rng.choice(leaves)],
+                    f.last,
+                    f.first,
+                    f.middle,
+                    category_id,
+                    True,
+                    now,
+                    now,
+                    1,
+                )
             )
-            attr_rows.append((pid, category_id, '{"v": "Курсант"}'))
             for role in rng.sample(roles, CLEARANCES_PER_PERSON):
                 valid_to = MONTH_FROM + dt.timedelta(days=rng.randint(-30, 60))
                 cl_rows.append(
@@ -121,16 +129,12 @@ async def load(url: str, people: int) -> dict[str, Any]:
                 "last_name",
                 "first_name",
                 "middle_name",
+                "category_id",
                 "is_active",
                 "created_at",
                 "updated_at",
                 "version",
             ],
-        )
-        await conn.executemany(
-            "INSERT INTO person_attribute (person_id, definition_id, value)"
-            " VALUES ($1, $2, $3::jsonb)",
-            attr_rows,
         )
         await conn.copy_records_to_table(
             "exemption",
