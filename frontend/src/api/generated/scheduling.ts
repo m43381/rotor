@@ -505,6 +505,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/ranks/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Роли с этим минимальным званием и лимиты по званию (ADR-0022) */
+        post: operations["rank_usage_internal_ranks_usage_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/audit": {
         parameters: {
             query?: never;
@@ -1313,6 +1330,16 @@ export interface components {
             schedule: components["schemas"]["ScheduleOut"];
             /** Warnings */
             warnings: components["schemas"]["PendingWarning"][];
+        };
+        /** RankUsageIn */
+        RankUsageIn: {
+            /**
+             * Rank Id
+             * Format: uuid
+             */
+            rank_id: string;
+            /** Order */
+            order: number;
         };
         /** RosterDuty */
         RosterDuty: {
@@ -2754,6 +2781,41 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rank_usage_internal_ranks_usage_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RankUsageIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: number;
+                    };
                 };
             };
             /** @description Validation Error */

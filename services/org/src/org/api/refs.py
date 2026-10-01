@@ -7,7 +7,7 @@ import datetime as dt
 import uuid
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request, Response
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
@@ -143,6 +143,46 @@ async def update_rank(
         add_event(session, "rank.changed", "rank", item.id, data.model_dump())
     await _commit_unique(session, "Звание с таким порядковым номером уже есть")
     return item
+
+
+_USAGE_LABELS = {
+    "people": "людей (включая архивных)",
+    "duty_roles": "ролей нарядов (минимальное звание)",
+    "duty_limits": "лимитов нарядов по званию",
+}
+
+
+@router.delete(
+    "/ranks/{rank_id}",
+    status_code=204,
+    summary="Удалить звание, если оно нигде не используется (ADR-0022)",
+)
+async def delete_rank(
+    rank_id: uuid.UUID, request: Request, session: SessionDep, operator: OperatorDep
+) -> Response:
+    default_policy.require(operator.roles, "rank", "delete")
+    item = await session.get(Rank, rank_id)
+    if item is None:
+        raise NotFoundError("Звание не найдено")
+    # Без ответа personnel или scheduling удалять нельзя: ServiceUnavailableError → 503
+    usage = await request.app.state.rank_usage(item.id, item.order)
+    used = [f"{_USAGE_LABELS.get(k, k)}: {n}" for k, n in usage.items() if n]
+    if used:
+        raise ConflictError(
+            f"Звание «{item.name}» используется — {'; '.join(used)}. Его можно только выключить."
+        )
+    audit.record(
+        session,
+        action="rank.delete",
+        entity_type="rank",
+        entity_id=item.id,
+        scope_unit_id=None,
+        before=_row(item, _RANK_FIELDS),
+    )
+    add_event(session, "rank.deleted", "rank", item.id, {"order": item.order})
+    await session.delete(item)
+    await session.commit()
+    return Response(status_code=204)
 
 
 # --- производственный календарь --------------------------------------------------------------

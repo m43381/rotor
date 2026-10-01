@@ -710,6 +710,45 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "references"
+        ],
+        "summary": "Удалить звание, если оно нигде не используется (ADR-0022)",
+        "operationId": "delete_rank_ranks__rank_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "rank_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Rank Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/calendar": {

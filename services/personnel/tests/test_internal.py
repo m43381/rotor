@@ -1,7 +1,11 @@
 import uuid
 
-from conftest import Org, add_person
+from conftest import Org, add_person, emit
+from fastapi import FastAPI
 from httpx import AsyncClient
+from sqlalchemy import select
+
+from dutyflow_common.projections import RankProjection
 
 LEAVE = "00000000-0000-7000-8000-00000000e002"
 
@@ -108,3 +112,21 @@ async def test_availability_for_50k_ids(
     )
     assert r.status_code == 200, r.text[:300]
     assert r.json()["masks"] == {a["id"]: "111"}
+
+
+async def test_rank_usage_counts_archived_people_and_deleted_rank_leaves_projection(
+    admin: AsyncClient, internal: AsyncClient, org: Org, app: FastAPI
+) -> None:
+    """ADR-0022: org удаляет звание, только если его не носит никто, включая архивных."""
+    body = {"rank_id": str(org.rank_major), "order": 100}
+    assert (await internal.post("/internal/ranks/usage", json=body)).json() == {"people": 0}
+
+    p = await add_person(admin, org.fac_a, "Архивный", rank_id=str(org.rank_major))
+    await admin.post(f"/people/{p['id']}/archive", json={"version": p["version"]})
+    assert (await internal.post("/internal/ranks/usage", json=body)).json() == {"people": 1}
+
+    maker = app.state.db.sessionmaker
+    await emit(maker, "rank.deleted", org.rank_private, {"order": 10})
+    async with maker() as session:
+        ids = set((await session.scalars(select(RankProjection.rank_id))).all())
+    assert ids == {org.rank_major}

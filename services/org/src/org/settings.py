@@ -12,3 +12,6 @@ class OrgSettings(ServiceSettings):
     root_unit_type_code: str = "academy"
     root_unit_type_name: str = "Академия"
     timezone: str = "Europe/Moscow"
+    # Только для проверки, используется ли звание, перед удалением (ADR-0022)
+    personnel_url: str = "http://personnel:8000"
+    scheduling_url: str = "http://scheduling:8000"

@@ -19,6 +19,7 @@ from sqlalchemy import (
     String,
     case,
     cast,
+    delete,
     func,
     literal,
     select,
@@ -178,3 +179,8 @@ async def upsert_ranks(session: AsyncSession, ranks: Sequence[dict[str, Any]]) -
 async def handle_rank_event(session: AsyncSession, event: Event) -> None:
     if event.type == "rank.changed":
         await upsert_ranks(session, [{**event.payload, "rank_id": event.aggregate_id}])
+    elif event.type == "rank.deleted":
+        # org удаляет только неиспользуемое звание (ADR-0022), ссылок на копию нет
+        await session.execute(
+            delete(RankProjection).where(RankProjection.rank_id == event.aggregate_id)
+        )

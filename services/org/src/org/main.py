@@ -11,14 +11,18 @@ from dutyflow_common.auth import TokenVerifier
 from dutyflow_common.db import Database
 from org.api import audit, internal, refs, units
 from org.bootstrap import ensure_root
+from org.rank_usage import RankUsage, http_rank_usage
 from org.settings import OrgSettings
 
 
 def create_app(
-    settings: OrgSettings | None = None, token_verifier: TokenVerifier | None = None
+    settings: OrgSettings | None = None,
+    token_verifier: TokenVerifier | None = None,
+    rank_usage: RankUsage | None = None,
 ) -> FastAPI:
     settings = settings or OrgSettings()
     app = create_service_app(settings, title="DutyFlow org", token_verifier=token_verifier)
+    app.state.rank_usage = rank_usage or http_rank_usage(settings)
     for module in (units, refs, audit, internal):
         app.include_router(module.router)
     app.include_router(audit_export_router())

@@ -311,3 +311,25 @@ def _update_body(t: dict[str, Any]) -> dict[str, Any]:
         "is_active",
     )
     return {k: t[k] for k in keys}
+
+
+async def test_rank_usage_counts_roles_by_order_and_limits(
+    admin: AsyncClient, internal: AsyncClient, org: Org
+) -> None:
+    """ADR-0022: минимальное звание роли хранится числом старшинства, лимит — id звания."""
+    major = {"rank_id": str(org.rank_major), "order": 100}
+    empty = {"duty_roles": 0, "duty_limits": 0}
+    assert (await internal.post("/internal/ranks/usage", json=major)).json() == empty
+
+    await add_type(admin, org.fac_a, "Наряд", roles=[role("Дежурный", min_rank_order=100)])
+    r = await admin.post(
+        "/duty-limits",
+        json={"unit_id": str(org.fac_a), "rank_id": str(org.rank_major), "max_duties": 2},
+    )
+    assert r.status_code == 201, r.text
+    assert (await internal.post("/internal/ranks/usage", json=major)).json() == {
+        "duty_roles": 1,
+        "duty_limits": 1,
+    }
+    private = {"rank_id": str(org.rank_private), "order": 10}
+    assert (await internal.post("/internal/ranks/usage", json=private)).json() == empty

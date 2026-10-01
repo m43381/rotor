@@ -1891,6 +1891,51 @@
         }
       }
     },
+    "/internal/ranks/usage": {
+      "post": {
+        "tags": [
+          "internal"
+        ],
+        "summary": "Роли с этим минимальным званием и лимиты по званию (ADR-0022)",
+        "operationId": "rank_usage_internal_ranks_usage_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RankUsageIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "type": "object",
+                  "title": "Response Rank Usage Internal Ranks Usage Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/internal/audit": {
       "get": {
         "tags": [
@@ -4088,6 +4133,25 @@
           "warnings"
         ],
         "title": "PublishOut"
+      },
+      "RankUsageIn": {
+        "properties": {
+          "rank_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Rank Id"
+          },
+          "order": {
+            "type": "integer",
+            "title": "Order"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rank_id",
+          "order"
+        ],
+        "title": "RankUsageIn"
       },
       "RosterDuty": {
         "properties": {

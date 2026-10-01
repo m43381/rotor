@@ -5,12 +5,13 @@ import uuid
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select
+from pydantic import BaseModel
+from sqlalchemy import func, select
 
 from dutyflow_common.auth import require_internal
 from scheduling import facts
 from scheduling.api.deps import SessionDep
-from scheduling.models import DutyRole, DutyType
+from scheduling.models import DutyLimit, DutyRole, DutyType
 from scheduling.schemas import DutyRoleBatchItem, DutyRolesBatchIn
 
 router = APIRouter(prefix="/internal", tags=["internal"], dependencies=[Depends(require_internal)])
@@ -62,3 +63,22 @@ async def assignment_facts(
     limit: Annotated[int, Query(ge=1, le=5_000)] = 2_000,
 ) -> list[dict[str, Any]]:
     return await facts.export(session, after=after, limit=limit)
+
+
+class RankUsageIn(BaseModel):
+    rank_id: uuid.UUID
+    order: int
+
+
+@router.post(
+    "/ranks/usage", summary="Роли с этим минимальным званием и лимиты по званию (ADR-0022)"
+)
+async def rank_usage(data: RankUsageIn, session: SessionDep) -> dict[str, int]:
+    # Минимальное звание роли хранится числом старшинства, а не id звания
+    roles = await session.scalar(
+        select(func.count()).select_from(DutyRole).where(DutyRole.min_rank_order == data.order)
+    )
+    limits = await session.scalar(
+        select(func.count()).select_from(DutyLimit).where(DutyLimit.rank_id == data.rank_id)
+    )
+    return {"duty_roles": roles or 0, "duty_limits": limits or 0}

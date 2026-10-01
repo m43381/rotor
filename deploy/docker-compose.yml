@@ -132,6 +132,9 @@ services:
       DATABASE_URL: postgresql+asyncpg://org:${ORG_DB_PASSWORD}@postgres:5432/org_db
       ROOT_UNIT_ID: ${ROOT_UNIT_ID}
       ROOT_UNIT_NAME: ${ROOT_UNIT_NAME}
+      # Только проверка «звание не используется» перед удалением (ADR-0022)
+      PERSONNEL_URL: http://personnel:8000
+      SCHEDULING_URL: http://scheduling:8000
     depends_on:
       db-init:
         condition: service_completed_successfully

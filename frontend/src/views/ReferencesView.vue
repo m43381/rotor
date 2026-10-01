@@ -17,10 +17,11 @@ import TabPanels from 'primevue/tabpanels'
 import Tabs from 'primevue/tabs'
 import Tag from 'primevue/tag'
 import Textarea from 'primevue/textarea'
+import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import { computed, onMounted, ref } from 'vue'
 
-import { ApiError, org, personnel, unwrap } from '@/api/client'
+import { ApiError, org, personnel, unwrap, type Rank } from '@/api/client'
 import { useRefsStore } from '@/stores/refs'
 import { useUnitsStore } from '@/stores/units'
 
@@ -29,6 +30,7 @@ type Kind = 'unitTypes' | 'ranks' | 'categories' | 'positions' | 'attributes' | 
 const refs = useRefsStore()
 const units = useUnitsStore()
 const toast = useToast()
+const confirm = useConfirm()
 const tab = ref<Kind>('unitTypes')
 const busy = ref(false)
 
@@ -49,6 +51,27 @@ const ranksDesc = computed(() => [...refs.ranks].sort((a, b) => b.order - a.orde
 function showError(e: unknown) {
   const detail = e instanceof ApiError ? e.message : 'Не удалось выполнить операцию'
   toast.add({ severity: 'error', summary: 'Ошибка', detail, life: 6000 })
+}
+
+// Удаляется только звание, которое никто не носит и не требует (ADR-0022); иначе сервер
+// объясняет, где оно используется, — тогда его можно только выключить
+function removeRank(rank: Rank) {
+  confirm.require({
+    header: 'Удалить звание?',
+    message: `«${rank.name}» будет удалено, если его нет ни у кого из людей (включая архивных), в ролях нарядов и лимитах.`,
+    icon: 'pi pi-trash',
+    acceptProps: { label: 'Удалить', severity: 'danger' },
+    rejectProps: { label: 'Отмена', severity: 'secondary', text: true },
+    accept: async () => {
+      try {
+        await unwrap(org.DELETE('/ranks/{rank_id}', { params: { path: { rank_id: rank.id } } }))
+        await refs.reload()
+        toast.add({ severity: 'success', summary: 'Звание удалено', life: 3000 })
+      } catch (e) {
+        showError(e)
+      }
+    },
+  })
 }
 
 // --- универсальный диалог ------------------------------------------------------------------------
@@ -239,9 +262,18 @@ async function submit() {
             <Column header="Статус" style="width: 9rem">
               <template #body="{ data }"><Tag v-if="!data.is_active" value="Выключено" severity="secondary" /></template>
             </Column>
-            <Column style="width: 4rem">
+            <Column style="width: 7rem">
               <template #body="{ data }">
                 <Button icon="pi pi-pencil" text rounded aria-label="Изменить" @click="open('ranks', data)" />
+                <Button
+                  v-tooltip.left="'Удалить, если звание нигде не используется'"
+                  icon="pi pi-trash"
+                  text
+                  rounded
+                  severity="danger"
+                  aria-label="Удалить"
+                  @click="removeRank(data)"
+                />
               </template>
             </Column>
           </DataTable>

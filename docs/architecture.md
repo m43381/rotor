@@ -92,7 +92,7 @@ C4Container
 **Публичный API (черновик):**
 - `GET/POST /units`, `GET/PATCH/DELETE /units/{id}`, `GET /units/{id}/subtree`, `GET /units/{id}/ancestors`
 - `GET/POST /unit-types`
-- `GET/POST /ranks`
+- `GET/POST /ranks`, `PUT/DELETE /ranks/{id}` — удаляется только неиспользуемое звание: перед удалением org спрашивает `POST /internal/ranks/usage` у personnel и scheduling (ADR-0022)
 - `GET/POST /calendar/holidays`
 - `GET /units:search?scope=...` — для выпадающих списков на фронте
 
@@ -100,7 +100,7 @@ C4Container
 - `POST /internal/units/batch` — `{unit_ids: [...]}` → плоский снимок узлов с `parent_id`, `unit_type_id`, `level`, путём `ltree`
 - `POST /internal/units/descendants-batch` — `{unit_ids: [...]}` → все потомки одним запросом (замена рекурсии из legacy)
 
-**События (publish):** `unit.created`, `unit.moved`, `unit.deleted`, `unit_type.changed`, `rank.changed`, `calendar.changed`.
+**События (publish):** `unit.created`, `unit.moved`, `unit.deleted`, `unit_type.changed`, `rank.changed`, `rank.deleted`, `calendar.changed`.
 
 **Не хранит:** людей, наряды, назначения.
 
