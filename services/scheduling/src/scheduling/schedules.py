@@ -1063,6 +1063,35 @@ class ScheduleService:
         await self._commit()
         return schedule
 
+    async def unarchive(self, schedule_id: uuid.UUID, version: int) -> Schedule:
+        """Вернуть архивный график в «опубликован» (суперадминистратор, ADR-0023): например,
+        чтобы исправить назначения задним числом. Дальше — как с опубликованным (№36)."""
+        self.policy.require(self.operator.roles, "schedule", "unarchive")
+        schedule, unit = await self._schedule(schedule_id, "read")
+        _check_version(schedule.version, version)
+        if schedule.status != "archived":
+            raise ValidationFailedError("График не в архиве")
+        schedule.status = "published"
+        await self._flush()
+        audit.record(
+            self.session,
+            action="schedule.unarchive",
+            entity_type="schedule",
+            entity_id=schedule.id,
+            scope_unit_id=unit.unit_id,
+            before={"status": "archived"},
+            after={"status": "published"},
+        )
+        add_event(
+            self.session,
+            "schedule.unarchived",
+            "schedule",
+            schedule.id,
+            {"schedule_id": schedule.id, "unit_id": unit.unit_id, "month": schedule.month},
+        )
+        await self._commit()
+        return schedule
+
     async def delete(
         self, schedule_id: uuid.UUID, version: int, *, drop_assignments: bool = False
     ) -> None:

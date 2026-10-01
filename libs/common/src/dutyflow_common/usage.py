@@ -42,6 +42,7 @@ LABELS: dict[str, str] = {
     "duty_limits": "лимитов нарядов",
     "schedules": "графиков",
     "day_plans": "ячеек графиков",
+    "published_cells": "ячеек в опубликованных и архивных графиках",
     "assignments": "назначений в наряды",
     "operators": "операторов",
 }

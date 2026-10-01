@@ -9,6 +9,7 @@ import InputIcon from 'primevue/inputicon'
 import InputText from 'primevue/inputtext'
 import Skeleton from 'primevue/skeleton'
 import Tag from 'primevue/tag'
+import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -43,6 +44,48 @@ const includeInactive = ref(false)
 const search = ref('')
 // Пустое состояние — только после первой загрузки, иначе оно мелькает до ответа сервиса
 const loaded = ref(false)
+
+const confirm = useConfirm()
+// Удаление наряда или роли — суперадминистратор, если в них никого не назначали (ADR-0023)
+const isSuperadmin = computed(() => units.me?.roles.includes('superadmin') === true)
+
+function askDelete(t: DutyType, r: DutyRole | null) {
+  const what = r ? `роль «${r.name}» наряда «${t.name}»` : `наряд «${t.name}» со всеми ролями`
+  confirm.require({
+    header: r ? 'Удалить роль?' : 'Удалить наряд?',
+    message:
+      `Будет удалено: ${what}. Пустые ячейки черновиков графиков и допуски к ролям удалятся ` +
+      'вместе с ним. Если в наряд уже назначали людей или он есть в опубликованных графиках, ' +
+      'система откажет — тогда его можно только выключить.',
+    icon: 'pi pi-exclamation-triangle',
+    acceptProps: { label: 'Удалить', severity: 'danger' },
+    rejectProps: { label: 'Отмена', severity: 'secondary', text: true },
+    accept: async () => {
+      busy.value = true
+      try {
+        if (r) {
+          await unwrap(
+            scheduling.DELETE('/duty-roles/{role_id}', {
+              params: { path: { role_id: r.id }, query: { version: r.version } },
+            }),
+          )
+        } else {
+          await unwrap(
+            scheduling.DELETE('/duty-types/{type_id}', {
+              params: { path: { type_id: t.id }, query: { version: t.version } },
+            }),
+          )
+        }
+        toast.add({ severity: 'success', summary: 'Удалено', life: 3000 })
+        await load()
+      } catch (e) {
+        showError(e)
+      } finally {
+        busy.value = false
+      }
+    },
+  })
+}
 
 const canCreate = computed(() => (units.me?.roles ?? []).some((r) => r !== 'viewer'))
 
@@ -276,6 +319,16 @@ async function onRole(value: DutyRoleIn) {
               aria-label="Изменить наряд"
               @click="openType(t)"
             />
+            <Button
+              v-if="isSuperadmin"
+              v-tooltip.top="'Удалить наряд (если в него никого не назначали)'"
+              icon="pi pi-trash"
+              text
+              rounded
+              severity="danger"
+              aria-label="Удалить наряд"
+              @click="askDelete(t, null)"
+            />
           </header>
           <ul class="roles">
             <li v-for="r in sortedRoles(t)" :key="r.id" class="role" :class="{ inactive: !r.is_active }">
@@ -311,6 +364,17 @@ async function onRole(value: DutyRoleIn) {
                 severity="secondary"
                 :aria-label="`Изменить роль ${r.name}`"
                 @click="openRole(t, r)"
+              />
+              <Button
+                v-if="isSuperadmin && t.roles.length > 1"
+                v-tooltip.top="'Удалить роль (если в неё никого не назначали)'"
+                icon="pi pi-trash"
+                text
+                rounded
+                size="small"
+                severity="danger"
+                :aria-label="`Удалить роль ${r.name}`"
+                @click="askDelete(t, r)"
               />
             </li>
           </ul>

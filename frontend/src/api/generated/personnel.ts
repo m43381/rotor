@@ -46,7 +46,8 @@ export interface paths {
         get: operations["get_person_people__person_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /** Удалить навсегда, если человек ни разу не был в наряде (ADR-0023) */
+        delete: operations["delete_person_people__person_id__delete"];
         options?: never;
         head?: never;
         /** Update Person */
@@ -1745,6 +1746,37 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["PersonOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_person_people__person_id__delete: {
+        parameters: {
+            query: {
+                version: number;
+            };
+            header?: never;
+            path: {
+                person_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

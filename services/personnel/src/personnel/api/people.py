@@ -4,7 +4,7 @@ import uuid
 from collections.abc import Sequence
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request, Response
 
 from dutyflow_common.pagination import Page, PageParams, page_params
 from personnel.api.deps import PeopleServiceDep
@@ -93,6 +93,21 @@ async def archive_person(person_id: uuid.UUID, data: ArchiveIn, svc: PeopleServi
 async def restore_person(person_id: uuid.UUID, data: ArchiveIn, svc: PeopleServiceDep) -> PersonOut:
     await svc.set_archived(person_id, data.version, archived=False, comment=data.comment)
     return await svc.card(person_id)
+
+
+@router.delete(
+    "/people/{person_id}",
+    status_code=204,
+    summary="Удалить навсегда, если человек ни разу не был в наряде (ADR-0023)",
+)
+async def delete_person(
+    person_id: uuid.UUID,
+    version: Annotated[int, Query()],
+    request: Request,
+    svc: PeopleServiceDep,
+) -> Response:
+    await svc.delete(person_id, version, request.app.state.usage)
+    return Response(status_code=204)
 
 
 @router.post("/people/transfer", response_model=BulkResult, summary="Перевод в подразделение")

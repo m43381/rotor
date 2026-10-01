@@ -725,6 +725,34 @@ function archive() {
     },
   })
 }
+/** Вернуть архивный график в «опубликован» — суперадминистратор (ADR-0023). */
+function unarchive() {
+  const s = table.value?.schedule
+  if (!s) return
+  confirm.require({
+    header: 'Вернуть график из архива?',
+    message: 'График снова станет опубликованным: назначения можно будет менять (с пометкой «изменено после публикации»).',
+    icon: 'pi pi-replay',
+    acceptProps: { label: 'Вернуть' },
+    rejectProps: { label: 'Отмена', severity: 'secondary', text: true },
+    accept: async () => {
+      busy.value = true
+      try {
+        await unwrap(
+          scheduling.POST('/schedules/{schedule_id}/unarchive', {
+            params: { path: { schedule_id: s.id } },
+            body: { version: s.version },
+          }),
+        )
+        await load()
+      } catch (e) {
+        showError(e)
+      } finally {
+        busy.value = false
+      }
+    },
+  })
+}
 /** Удалить черновик: пустой или созданный по ошибке. Назначенных людей — только с согласия. */
 function removeSchedule() {
   const s = table.value?.schedule
@@ -848,6 +876,15 @@ function removeSchedule() {
           severity="secondary"
           text
           @click="archive"
+        />
+        <Button
+          v-if="isSuperadmin && table?.schedule.status === 'archived'"
+          label="Вернуть из архива"
+          icon="pi pi-replay"
+          severity="secondary"
+          text
+          :loading="busy"
+          @click="unarchive"
         />
       </div>
     </header>

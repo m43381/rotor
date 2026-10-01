@@ -3,7 +3,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Response
 
 from scheduling.api.deps import DutyTypeServiceDep
 from scheduling.schemas import (
@@ -53,6 +53,30 @@ async def add_duty_role(
 ) -> DutyTypeOut:
     await svc.add_role(type_id, data)
     return await svc.get(type_id)
+
+
+@router.delete(
+    "/duty-types/{type_id}",
+    status_code=204,
+    summary="Удалить наряд, если в него никого не назначали (ADR-0023)",
+)
+async def delete_duty_type(
+    type_id: uuid.UUID, version: Annotated[int, Query()], svc: DutyTypeServiceDep
+) -> Response:
+    await svc.delete_type(type_id, version)
+    return Response(status_code=204)
+
+
+@router.delete(
+    "/duty-roles/{role_id}",
+    status_code=204,
+    summary="Удалить роль, если в неё никого не назначали (ADR-0023)",
+)
+async def delete_duty_role(
+    role_id: uuid.UUID, version: Annotated[int, Query()], svc: DutyTypeServiceDep
+) -> Response:
+    await svc.delete_role(role_id, version)
+    return Response(status_code=204)
 
 
 @router.put("/duty-roles/{role_id}", response_model=DutyTypeOut)

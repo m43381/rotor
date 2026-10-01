@@ -62,6 +62,10 @@ async def upsert_categories(session: AsyncSession, rows: Sequence[dict[str, Any]
 
 async def handle_person_event(session: AsyncSession, event: Event) -> None:
     p = event.payload
+    if event.type == "person.deleted":
+        # Удаляется только человек без назначений — фактов нагрузки у него нет (ADR-0023)
+        await session.execute(delete(PersonDim).where(PersonDim.person_id == event.aggregate_id))
+        return
     if "person_id" not in p or "unit_id" not in p:
         return
     await upsert_people(

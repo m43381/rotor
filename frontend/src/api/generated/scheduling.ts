@@ -30,7 +30,8 @@ export interface paths {
         /** Update Duty Type */
         put: operations["update_duty_type_duty_types__type_id__put"];
         post?: never;
-        delete?: never;
+        /** Удалить наряд, если в него никого не назначали (ADR-0023) */
+        delete: operations["delete_duty_type_duty_types__type_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -64,7 +65,8 @@ export interface paths {
         /** Update Duty Role */
         put: operations["update_duty_role_duty_roles__role_id__put"];
         post?: never;
-        delete?: never;
+        /** Удалить роль, если в неё никого не назначали (ADR-0023) */
+        delete: operations["delete_duty_role_duty_roles__role_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -185,6 +187,23 @@ export interface paths {
         put?: never;
         /** Опубликовать (непринятые ячейки поддерева — предупреждение, не запрет) */
         post: operations["publish_schedules__schedule_id__publish_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/schedules/{schedule_id}/unarchive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Вернуть архивный график в «опубликован» (суперадминистратор, ADR-0023) */
+        post: operations["unarchive_schedules__schedule_id__unarchive_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1798,6 +1817,37 @@ export interface operations {
             };
         };
     };
+    delete_duty_type_duty_types__type_id__delete: {
+        parameters: {
+            query: {
+                version: number;
+            };
+            header?: never;
+            path: {
+                type_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     add_duty_role_duty_types__type_id__roles_post: {
         parameters: {
             query?: never;
@@ -1856,6 +1906,37 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["DutyTypeOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_duty_role_duty_roles__role_id__delete: {
+        parameters: {
+            query: {
+                version: number;
+            };
+            header?: never;
+            path: {
+                role_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -2155,6 +2236,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PublishOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unarchive_schedules__schedule_id__unarchive_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                schedule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VersionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleOut"];
                 };
             };
             /** @description Validation Error */

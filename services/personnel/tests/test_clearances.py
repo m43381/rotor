@@ -15,7 +15,7 @@ from dutyflow_common.ids import uuid7
 from dutyflow_common.internal import InternalClient
 from dutyflow_common.outbox import OutboxEvent
 from personnel.duty_roles import handle_duty_event, resync_scheduling
-from personnel.models import DutyRoleProjection
+from personnel.models import Clearance, DutyRoleProjection
 
 FIRST_CLASS = [{"code": "skill", "op": "eq", "value": "1 класс"}]
 
@@ -528,3 +528,41 @@ async def test_pinned_role_only_for_assigned_subtree(
     [option] = (await admin.get(f"/people/{cadet['id']}/clearance-options")).json()
     assert option["assigned_unit_name"] == "Курс A1"
     assert (await grant(admin, cadet, role)).status_code == 201
+
+
+async def test_deleted_role_and_type_drop_clearances(
+    admin: AsyncClient, org: Org, sessionmaker: async_sessionmaker[AsyncSession]
+) -> None:
+    """ADR-0023: наряд или роль удалены в scheduling — допуски к ним удаляются."""
+    first = await duty_role(sessionmaker, org.fac_a, "Дежурный", type_name="Удаляемый")
+    second = await duty_role(sessionmaker, org.fac_a, "Дневальный", type_name="Удаляемый")
+    person = await add_person(admin, org.course_a1, "Допущенный")
+    for role_id in (first, second):
+        assert (await grant(admin, person, role_id)).status_code == 201
+
+    async def roles_of_person() -> set[uuid.UUID]:
+        async with sessionmaker() as session:
+            rows = await session.scalars(
+                select(Clearance.duty_role_id).where(Clearance.person_id == uuid.UUID(person["id"]))
+            )
+            return set(rows)
+
+    async with sessionmaker() as session, session.begin():
+        await handle_duty_event(
+            session, Event(uuid7(), "duty_role.deleted", first, {"id": str(first)})
+        )
+    assert await roles_of_person() == {second}
+
+    type_id = uuid.uuid5(uuid.NAMESPACE_OID, f"{org.fac_a}:Удаляемый")
+    async with sessionmaker() as session, session.begin():
+        await handle_duty_event(
+            session, Event(uuid7(), "duty_type.deleted", type_id, {"id": str(type_id)})
+        )
+    assert await roles_of_person() == set()
+    async with sessionmaker() as session:
+        left = await session.scalars(
+            select(DutyRoleProjection.duty_role_id).where(
+                DutyRoleProjection.duty_type_id == type_id
+            )
+        )
+        assert list(left) == []

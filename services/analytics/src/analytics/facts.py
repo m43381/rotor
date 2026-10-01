@@ -87,7 +87,11 @@ async def handle_assignment_event(session: AsyncSession, event: Event) -> None:
         )
 
 
-STATUSES = {"schedule.published": "published", "schedule.archived": "archived"}
+STATUSES = {
+    "schedule.published": "published",
+    "schedule.archived": "archived",
+    "schedule.unarchived": "published",  # ADR-0023
+}
 
 
 async def handle_schedule_event(session: AsyncSession, event: Event) -> None:

@@ -9,13 +9,13 @@ import uuid
 from collections.abc import Sequence
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from dutyflow_common.events import Event
 from dutyflow_common.internal import InternalClient
-from personnel.models import DutyRoleProjection, DutyTypeProjection
+from personnel.models import Clearance, DutyRoleProjection, DutyTypeProjection
 
 log = logging.getLogger(__name__)
 
@@ -109,6 +109,25 @@ async def upsert_duty_roles(session: AsyncSession, roles: Sequence[dict[str, Any
 
 
 async def handle_duty_event(session: AsyncSession, event: Event) -> None:
+    if event.type in ("duty_type.deleted", "duty_role.deleted"):
+        # Наряд или роль удалены (ADR-0023): допуски к ним больше не нужны
+        if event.type == "duty_type.deleted":
+            roles = select(DutyRoleProjection.duty_role_id).where(
+                DutyRoleProjection.duty_type_id == event.aggregate_id
+            )
+            role_ids = list(await session.scalars(roles))
+            await session.execute(
+                delete(DutyTypeProjection).where(
+                    DutyTypeProjection.duty_type_id == event.aggregate_id
+                )
+            )
+        else:
+            role_ids = [event.aggregate_id]
+        await session.execute(delete(Clearance).where(Clearance.duty_role_id.in_(role_ids)))
+        await session.execute(
+            delete(DutyRoleProjection).where(DutyRoleProjection.duty_role_id.in_(role_ids))
+        )
+        return
     if event.type == "duty_type.changed":
         await upsert_duty_types(session, [event.payload])
     elif event.type == "duty_role.changed":

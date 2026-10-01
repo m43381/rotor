@@ -23,6 +23,7 @@ from dutyflow_common.outbox import add_event
 from dutyflow_common.pagination import Page, PageParams
 from dutyflow_common.projections import RankProjection, UnitProjection
 from dutyflow_common.scope import in_scope, scope_clause
+from dutyflow_common.usage import UsageCheck, ensure_unused
 from personnel.attributes import validate_values
 from personnel.models import (
     AttributeDefinition,
@@ -398,6 +399,29 @@ class PeopleService(ScopedService):
         await self._commit()
         await self.session.refresh(person)
         return person
+
+    async def delete(self, person_id: uuid.UUID, version: int, usage: UsageCheck) -> None:
+        """Удалить навсегда ошибочно заведённого человека (ADR-0023): только если его ни разу
+        не назначали в наряд — иначе он нужен прошлым графикам, тогда — «исключить из списков».
+        Допуски, освобождения и значения характеристик удаляются вместе с ним (каскад БД)."""
+        person = await self._person(person_id, "person", "delete")
+        check_version(person.version, version)
+        ensure_unused(
+            f"«{person.last_name} {person.first_name}»",
+            await usage("person", {"id": str(person.id)}),
+            "Его можно только исключить из списков.",
+        )
+        audit.record(
+            self.session,
+            action="person.delete",
+            entity_type="person",
+            entity_id=person.id,
+            scope_unit_id=person.unit_id,
+            before=person.snapshot(),
+        )
+        add_event(self.session, "person.deleted", "person", person.id, _event(person))
+        await self.session.delete(person)
+        await self._commit()
 
     async def transfer(self, person_ids: Sequence[uuid.UUID], unit_id: uuid.UUID) -> int:
         """Перевод в другое подразделение (open-questions №24): смена unit_id, след в аудите.

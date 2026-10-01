@@ -259,6 +259,39 @@ function restore() {
   })
 }
 
+// Удалить навсегда ошибочно заведённого (суперадминистратор, ADR-0023): сервер откажет, если
+// человек хоть раз был назначен в наряд — тогда его только исключают из списков
+const isSuperadmin = computed(() => units.me?.roles.includes('superadmin') === true)
+function removeForever() {
+  const p = person.value
+  if (!p) return
+  confirm.require({
+    header: 'Удалить навсегда?',
+    message:
+      `«${p.last_name} ${p.first_name}» будет удалён вместе с допусками, освобождениями и ` +
+      'характеристиками — только если его ни разу не назначали в наряд. Восстановить будет нельзя.',
+    icon: 'pi pi-exclamation-triangle',
+    acceptProps: { label: 'Удалить навсегда', severity: 'danger' },
+    rejectProps: { label: 'Отмена', severity: 'secondary', text: true },
+    accept: async () => {
+      busy.value = true
+      try {
+        await unwrap(
+          personnel.DELETE('/people/{person_id}', {
+            params: { path: { person_id: p.id }, query: { version: p.version } },
+          }),
+        )
+        toast.add({ severity: 'success', summary: 'Удалён', life: 3000 })
+        await router.push('/people')
+      } catch (e) {
+        showError(e)
+      } finally {
+        busy.value = false
+      }
+    },
+  })
+}
+
 /** Причина исключения — из последней записи истории об исключении. */
 const exclusion = computed(() => {
   const entry = history.value.find((h) => h.action === 'person.archive')
@@ -466,6 +499,7 @@ const ACTIONS: Record<string, string> = {
   'person.update': 'Изменён',
   'person.archive': 'Исключён из списков',
   'person.restore': 'Восстановлен в списках',
+  'person.delete': 'Удалён навсегда',
   'person.transfer': 'Перевод',
   'exemption.create': 'Освобождение',
   'clearance.grant': 'Допуск выдан',
@@ -520,6 +554,16 @@ function describe(entry: AuditEntry): string {
           severity="secondary"
           :loading="busy"
           @click="restore"
+        />
+        <Button
+          v-if="isSuperadmin"
+          v-tooltip.bottom="'Только для ошибочно заведённых: человека ни разу не назначали в наряд'"
+          label="Удалить навсегда"
+          icon="pi pi-trash"
+          severity="danger"
+          text
+          :loading="busy"
+          @click="removeForever"
         />
         <Button
           v-if="editable"

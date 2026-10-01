@@ -10,6 +10,8 @@ from sqlalchemy import select
 
 from dutyflow_common.outbox import OutboxEvent
 
+LEAVE = "00000000-0000-7000-8000-00000000e002"
+
 
 @pytest.fixture
 def scheduling_usage(app: FastAPI, monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
@@ -108,3 +110,32 @@ async def test_delete_category_reason_and_attribute(
     )
     scheduling_usage["answer"] = {}
     assert (await admin.delete(f"/attribute-definitions/{attr['id']}")).status_code == 204
+
+
+async def test_delete_person_only_without_assignments(
+    admin: AsyncClient,
+    client_for: ClientFactory,
+    org: Org,
+    scheduling_usage: dict[str, Any],
+) -> None:
+    """ADR-0023: ошибочно заведённого человека можно удалить, если его не назначали в наряды."""
+    person = await add_person(admin, org.fac_a, "Ошибочный")
+    await admin.post(
+        f"/people/{person['id']}/exemptions",
+        json={"reason_id": LEAVE, "date_from": "2026-10-01", "date_to": "2026-10-02"},
+    )
+    params = {"version": person["version"]}
+
+    op = client_for(org.root, "unit_admin")
+    assert (await op.delete(f"/people/{person['id']}", params=params)).status_code == 403
+
+    scheduling_usage["answer"] = {"assignments": 4}
+    r = await admin.delete(f"/people/{person['id']}", params=params)
+    assert r.status_code == 409
+    assert "назначений в наряды: 4" in r.text
+    assert "исключить из списков" in r.text
+    assert scheduling_usage["asked"][-1] == ("person", {"id": person["id"]})
+
+    scheduling_usage["answer"] = {}
+    assert (await admin.delete(f"/people/{person['id']}", params=params)).status_code == 204
+    assert (await admin.get(f"/people/{person['id']}")).status_code == 404

@@ -15,7 +15,7 @@ import uuid
 from collections import defaultdict
 from typing import Any
 
-from sqlalchemy import or_, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
@@ -35,7 +35,8 @@ from dutyflow_common.policy import Policy, default_policy
 from dutyflow_common.projections import RankProjection, UnitProjection, unit_path
 from dutyflow_common.requirements import validate_requirement
 from dutyflow_common.scope import in_scope, scope_clause
-from scheduling.models import DutyRole, DutyType
+from dutyflow_common.usage import ensure_unused
+from scheduling.models import Assignment, DayPlan, DutyRole, DutyType, Schedule
 from scheduling.refs import PersonnelRefs, RefsLoader
 from scheduling.schedules import sync_owner_cells, unpin_role_cells
 from scheduling.schemas import (
@@ -381,6 +382,94 @@ class DutyTypeService:
                 )
             )
         await sync_owner_cells(self.session, duty_type.owner_unit_id, role_ids)
+
+    # --- удаление (суперадминистратор, ADR-0023) ------------------------------------------------
+
+    async def _usage(self, cell_filter: Any) -> dict[str, int]:
+        """Что мешает удалить наряд или роль: назначенные люди и ячейки в опубликованных или
+        архивных графиках. Пустые ячейки черновиков создаются автоматически — они не мешают
+        и удаляются вместе с нарядом."""
+        assignments = await self.session.scalar(
+            select(func.count())
+            .select_from(Assignment)
+            .join(DayPlan, DayPlan.id == Assignment.day_plan_id)
+            .where(cell_filter)
+        )
+        published = await self.session.scalar(
+            select(func.count())
+            .select_from(DayPlan)
+            .join(Schedule, Schedule.id == DayPlan.schedule_id)
+            .where(cell_filter, Schedule.status != "draft")
+        )
+        return {"assignments": assignments or 0, "published_cells": published or 0}
+
+    async def delete_type(self, type_id: uuid.UUID, version: int) -> None:
+        self.policy.require(self.operator.roles, "duty_type", "delete")
+        duty_type, owner = await self._type_for_update(type_id)
+        _check_version(duty_type.version, version)
+        ensure_unused(
+            f"Наряд «{duty_type.name}»",
+            await self._usage(DayPlan.duty_type_id == duty_type.id),
+            "Его можно только выключить.",
+        )
+        roles = list(
+            await self.session.scalars(
+                select(DutyRole).where(DutyRole.duty_type_id == duty_type.id)
+            )
+        )
+        audit.record(
+            self.session,
+            action="duty_type.delete",
+            entity_type="duty_type",
+            entity_id=duty_type.id,
+            scope_unit_id=owner.unit_id,
+            before={**duty_type.snapshot(), "roles": [r.name for r in roles]},
+        )
+        # Ячейки всей цепочки делегирования одного наряда — одного типа, удаляются разом
+        await self.session.execute(delete(DayPlan).where(DayPlan.duty_type_id == duty_type.id))
+        for role in roles:
+            add_event(self.session, "duty_role.deleted", "duty_role", role.id, {"id": role.id})
+            await self.session.delete(role)
+        add_event(
+            self.session, "duty_type.deleted", "duty_type", duty_type.id, {"id": duty_type.id}
+        )
+        await self.session.flush()
+        await self.session.delete(duty_type)
+        await self._commit()
+
+    async def delete_role(self, role_id: uuid.UUID, version: int) -> None:
+        self.policy.require(self.operator.roles, "duty_type", "delete")
+        role = await self.session.get(DutyRole, role_id)
+        if role is None:
+            raise NotFoundError("Роль не найдена")
+        duty_type, owner = await self._type_for_update(role.duty_type_id)
+        _check_version(role.version, version)
+        others = await self.session.scalar(
+            select(func.count()).where(
+                DutyRole.duty_type_id == duty_type.id, DutyRole.id != role.id
+            )
+        )
+        if not others:
+            raise ValidationFailedError(
+                "Это единственная роль наряда — удалите наряд целиком или добавьте другую роль"
+            )
+        ensure_unused(
+            f"Роль «{role.name}»",
+            await self._usage(DayPlan.duty_role_id == role.id),
+            "Её можно только выключить.",
+        )
+        audit.record(
+            self.session,
+            action="duty_role.delete",
+            entity_type="duty_role",
+            entity_id=role.id,
+            scope_unit_id=owner.unit_id,
+            before=role.snapshot(),
+        )
+        await self.session.execute(delete(DayPlan).where(DayPlan.duty_role_id == role.id))
+        add_event(self.session, "duty_role.deleted", "duty_role", role.id, {"id": role.id})
+        await self.session.delete(role)
+        await self._commit()
 
     # --- вспомогательное -----------------------------------------------------------------------
 

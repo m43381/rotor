@@ -84,6 +84,18 @@ async def publish(schedule_id: uuid.UUID, data: VersionIn, svc: ScheduleServiceD
     return PublishOut(schedule=await svc.get(schedule_id), warnings=warnings)
 
 
+@router.post(
+    "/schedules/{schedule_id}/unarchive",
+    response_model=ScheduleOut,
+    summary="Вернуть архивный график в «опубликован» (суперадминистратор, ADR-0023)",
+)
+async def unarchive(
+    schedule_id: uuid.UUID, data: VersionIn, svc: ScheduleServiceDep
+) -> ScheduleOut:
+    await svc.unarchive(schedule_id, data.version)
+    return await svc.get(schedule_id)
+
+
 @router.post("/schedules/{schedule_id}/archive", response_model=ScheduleOut)
 async def archive(schedule_id: uuid.UUID, data: VersionIn, svc: ScheduleServiceDep) -> ScheduleOut:
     await svc.archive(schedule_id, data.version)
