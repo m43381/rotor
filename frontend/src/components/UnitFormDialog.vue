@@ -74,7 +74,7 @@ function submit() {
         option-label="name"
         option-value="id"
         placeholder="Выберите тип"
-        empty-message="Нет подходящих типов: нужен тип ниже по иерархии"
+        empty-message="Нет подходящих типов: добавьте тип с уровнем ниже в «Справочники → Типы подразделений»"
       />
 
       <label for="unit-order">Порядок в списке</label>

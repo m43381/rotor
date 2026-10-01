@@ -1,6 +1,7 @@
 <script setup lang="ts">
-// Справочники личного состава (суперадминистратор): категории (ADR-0018), должности,
-// характеристики, причины освобождений. Записи не удаляются, а выключаются — на них ссылаются люди и история.
+// Справочники (суперадминистратор): типы подразделений и звания (org), категории (ADR-0018),
+// должности, характеристики, причины освобождений (personnel). Записи не удаляются, а выключаются —
+// на них ссылаются люди и история; у типов подразделений выключения нет.
 import Button from 'primevue/button'
 import Checkbox from 'primevue/checkbox'
 import Column from 'primevue/column'
@@ -19,14 +20,16 @@ import Textarea from 'primevue/textarea'
 import { useToast } from 'primevue/usetoast'
 import { computed, onMounted, ref } from 'vue'
 
-import { ApiError, personnel, unwrap } from '@/api/client'
+import { ApiError, org, personnel, unwrap } from '@/api/client'
 import { useRefsStore } from '@/stores/refs'
+import { useUnitsStore } from '@/stores/units'
 
-type Kind = 'categories' | 'positions' | 'attributes' | 'reasons'
+type Kind = 'unitTypes' | 'ranks' | 'categories' | 'positions' | 'attributes' | 'reasons'
 
 const refs = useRefsStore()
+const units = useUnitsStore()
 const toast = useToast()
-const tab = ref<Kind>('categories')
+const tab = ref<Kind>('unitTypes')
 const busy = ref(false)
 
 const TYPES = [
@@ -38,7 +41,10 @@ const TYPES = [
 ]
 const typeLabel = (v: string) => TYPES.find((t) => t.value === v)?.label ?? v
 
-onMounted(() => refs.reload().catch(showError))
+onMounted(() => Promise.all([refs.reload(), units.load()]).catch(showError))
+
+// Звания: старшие — сверху (больший порядок — старше)
+const ranksDesc = computed(() => [...refs.ranks].sort((a, b) => b.order - a.order))
 
 function showError(e: unknown) {
   const detail = e instanceof ApiError ? e.message : 'Не удалось выполнить операцию'
@@ -57,6 +63,9 @@ const form = ref({
   value_type: 'string',
   enum_text: '',
   is_required: false,
+  short_name: '',
+  level: 1,
+  can_have_children: true,
 })
 
 function open(k: Kind, item?: Record<string, unknown>) {
@@ -70,12 +79,22 @@ function open(k: Kind, item?: Record<string, unknown>) {
     value_type: (item?.value_type as string) ?? 'string',
     enum_text: ((item?.enum_options as string[] | null) ?? []).join('\n'),
     is_required: (item?.is_required as boolean) ?? false,
+    short_name: (item?.short_name as string | null) ?? '',
+    // Новый тип — на уровень ниже самого глубокого из существующих
+    level: (item?.level as number) ?? Math.max(0, ...units.types.map((t) => t.level)) + 1,
+    can_have_children: (item?.can_have_children as boolean) ?? true,
+  }
+  // У звания «порядок» — старшинство; новое — старше всех имеющихся, с шагом 10
+  if (k === 'ranks') {
+    form.value.sort_order = (item?.order as number) ?? Math.max(0, ...refs.ranks.map((r) => r.order)) + 10
   }
   visible.value = true
 }
 
 const dialogTitle = computed(() => {
   const what = {
+    unitTypes: 'тип подразделения',
+    ranks: 'звание',
     categories: 'категорию',
     positions: 'должность',
     attributes: 'характеристику',
@@ -83,7 +102,7 @@ const dialogTitle = computed(() => {
   }[kind.value]
   return `${editId.value ? 'Изменить' : 'Добавить'} ${what}`
 })
-const needsCode = computed(() => kind.value !== 'positions')
+const needsCode = computed(() => kind.value !== 'positions' && kind.value !== 'ranks')
 const codeValid = computed(() => !needsCode.value || /^[a-z][a-z0-9_]*$/.test(form.value.code))
 const valid = computed(() => form.value.name.trim().length > 0 && codeValid.value)
 
@@ -91,7 +110,27 @@ async function submit() {
   const f = form.value
   busy.value = true
   try {
-    if (kind.value === 'categories') {
+    if (kind.value === 'unitTypes') {
+      const body = { code: f.code, name: f.name.trim(), level: f.level, can_have_children: f.can_have_children }
+      await unwrap(
+        editId.value
+          ? org.PUT('/unit-types/{type_id}', { params: { path: { type_id: editId.value } }, body })
+          : org.POST('/unit-types', { body }),
+      )
+      await units.load()
+    } else if (kind.value === 'ranks') {
+      const body = {
+        name: f.name.trim(),
+        short_name: f.short_name.trim() || null,
+        order: f.sort_order,
+        is_active: f.is_active,
+      }
+      await unwrap(
+        editId.value
+          ? org.PUT('/ranks/{rank_id}', { params: { path: { rank_id: editId.value } }, body })
+          : org.POST('/ranks', { body }),
+      )
+    } else if (kind.value === 'categories') {
       const body = { code: f.code, name: f.name.trim(), sort_order: f.sort_order, is_active: f.is_active }
       await unwrap(
         editId.value
@@ -144,18 +183,69 @@ async function submit() {
 
 <template>
   <section class="page">
-    <h1>Справочники личного состава</h1>
+    <h1>Справочники</h1>
     <p class="muted">
       Записи не удаляются, а выключаются: на них ссылаются люди, роли нарядов и история.
     </p>
     <Tabs v-model:value="tab">
       <TabList>
+        <Tab value="unitTypes">Типы подразделений</Tab>
+        <Tab value="ranks">Звания</Tab>
         <Tab value="categories">Категории</Tab>
         <Tab value="positions">Должности</Tab>
         <Tab value="attributes">Характеристики</Tab>
         <Tab value="reasons">Причины освобождений</Tab>
       </TabList>
       <TabPanels>
+        <TabPanel value="unitTypes">
+          <p class="hint-box">
+            <i class="pi pi-info-circle" />
+            <span>
+              Уровень задаёт иерархию: у дочернего подразделения тип с уровнем больше, чем у родителя.
+              Типы одного уровня равноправны (например, «Кафедра» и «Курс» внутри факультета).
+              Корневой тип — уровень 0.
+            </span>
+          </p>
+          <Button label="Добавить" icon="pi pi-plus" class="add" @click="open('unitTypes')" />
+          <DataTable :value="units.types" data-key="id">
+            <Column field="name" header="Тип подразделения" />
+            <Column field="code" header="Код" style="width: 10rem" />
+            <Column field="level" header="Уровень" style="width: 8rem" />
+            <Column header="" style="width: 12rem">
+              <template #body="{ data }">
+                <Tag v-if="!data.can_have_children" value="Без дочерних" severity="secondary" />
+              </template>
+            </Column>
+            <Column style="width: 4rem">
+              <template #body="{ data }">
+                <Button icon="pi pi-pencil" text rounded aria-label="Изменить" @click="open('unitTypes', data)" />
+              </template>
+            </Column>
+          </DataTable>
+        </TabPanel>
+        <TabPanel value="ranks">
+          <p class="hint-box">
+            <i class="pi pi-info-circle" />
+            <span>
+              Старшинство — число: чем больше, тем старше звание. Шаг 10 оставляет место, чтобы
+              вставить звание между существующими.
+            </span>
+          </p>
+          <Button label="Добавить" icon="pi pi-plus" class="add" @click="open('ranks')" />
+          <DataTable :value="ranksDesc" data-key="id">
+            <Column field="name" header="Звание" />
+            <Column field="short_name" header="Сокращение" style="width: 10rem" />
+            <Column field="order" header="Старшинство" style="width: 9rem" />
+            <Column header="Статус" style="width: 9rem">
+              <template #body="{ data }"><Tag v-if="!data.is_active" value="Выключено" severity="secondary" /></template>
+            </Column>
+            <Column style="width: 4rem">
+              <template #body="{ data }">
+                <Button icon="pi pi-pencil" text rounded aria-label="Изменить" @click="open('ranks', data)" />
+              </template>
+            </Column>
+          </DataTable>
+        </TabPanel>
         <TabPanel value="categories">
           <p class="hint-box">
             <i class="pi pi-info-circle" />
@@ -246,6 +336,17 @@ async function submit() {
           <label for="r-code">Код (латиница, для интеграций)</label>
           <InputText id="r-code" v-model="form.code" maxlength="50" :disabled="!!editId" :invalid="!codeValid" />
         </template>
+        <template v-if="kind === 'ranks'">
+          <label for="r-short">Сокращение (для печатных форм)</label>
+          <InputText id="r-short" v-model="form.short_name" maxlength="50" />
+        </template>
+        <template v-if="kind === 'unitTypes'">
+          <label for="r-level">Уровень в иерархии</label>
+          <InputNumber id="r-level" v-model="form.level" :min="0" :max="50" />
+          <label class="inline">
+            <Checkbox v-model="form.can_have_children" binary /> Может иметь дочерние подразделения
+          </label>
+        </template>
         <template v-if="kind === 'attributes'">
           <label for="r-type">Тип значения</label>
           <Select
@@ -262,11 +363,13 @@ async function submit() {
           </template>
           <label class="inline"><Checkbox v-model="form.is_required" binary /> Обязательная</label>
         </template>
-        <template v-if="kind !== 'reasons'">
-          <label for="r-order">Порядок</label>
+        <template v-if="kind !== 'reasons' && kind !== 'unitTypes'">
+          <label for="r-order">{{ kind === 'ranks' ? 'Старшинство (больше — старше)' : 'Порядок' }}</label>
           <InputNumber id="r-order" v-model="form.sort_order" :min="0" :max="10000" />
         </template>
-        <label class="inline"><Checkbox v-model="form.is_active" binary /> Используется</label>
+        <label v-if="kind !== 'unitTypes'" class="inline">
+          <Checkbox v-model="form.is_active" binary /> Используется
+        </label>
         <div class="actions">
           <Button label="Отмена" severity="secondary" text @click="visible = false" />
           <Button type="submit" label="Сохранить" :disabled="!valid" :loading="busy" />
