@@ -3,7 +3,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request, Response
 
 from org.api.deps import UnitServiceDep
 from org.schemas import MeOut, UnitCreate, UnitMove, UnitOut, UnitUpdate
@@ -57,6 +57,29 @@ async def deactivate_unit(
     unit_id: uuid.UUID, version: Annotated[int, Query()], svc: UnitServiceDep
 ) -> UnitOut:
     return await svc.to_out(await svc.deactivate(unit_id, version))
+
+
+@router.post(
+    "/units/{unit_id}/restore",
+    response_model=UnitOut,
+    summary="Восстановить расформированное подразделение (ADR-0023)",
+)
+async def restore_unit(
+    unit_id: uuid.UUID, version: Annotated[int, Query()], svc: UnitServiceDep
+) -> UnitOut:
+    return await svc.to_out(await svc.restore(unit_id, version))
+
+
+@router.post(
+    "/units/{unit_id}/purge",
+    status_code=204,
+    summary="Удалить навсегда, если на подразделение ничего не ссылается (ADR-0023)",
+)
+async def purge_unit(
+    unit_id: uuid.UUID, version: Annotated[int, Query()], request: Request, svc: UnitServiceDep
+) -> Response:
+    await svc.purge(unit_id, version, request.app.state.usage)
+    return Response(status_code=204)
 
 
 @router.get("/units/{unit_id}/subtree", response_model=list[UnitOut])

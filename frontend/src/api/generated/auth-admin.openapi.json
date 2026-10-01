@@ -455,6 +455,62 @@
         }
       }
     },
+    "/internal/usage/{kind}": {
+      "post": {
+        "tags": [
+          "internal"
+        ],
+        "summary": "Операторы, привязанные к подразделению, перед его удалением (ADR-0023)",
+        "operationId": "usage_internal_usage__kind__post",
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Kind"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UsageIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "title": "Response Usage Internal Usage  Kind  Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/internal/audit": {
       "get": {
         "tags": [
@@ -896,6 +952,43 @@
           "offset"
         ],
         "title": "OperatorsPage"
+      },
+      "UsageIn": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "order": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "UsageIn",
+        "description": "Тело `POST /internal/usage/{kind}`. `order` — для званий (минимальное звание роли\nхранится числом старшинства), `code` — для характеристик (требования ролей ссылаются\nна код)."
       },
       "ValidationError": {
         "properties": {

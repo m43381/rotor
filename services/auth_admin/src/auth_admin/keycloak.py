@@ -126,6 +126,11 @@ class KeycloakAdmin:
                 first += PAGE
         return members
 
+    async def count_with_attribute(self, name: str, value: str) -> int:
+        """Сколько пользователей с атрибутом `name` = `value` (например, `unit_id`)."""
+        resp = await self._call("GET", "/users/count", params={"q": f"{name}:{value}"})
+        return int(resp.json())
+
     async def user(self, user_id: str) -> dict[str, Any]:
         data: dict[str, Any] = (await self._call("GET", f"/users/{user_id}")).json()
         return data
@@ -162,6 +167,9 @@ class KeycloakAdmin:
             f"/users/{user_id}/reset-password",
             json={"type": "password", "value": password, "temporary": True},
         )
+
+    async def delete_user(self, user_id: str) -> None:
+        await self._call("DELETE", f"/users/{user_id}")
 
     async def logout(self, user_id: str) -> None:
         await self._call("POST", f"/users/{user_id}/logout")

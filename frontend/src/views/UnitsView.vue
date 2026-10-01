@@ -7,10 +7,11 @@ import IconField from 'primevue/iconfield'
 import InputIcon from 'primevue/inputicon'
 import InputText from 'primevue/inputtext'
 import Tag from 'primevue/tag'
+import ToggleSwitch from 'primevue/toggleswitch'
 import TreeTable from 'primevue/treetable'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { ApiError, personnel, unwrap, type Unit } from '@/api/client'
@@ -141,6 +142,43 @@ async function onMoveSubmit(newParentId: string) {
   if (ok) moveVisible.value = false
 }
 
+// Суперадминистратор: показать расформированные, вернуть их или удалить пустое навсегда (ADR-0023)
+const isSuperadmin = computed(() => store.me?.roles.includes('superadmin') ?? false)
+watch(
+  () => store.includeInactive,
+  () => run(() => store.load(), ''),
+)
+onBeforeUnmount(() => {
+  if (store.includeInactive) {
+    store.includeInactive = false
+    void store.load()
+  }
+})
+
+function askRestore(unit: Unit) {
+  confirm.require({
+    header: 'Восстановить подразделение?',
+    message: `«${unit.name}» вернётся в структуру на прежнее место.`,
+    icon: 'pi pi-replay',
+    acceptProps: { label: 'Восстановить' },
+    rejectProps: { label: 'Отмена', severity: 'secondary', text: true },
+    accept: () => run(() => store.restore(unit), 'Подразделение восстановлено'),
+  })
+}
+
+function askPurge(unit: Unit) {
+  confirm.require({
+    header: 'Удалить подразделение навсегда?',
+    message:
+      `«${unit.name}» будет удалено без возможности восстановления — только если в нём нет людей ` +
+      '(включая архивных), дочерних подразделений, нарядов, графиков, лимитов и операторов.',
+    icon: 'pi pi-exclamation-triangle',
+    acceptProps: { label: 'Удалить навсегда', severity: 'danger' },
+    rejectProps: { label: 'Отмена', severity: 'secondary', text: true },
+    accept: () => run(() => store.purge(unit), 'Подразделение удалено'),
+  })
+}
+
 function askDeactivate(unit: Unit) {
   confirm.require({
     header: 'Расформировать подразделение?',
@@ -171,6 +209,9 @@ function canParent(parent: Unit, child: Unit): boolean {
           состава: <strong>{{ [...direct.values()].reduce((a, b) => a + b, 0) }}</strong>
         </p>
       </div>
+      <label v-if="isSuperadmin" class="inactive-toggle">
+        <ToggleSwitch v-model="store.includeInactive" /> Показать расформированные
+      </label>
       <IconField class="search">
         <InputIcon class="pi pi-search" />
         <InputText v-model="filter" placeholder="Поиск по названию" aria-label="Поиск по названию" />
@@ -217,7 +258,7 @@ function canParent(parent: Unit, child: Unit): boolean {
           <span v-else class="muted-cell">—</span>
         </template>
       </Column>
-      <Column header="Действия" style="width: 15rem">
+      <Column header="Действия" style="width: 19rem">
         <template #body="{ node }">
           <div class="row-actions">
             <Button
@@ -268,6 +309,25 @@ function canParent(parent: Unit, child: Unit): boolean {
               aria-label="Расформировать"
               :disabled="!node.data.permissions?.delete"
               @click="askDeactivate(node.data)"
+            />
+            <Button
+              v-if="node.data.permissions?.restore"
+              v-tooltip.top="'Восстановить'"
+              icon="pi pi-replay"
+              text
+              rounded
+              aria-label="Восстановить"
+              @click="askRestore(node.data)"
+            />
+            <Button
+              v-if="node.data.permissions?.purge"
+              v-tooltip.top="'Удалить навсегда (только пустое)'"
+              icon="pi pi-times-circle"
+              text
+              rounded
+              severity="danger"
+              aria-label="Удалить навсегда"
+              @click="askPurge(node.data)"
             />
           </div>
         </template>
@@ -351,6 +411,13 @@ h1 {
 }
 .muted-cell {
   color: var(--p-text-muted-color);
+}
+.inactive-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+  white-space: nowrap;
 }
 .inactive {
   text-decoration: line-through;

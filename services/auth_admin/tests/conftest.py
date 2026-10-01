@@ -97,6 +97,12 @@ class FakeKeycloak:
             if creds:
                 self.passwords[uid] = (creds[0]["value"], creds[0]["temporary"])
             return httpx.Response(201, headers={"Location": f"http://kc{prefix}/users/{uid}"})
+        if parts == ["users", "count"]:
+            key, _, value = request.url.params["q"].partition(":")
+            found = [
+                u for u in self.users.values() if value in u.get("attributes", {}).get(key, [])
+            ]
+            return httpx.Response(200, json=len(found))
         if parts[0] == "users":
             uid = parts[1]
             if parts[2:4] == ["role-mappings", "clients"]:  # служебная учётная запись клиента
@@ -109,6 +115,10 @@ class FakeKeycloak:
             if not tail:
                 if method == "GET":
                     return httpx.Response(200, json=self.users[uid])
+                if method == "DELETE":
+                    del self.users[uid]
+                    self.roles.pop(uid, None)
+                    return httpx.Response(204)
                 assert body is not None
                 self.users[uid] = {**self.users[uid], **body, "id": uid}
                 return httpx.Response(204)
@@ -201,6 +211,7 @@ def settings(database_url: str) -> AuthAdminSettings:
         auth_admin_client_secret="secret",
         keycloak_admin="kcadmin",
         keycloak_admin_password="kc-password",
+        internal_token="test-internal-token",
     )
 
 

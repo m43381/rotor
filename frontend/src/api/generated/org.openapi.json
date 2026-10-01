@@ -344,6 +344,113 @@
         }
       }
     },
+    "/units/{unit_id}/restore": {
+      "post": {
+        "tags": [
+          "units"
+        ],
+        "summary": "Восстановить расформированное подразделение (ADR-0023)",
+        "operationId": "restore_unit_units__unit_id__restore_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "unit_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Unit Id"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnitOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/units/{unit_id}/purge": {
+      "post": {
+        "tags": [
+          "units"
+        ],
+        "summary": "Удалить навсегда, если на подразделение ничего не ссылается (ADR-0023)",
+        "operationId": "purge_unit_units__unit_id__purge_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "unit_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Unit Id"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/units/{unit_id}/subtree": {
       "get": {
         "tags": [
@@ -1764,6 +1871,16 @@
           "create_child": {
             "type": "boolean",
             "title": "Create Child"
+          },
+          "restore": {
+            "type": "boolean",
+            "title": "Restore",
+            "default": false
+          },
+          "purge": {
+            "type": "boolean",
+            "title": "Purge",
+            "default": false
           }
         },
         "type": "object",

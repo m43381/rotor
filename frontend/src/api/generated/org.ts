@@ -71,6 +71,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/units/{unit_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Восстановить расформированное подразделение (ADR-0023) */
+        post: operations["restore_unit_units__unit_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/units/{unit_id}/purge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Удалить навсегда, если на подразделение ничего не ссылается (ADR-0023) */
+        post: operations["purge_unit_units__unit_id__purge_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/units/{unit_id}/subtree": {
         parameters: {
             query?: never;
@@ -537,6 +571,16 @@ export interface components {
             delete: boolean;
             /** Create Child */
             create_child: boolean;
+            /**
+             * Restore
+             * @default false
+             */
+            restore: boolean;
+            /**
+             * Purge
+             * @default false
+             */
+            purge: boolean;
         };
         /** UnitTypeIn */
         UnitTypeIn: {
@@ -822,6 +866,70 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["UnitOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_unit_units__unit_id__restore_post: {
+        parameters: {
+            query: {
+                version: number;
+            };
+            header?: never;
+            path: {
+                unit_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnitOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    purge_unit_units__unit_id__purge_post: {
+        parameters: {
+            query: {
+                version: number;
+            };
+            header?: never;
+            path: {
+                unit_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

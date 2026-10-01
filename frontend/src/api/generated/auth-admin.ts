@@ -120,6 +120,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/usage/{kind}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Операторы, привязанные к подразделению, перед его удалением (ADR-0023) */
+        post: operations["usage_internal_usage__kind__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/audit": {
         parameters: {
             query?: never;
@@ -246,6 +263,23 @@ export interface components {
             limit: number;
             /** Offset */
             offset: number;
+        };
+        /**
+         * UsageIn
+         * @description Тело `POST /internal/usage/{kind}`. `order` — для званий (минимальное звание роли
+         *     хранится числом старшинства), `code` — для характеристик (требования ролей ссылаются
+         *     на код).
+         */
+        UsageIn: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Order */
+            order?: number | null;
+            /** Code */
+            code?: string | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -515,6 +549,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OperatorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    usage_internal_usage__kind__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UsageIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: number;
+                    };
                 };
             };
             /** @description Validation Error */

@@ -169,3 +169,18 @@ def test_spa_urls_follow_public_url() -> None:
     assert "http://localhost:5173/*" in out["redirectUris"]
     assert "https://localhost:8443" in out["webOrigins"]
     assert "https://localhost:8443/*" in out["attributes"]["post.logout.redirect.uris"].split("##")
+
+
+async def test_internal_usage_counts_operators_of_unit(
+    app: object, settings: AuthAdminSettings, people: People
+) -> None:
+    """ADR-0023: org не удалит подразделение, к которому привязаны операторы."""
+    transport = httpx.ASGITransport(app=app)  # type: ignore[arg-type]
+    headers = {"X-Internal-Token": settings.internal_token}
+    async with httpx.AsyncClient(transport=transport, base_url="http://t", headers=headers) as c:
+        r = await c.post("/internal/usage/unit", json={"id": str(FACULTY)})
+        assert r.status_code == 200, r.text
+        assert r.json()["operators"] >= 1
+        empty = "00000000-0000-7000-8000-0000000000ee"
+        assert (await c.post("/internal/usage/unit", json={"id": empty})).json() == {"operators": 0}
+        assert (await c.post("/internal/usage/rank", json={"id": empty})).json() == {}

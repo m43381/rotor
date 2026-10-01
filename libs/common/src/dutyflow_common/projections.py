@@ -124,6 +124,12 @@ async def move_unit_subtree(session: AsyncSession, old_path: str, new_path: str)
 
 async def handle_unit_event(session: AsyncSession, event: Event) -> None:
     payload = event.payload
+    if event.type == "unit.purged":
+        # org удаляет только подразделение без людей, нарядов и дочерних (ADR-0023)
+        await session.execute(
+            delete(UnitProjection).where(UnitProjection.unit_id == event.aggregate_id)
+        )
+        return
     if event.type == "unit.moved":
         await move_unit_subtree(session, payload["old_path"], payload["new_path"])
     if event.type.startswith("unit."):

@@ -1,10 +1,12 @@
-"""Логика дерева подразделений: scope-фильтрация, создание, изменение, перенос, архивация.
+"""Логика дерева подразделений: scope-фильтрация, создание, изменение, перенос, расформирование,
+восстановление и удаление навсегда пустого подразделения (ADR-0023).
 
 Все проверки прав — через `default_policy` из libs/common; поддерево — предикаты `ltree` (ADR-0003).
 """
 
 import uuid
 from collections.abc import Sequence
+from typing import Any
 
 from sqlalchemy import case, cast, func, literal, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,6 +24,7 @@ from dutyflow_common.ltree import Ltree, is_descendant_or_self
 from dutyflow_common.outbox import add_event
 from dutyflow_common.policy import Policy, default_policy
 from dutyflow_common.scope import Scope, in_scope, scope_clause
+from dutyflow_common.usage import UsageCheck, ensure_unused
 from org.models import Unit, UnitType, unit_node_no_seq
 from org.schemas import UnitCreate, UnitMove, UnitOut, UnitPermissions, UnitUpdate
 
@@ -69,6 +72,8 @@ class UnitService:
             move=active and not_root and in_scope(unit.path, op_path, self._scope("move")),
             delete=active and not_root and in_scope(unit.path, op_path, self._scope("delete")),
             create_child=active and in_scope(unit.path, op_path, self._scope("create")),
+            restore=not active and in_scope(unit.path, op_path, self._scope("restore")),
+            purge=not_root and in_scope(unit.path, op_path, self._scope("purge")),
         )
 
     async def to_out(self, unit: Unit) -> UnitOut:
@@ -294,6 +299,68 @@ class UnitService:
         add_event(self.session, "unit.deleted", RESOURCE, unit.id, _event(unit))
         await self._commit()
         return unit
+
+    async def restore(self, unit_id: uuid.UUID, version: int) -> Unit:
+        """Вернуть расформированное подразделение на прежнее место в дереве."""
+        unit = await self.get(unit_id, action="restore")
+        self._check_version(unit, version)
+        if unit.is_active:
+            raise ValidationFailedError("Подразделение не расформировано")
+        parent = await self.session.get(Unit, unit.parent_id) if unit.parent_id else None
+        if parent is not None and not parent.is_active:
+            raise ConflictError(f"Сначала восстановите вышестоящее подразделение «{parent.name}»")
+        if unit.parent_id is not None:
+            await self._ensure_name_free(unit.parent_id, unit.name, exclude=unit.id)
+        before = unit.snapshot()
+        unit.is_active = True
+        await self._flush()
+        audit.record(
+            self.session,
+            action="unit.restore",
+            entity_type=RESOURCE,
+            entity_id=unit.id,
+            scope_unit_id=unit.id,
+            before=before,
+            after=unit.snapshot(),
+        )
+        add_event(self.session, "unit.restored", RESOURCE, unit.id, _event(unit))
+        await self._commit()
+        return unit
+
+    async def purge(self, unit_id: uuid.UUID, version: int, usage: UsageCheck) -> None:
+        """Удалить навсегда подразделение, на которое ничего не ссылается (ADR-0023).
+
+        Ссылки ищутся у personnel (люди, включая архивных), scheduling (наряды, роли, графики,
+        ячейки, лимиты) и auth-admin (операторы). Дочерние, даже расформированные, тоже мешают:
+        их путь в ltree начинается с пути удаляемого узла.
+        """
+        unit = await self.get(unit_id, action="purge")
+        self._check_version(unit, version)
+        if unit.parent_id is None:
+            raise ValidationFailedError("Корневое подразделение удалить нельзя")
+        children = await self.session.scalar(
+            select(func.count()).select_from(Unit).where(Unit.parent_id == unit.id)
+        )
+        found: dict[str, Any] = {"child_units": children or 0}
+        found |= await usage("unit", {"id": str(unit.id)})
+        ensure_unused(
+            f"Подразделение «{unit.name}»",
+            found,
+            "Его можно только расформировать." if unit.is_active else "",
+        )
+        audit.record(
+            self.session,
+            action="unit.purge",
+            entity_type=RESOURCE,
+            entity_id=unit.id,
+            scope_unit_id=unit.parent_id,
+            before=unit.snapshot(),
+        )
+        add_event(
+            self.session, "unit.purged", RESOURCE, unit.id, {"unit_id": unit.id, "path": unit.path}
+        )
+        await self.session.delete(unit)
+        await self._commit()
 
     # --- вспомогательное -----------------------------------------------------------------
 

@@ -1,5 +1,8 @@
+from typing import Any
+
 import pytest
 from conftest import INTERNAL_TOKEN, ClientFactory
+from fastapi import FastAPI
 from helpers import build_tree, create_unit, get_unit
 from httpx import AsyncClient
 from sqlalchemy import text
@@ -58,12 +61,16 @@ async def test_permissions_in_response(
         "move": False,
         "delete": False,
         "create_child": True,
+        "restore": False,
+        "purge": False,
     }
     assert child["permissions"] == {
         "update": True,
         "move": True,
         "delete": True,
         "create_child": True,
+        "restore": False,
+        "purge": False,
     }
 
     viewer = client_for(tree.faculty1, "viewer")
@@ -72,6 +79,8 @@ async def test_permissions_in_response(
         "move": False,
         "delete": False,
         "create_child": False,
+        "restore": False,
+        "purge": False,
     }
 
 
@@ -283,6 +292,8 @@ async def test_root_cannot_be_moved_or_deactivated(
         "move": False,
         "delete": False,
         "create_child": True,
+        "restore": False,
+        "purge": False,
     }
     r = await admin.delete(f"/units/{settings.root_unit_id}", params={"version": root["version"]})
     assert r.status_code == 422
@@ -319,3 +330,81 @@ async def test_internal_calendar(admin: AsyncClient, anon: AsyncClient) -> None:
     await admin.put("/calendar/2026-11-04", json={"date": "2026-11-04", "kind": "holiday"})
     r = await anon.post("/internal/calendar", json={}, headers={"X-Internal-Token": INTERNAL_TOKEN})
     assert [(d["date"], d["kind"]) for d in r.json()] == [("2026-11-04", "holiday")]
+
+
+async def test_restore_and_purge_unit(
+    admin: AsyncClient,
+    client_for: ClientFactory,
+    settings: OrgSettings,
+    app: FastAPI,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """ADR-0023: суперадминистратор возвращает расформированное и удаляет пустое навсегда."""
+    tree = await build_tree(admin, settings.root_unit_id)
+    usage: dict[str, int] = {}
+    asked: list[tuple[str, dict[str, Any]]] = []
+
+    async def fake_usage(kind: str, body: dict[str, Any]) -> dict[str, int]:
+        asked.append((kind, body))
+        return dict(usage)
+
+    monkeypatch.setattr(app.state, "usage", fake_usage)
+
+    g = await get_unit(admin, tree.group111)
+    assert g["permissions"]["purge"] is True
+    assert g["permissions"]["restore"] is False
+    r = await admin.delete(f"/units/{tree.group111}", params={"version": g["version"]})
+    g = r.json()
+    assert g["permissions"]["restore"] is True
+
+    # Курс с расформированной группой удалить нельзя — дочерний узел остаётся в дереве
+    c11 = await get_unit(admin, tree.course11)
+    r = await admin.post(f"/units/{tree.course11}/purge", params={"version": c11["version"]})
+    assert r.status_code == 409
+    assert "дочерних подразделений (включая расформированные): 1" in r.text
+
+    # Администратор подразделения не восстанавливает и не удаляет навсегда
+    unit_admin = client_for(settings.root_unit_id, "unit_admin")
+    r = await unit_admin.post(f"/units/{tree.group111}/restore", params={"version": g["version"]})
+    assert r.status_code == 403
+
+    r = await admin.post(f"/units/{tree.group111}/restore", params={"version": g["version"]})
+    assert r.status_code == 200, r.text
+    g = r.json()
+    assert g["is_active"] is True
+    assert "Группа 111" in {u["name"] for u in (await admin.get("/units")).json()}
+
+    usage = {"people": 3, "operators": 1}
+    r = await admin.post(f"/units/{tree.group111}/purge", params={"version": g["version"]})
+    assert r.status_code == 409
+    assert "людей (включая архивных): 3" in r.text
+    assert "операторов: 1" in r.text
+    assert asked[-1] == ("unit", {"id": str(tree.group111)})
+
+    usage = {}
+    r = await admin.post(f"/units/{tree.group111}/purge", params={"version": g["version"]})
+    assert r.status_code == 204
+    assert (await admin.get(f"/units/{tree.group111}")).status_code == 404
+    names = {
+        u["name"] for u in (await admin.get("/units", params={"include_inactive": True})).json()
+    }
+    assert "Группа 111" not in names
+
+    root = await get_unit(admin, settings.root_unit_id)
+    r = await admin.post(
+        f"/units/{settings.root_unit_id}/purge", params={"version": root["version"]}
+    )
+    assert r.status_code == 422
+
+
+async def test_restore_requires_active_parent(admin: AsyncClient, settings: OrgSettings) -> None:
+    tree = await build_tree(admin, settings.root_unit_id)
+    for uid in (tree.group111, tree.course11):
+        u = await get_unit(admin, uid)
+        assert (
+            await admin.delete(f"/units/{uid}", params={"version": u["version"]})
+        ).status_code == 200
+    g = await get_unit(admin, tree.group111)
+    r = await admin.post(f"/units/{tree.group111}/restore", params={"version": g["version"]})
+    assert r.status_code == 409
+    assert "Курс 1.1" in r.text

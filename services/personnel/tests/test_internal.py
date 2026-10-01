@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from httpx import AsyncClient
 from sqlalchemy import select
 
-from dutyflow_common.projections import RankProjection
+from dutyflow_common.projections import RankProjection, UnitProjection
 
 LEAVE = "00000000-0000-7000-8000-00000000e002"
 
@@ -133,3 +133,13 @@ async def test_rank_usage_counts_archived_people_and_deleted_rank_leaves_project
     async with maker() as session:
         ids = set((await session.scalars(select(RankProjection.rank_id))).all())
     assert ids == {org.rank_major}
+
+
+async def test_purged_unit_leaves_projection(org: Org, app: FastAPI) -> None:
+    """ADR-0023: org удалил пустое подразделение навсегда — копия тоже исчезает."""
+    maker = app.state.db.sessionmaker
+    await emit(maker, "unit.purged", org.fac_b, {"unit_id": str(org.fac_b), "path": "x"})
+    async with maker() as session:
+        ids = set((await session.scalars(select(UnitProjection.unit_id))).all())
+    assert org.fac_b not in ids
+    assert org.fac_a in ids

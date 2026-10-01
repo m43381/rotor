@@ -14,6 +14,9 @@ class UnitPermissions(BaseModel):
     move: bool
     delete: bool
     create_child: bool
+    # Суперадминистратор (ADR-0023): вернуть расформированное, удалить навсегда пустое
+    restore: bool = False
+    purge: bool = False
 
 
 class UnitOut(BaseModel):

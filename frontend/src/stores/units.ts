@@ -10,6 +10,8 @@ export const useUnitsStore = defineStore('units', () => {
   const units = ref<Unit[]>([])
   const types = ref<UnitType[]>([])
   const loading = ref(false)
+  // Расформированные показывает только экран структуры (суперадминистратору, ADR-0023)
+  const includeInactive = ref(false)
 
   const tree = computed(() => buildTree(units.value))
   const byId = computed(() => new Map(units.value.map((u) => [u.id, u])))
@@ -20,7 +22,7 @@ export const useUnitsStore = defineStore('units', () => {
     try {
       const [meData, unitList, typeList] = await Promise.all([
         unwrap(org.GET('/me')),
-        unwrap(org.GET('/units')),
+        unwrap(org.GET('/units', { params: { query: { include_inactive: includeInactive.value } } })),
         unwrap(org.GET('/unit-types')),
       ])
       me.value = meData
@@ -75,5 +77,41 @@ export const useUnitsStore = defineStore('units', () => {
     await load()
   }
 
-  return { me, units, types, loading, tree, byId, typeById, load, childTypes, create, update, move, deactivate }
+  async function restore(unit: Unit): Promise<void> {
+    await unwrap(
+      org.POST('/units/{unit_id}/restore', {
+        params: { path: { unit_id: unit.id }, query: { version: unit.version } },
+      }),
+    )
+    await load()
+  }
+
+  /** Удалить навсегда: сервер откажет, если на подразделение что-то ссылается. */
+  async function purge(unit: Unit): Promise<void> {
+    await unwrap(
+      org.POST('/units/{unit_id}/purge', {
+        params: { path: { unit_id: unit.id }, query: { version: unit.version } },
+      }),
+    )
+    await load()
+  }
+
+  return {
+    me,
+    units,
+    types,
+    loading,
+    includeInactive,
+    tree,
+    byId,
+    typeById,
+    load,
+    childTypes,
+    create,
+    update,
+    move,
+    deactivate,
+    restore,
+    purge,
+  }
 })
