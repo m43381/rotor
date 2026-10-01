@@ -12,7 +12,6 @@ from collections import defaultdict
 from typing import Any
 
 from fastapi import APIRouter, Depends, Response
-from pydantic import BaseModel
 from pydantic_core import to_json
 from sqlalchemy import any_, func, or_, select
 from sqlalchemy.dialects.postgresql import aggregate_order_by
@@ -22,6 +21,7 @@ from dutyflow_common.db import in_array
 from dutyflow_common.errors import ValidationFailedError
 from dutyflow_common.ltree import is_descendant_or_self
 from dutyflow_common.projections import RankProjection, UnitProjection
+from dutyflow_common.usage import UsageIn
 from personnel.api.deps import SessionDep
 from personnel.models import (
     AttributeDefinition,
@@ -238,14 +238,13 @@ async def references(session: SessionDep) -> ReferencesOut:
     )
 
 
-class RankUsageIn(BaseModel):
-    rank_id: uuid.UUID
-    order: int
-
-
-@router.post("/ranks/usage", summary="Сколько людей (включая архивных) носят звание (ADR-0022)")
-async def rank_usage(data: RankUsageIn, session: SessionDep) -> dict[str, int]:
-    people = await session.scalar(
-        select(func.count()).select_from(Person).where(Person.rank_id == data.rank_id)
-    )
+@router.post(
+    "/usage/{kind}", summary="Ссылки на чужую запись перед её удалением (ADR-0022, ADR-0023)"
+)
+async def usage(kind: str, data: UsageIn, session: SessionDep) -> dict[str, int]:
+    """Звание и подразделение (org): люди, включая архивных, — они остаются в истории."""
+    column = {"rank": Person.rank_id, "unit": Person.unit_id}.get(kind)
+    if column is None:
+        return {}
+    people = await session.scalar(select(func.count()).select_from(Person).where(column == data.id))
     return {"people": people or 0}

@@ -21,17 +21,19 @@ import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import { computed, onMounted, ref } from 'vue'
 
-import { ApiError, org, personnel, unwrap, type Rank } from '@/api/client'
+import { ApiError, org, personnel, unwrap } from '@/api/client'
+import CalendarEditor from '@/components/CalendarEditor.vue'
 import { useRefsStore } from '@/stores/refs'
 import { useUnitsStore } from '@/stores/units'
 
 type Kind = 'unitTypes' | 'ranks' | 'categories' | 'positions' | 'attributes' | 'reasons'
+type Tab = Kind | 'calendar'
 
 const refs = useRefsStore()
 const units = useUnitsStore()
 const toast = useToast()
 const confirm = useConfirm()
-const tab = ref<Kind>('unitTypes')
+const tab = ref<Tab>('unitTypes')
 const busy = ref(false)
 
 const TYPES = [
@@ -53,20 +55,57 @@ function showError(e: unknown) {
   toast.add({ severity: 'error', summary: 'Ошибка', detail, life: 6000 })
 }
 
-// Удаляется только звание, которое никто не носит и не требует (ADR-0022); иначе сервер
-// объясняет, где оно используется, — тогда его можно только выключить
-function removeRank(rank: Rank) {
+// Удаляется только неиспользуемая запись (ADR-0022, ADR-0023): иначе сервер объясняет,
+// где она используется, — тогда её можно только выключить
+const REMOVE: Record<Kind, { what: string; where: string; call: (id: string) => Promise<unknown> }> = {
+  unitTypes: {
+    what: 'тип подразделения',
+    where: 'если нет ни одного подразделения этого типа (включая расформированные)',
+    call: (id) => unwrap(org.DELETE('/unit-types/{type_id}', { params: { path: { type_id: id } } })),
+  },
+  ranks: {
+    what: 'звание',
+    where: 'если его нет ни у кого из людей (включая архивных), в ролях нарядов и лимитах',
+    call: (id) => unwrap(org.DELETE('/ranks/{rank_id}', { params: { path: { rank_id: id } } })),
+  },
+  categories: {
+    what: 'категорию',
+    where: 'если её нет ни у кого из людей (включая архивных) и в ролях нарядов',
+    call: (id) =>
+      unwrap(personnel.DELETE('/person-categories/{item_id}', { params: { path: { item_id: id } } })),
+  },
+  positions: {
+    what: 'должность',
+    where: 'если её нет ни у кого из людей (включая архивных), в ролях нарядов и лимитах',
+    call: (id) => unwrap(personnel.DELETE('/positions/{item_id}', { params: { path: { item_id: id } } })),
+  },
+  attributes: {
+    what: 'характеристику',
+    where: 'если ни у кого из людей нет её значения и её не требуют роли нарядов',
+    call: (id) =>
+      unwrap(personnel.DELETE('/attribute-definitions/{item_id}', { params: { path: { item_id: id } } })),
+  },
+  reasons: {
+    what: 'причину освобождения',
+    where: 'если по ней не оформлено ни одного освобождения',
+    call: (id) =>
+      unwrap(personnel.DELETE('/exemption-reasons/{item_id}', { params: { path: { item_id: id } } })),
+  },
+}
+
+function remove(k: Kind, item: { id: string; name: string }) {
+  const spec = REMOVE[k]
   confirm.require({
-    header: 'Удалить звание?',
-    message: `«${rank.name}» будет удалено, если его нет ни у кого из людей (включая архивных), в ролях нарядов и лимитах.`,
+    header: `Удалить ${spec.what}?`,
+    message: `«${item.name}» будет удалено, ${spec.where}.`,
     icon: 'pi pi-trash',
     acceptProps: { label: 'Удалить', severity: 'danger' },
     rejectProps: { label: 'Отмена', severity: 'secondary', text: true },
     accept: async () => {
       try {
-        await unwrap(org.DELETE('/ranks/{rank_id}', { params: { path: { rank_id: rank.id } } }))
-        await refs.reload()
-        toast.add({ severity: 'success', summary: 'Звание удалено', life: 3000 })
+        await spec.call(item.id)
+        await (k === 'unitTypes' ? units.load() : refs.reload())
+        toast.add({ severity: 'success', summary: 'Удалено', life: 3000 })
       } catch (e) {
         showError(e)
       }
@@ -208,7 +247,8 @@ async function submit() {
   <section class="page">
     <h1>Справочники</h1>
     <p class="muted">
-      Записи не удаляются, а выключаются: на них ссылаются люди, роли нарядов и история.
+      Неиспользуемую запись можно удалить. Запись, на которую ссылаются люди, роли нарядов
+      или история, только выключается — система подскажет, где она используется.
     </p>
     <Tabs v-model:value="tab">
       <TabList>
@@ -218,6 +258,7 @@ async function submit() {
         <Tab value="positions">Должности</Tab>
         <Tab value="attributes">Характеристики</Tab>
         <Tab value="reasons">Причины освобождений</Tab>
+        <Tab value="calendar">Производственный календарь</Tab>
       </TabList>
       <TabPanels>
         <TabPanel value="unitTypes">
@@ -239,9 +280,18 @@ async function submit() {
                 <Tag v-if="!data.can_have_children" value="Без дочерних" severity="secondary" />
               </template>
             </Column>
-            <Column style="width: 4rem">
+            <Column style="width: 7rem">
               <template #body="{ data }">
                 <Button icon="pi pi-pencil" text rounded aria-label="Изменить" @click="open('unitTypes', data)" />
+                <Button
+                  v-tooltip.left="'Удалить, если нигде не используется'"
+                  icon="pi pi-trash"
+                  text
+                  rounded
+                  severity="danger"
+                  aria-label="Удалить"
+                  @click="remove('unitTypes', data)"
+                />
               </template>
             </Column>
           </DataTable>
@@ -266,13 +316,13 @@ async function submit() {
               <template #body="{ data }">
                 <Button icon="pi pi-pencil" text rounded aria-label="Изменить" @click="open('ranks', data)" />
                 <Button
-                  v-tooltip.left="'Удалить, если звание нигде не используется'"
+                  v-tooltip.left="'Удалить, если нигде не используется'"
                   icon="pi pi-trash"
                   text
                   rounded
                   severity="danger"
                   aria-label="Удалить"
-                  @click="removeRank(data)"
+                  @click="remove('ranks', data)"
                 />
               </template>
             </Column>
@@ -296,9 +346,18 @@ async function submit() {
             <Column header="Статус" style="width: 9rem">
               <template #body="{ data }"><Tag v-if="!data.is_active" value="Выключена" severity="secondary" /></template>
             </Column>
-            <Column style="width: 4rem">
+            <Column style="width: 7rem">
               <template #body="{ data }">
                 <Button icon="pi pi-pencil" text rounded aria-label="Изменить" @click="open('categories', data)" />
+                <Button
+                  v-tooltip.left="'Удалить, если нигде не используется'"
+                  icon="pi pi-trash"
+                  text
+                  rounded
+                  severity="danger"
+                  aria-label="Удалить"
+                  @click="remove('categories', data)"
+                />
               </template>
             </Column>
           </DataTable>
@@ -311,9 +370,18 @@ async function submit() {
             <Column header="Статус" style="width: 9rem">
               <template #body="{ data }"><Tag v-if="!data.is_active" value="Выключена" severity="secondary" /></template>
             </Column>
-            <Column style="width: 4rem">
+            <Column style="width: 7rem">
               <template #body="{ data }">
                 <Button icon="pi pi-pencil" text rounded aria-label="Изменить" @click="open('positions', data)" />
+                <Button
+                  v-tooltip.left="'Удалить, если нигде не используется'"
+                  icon="pi pi-trash"
+                  text
+                  rounded
+                  severity="danger"
+                  aria-label="Удалить"
+                  @click="remove('positions', data)"
+                />
               </template>
             </Column>
           </DataTable>
@@ -335,9 +403,18 @@ async function submit() {
                 <Tag v-if="!data.is_active" value="Выключена" severity="secondary" />
               </template>
             </Column>
-            <Column style="width: 4rem">
+            <Column style="width: 7rem">
               <template #body="{ data }">
                 <Button icon="pi pi-pencil" text rounded aria-label="Изменить" @click="open('attributes', data)" />
+                <Button
+                  v-tooltip.left="'Удалить, если нигде не используется'"
+                  icon="pi pi-trash"
+                  text
+                  rounded
+                  severity="danger"
+                  aria-label="Удалить"
+                  @click="remove('attributes', data)"
+                />
               </template>
             </Column>
           </DataTable>
@@ -350,12 +427,24 @@ async function submit() {
             <Column header="Статус" style="width: 9rem">
               <template #body="{ data }"><Tag v-if="!data.is_active" value="Выключена" severity="secondary" /></template>
             </Column>
-            <Column style="width: 4rem">
+            <Column style="width: 7rem">
               <template #body="{ data }">
                 <Button icon="pi pi-pencil" text rounded aria-label="Изменить" @click="open('reasons', data)" />
+                <Button
+                  v-tooltip.left="'Удалить, если нигде не используется'"
+                  icon="pi pi-trash"
+                  text
+                  rounded
+                  severity="danger"
+                  aria-label="Удалить"
+                  @click="remove('reasons', data)"
+                />
               </template>
             </Column>
           </DataTable>
+        </TabPanel>
+        <TabPanel value="calendar">
+          <CalendarEditor />
         </TabPanel>
       </TabPanels>
     </Tabs>

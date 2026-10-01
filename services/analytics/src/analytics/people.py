@@ -11,7 +11,7 @@ import uuid
 from collections.abc import Sequence
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -80,6 +80,12 @@ async def handle_person_event(session: AsyncSession, event: Event) -> None:
 
 
 async def handle_category_event(session: AsyncSession, event: Event) -> None:
+    if event.type == "person_category.deleted":
+        # Удаляется только категория, которой нет ни у кого из людей (ADR-0023)
+        await session.execute(
+            delete(CategoryDim).where(CategoryDim.category_id == event.aggregate_id)
+        )
+        return
     if event.type != "person_category.changed":
         return
     p = event.payload

@@ -5,13 +5,13 @@ import uuid
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel
-from sqlalchemy import func, select
+from sqlalchemy import any_, func, select
 
 from dutyflow_common.auth import require_internal
+from dutyflow_common.usage import UsageIn
 from scheduling import facts
 from scheduling.api.deps import SessionDep
-from scheduling.models import DutyLimit, DutyRole, DutyType
+from scheduling.models import Assignment, DayPlan, DutyLimit, DutyRole, DutyType, Schedule
 from scheduling.schemas import DutyRoleBatchItem, DutyRolesBatchIn
 
 router = APIRouter(prefix="/internal", tags=["internal"], dependencies=[Depends(require_internal)])
@@ -65,20 +65,41 @@ async def assignment_facts(
     return await facts.export(session, after=after, limit=limit)
 
 
-class RankUsageIn(BaseModel):
-    rank_id: uuid.UUID
-    order: int
-
-
 @router.post(
-    "/ranks/usage", summary="Роли с этим минимальным званием и лимиты по званию (ADR-0022)"
+    "/usage/{kind}", summary="Ссылки на чужую запись перед её удалением (ADR-0022, ADR-0023)"
 )
-async def rank_usage(data: RankUsageIn, session: SessionDep) -> dict[str, int]:
-    # Минимальное звание роли хранится числом старшинства, а не id звания
-    roles = await session.scalar(
-        select(func.count()).select_from(DutyRole).where(DutyRole.min_rank_order == data.order)
-    )
-    limits = await session.scalar(
-        select(func.count()).select_from(DutyLimit).where(DutyLimit.rank_id == data.rank_id)
-    )
-    return {"duty_roles": roles or 0, "duty_limits": limits or 0}
+async def usage(kind: str, data: UsageIn, session: SessionDep) -> dict[str, int]:
+    """Где в scheduling упоминается запись org или personnel. Неизвестный вид — пустой ответ."""
+
+    async def count(model: Any, *where: Any) -> int:
+        return await session.scalar(select(func.count()).select_from(model).where(*where)) or 0
+
+    rid = data.id
+    if kind == "rank":
+        # Минимальное звание роли хранится числом старшинства, а не id звания
+        return {
+            "duty_roles": await count(DutyRole, DutyRole.min_rank_order == data.order),
+            "duty_limits": await count(DutyLimit, DutyLimit.rank_id == rid),
+        }
+    if kind == "position":
+        return {
+            "duty_roles": await count(DutyRole, rid == any_(DutyRole.allowed_position_ids)),
+            "duty_limits": await count(DutyLimit, DutyLimit.position_id == rid),
+        }
+    if kind == "person_category":
+        return {"duty_roles": await count(DutyRole, rid == any_(DutyRole.allowed_category_ids))}
+    if kind == "attribute_definition":
+        # Требования ролей ссылаются на характеристику по коду
+        req = DutyRole.attribute_requirements.contains([{"code": data.code}])
+        return {"duty_roles": await count(DutyRole, req)}
+    if kind == "unit":
+        return {
+            "duty_types": await count(DutyType, DutyType.owner_unit_id == rid),
+            "duty_roles": await count(DutyRole, DutyRole.assigned_unit_id == rid),
+            "schedules": await count(Schedule, Schedule.unit_id == rid),
+            "day_plans": await count(DayPlan, DayPlan.executor_unit_id == rid),
+            "duty_limits": await count(DutyLimit, DutyLimit.unit_id == rid),
+        }
+    if kind == "person":
+        return {"assignments": await count(Assignment, Assignment.person_id == rid)}
+    return {}

@@ -118,12 +118,15 @@ async def test_rank_usage_counts_archived_people_and_deleted_rank_leaves_project
     admin: AsyncClient, internal: AsyncClient, org: Org, app: FastAPI
 ) -> None:
     """ADR-0022: org удаляет звание, только если его не носит никто, включая архивных."""
-    body = {"rank_id": str(org.rank_major), "order": 100}
-    assert (await internal.post("/internal/ranks/usage", json=body)).json() == {"people": 0}
+    body = {"id": str(org.rank_major), "order": 100}
+    assert (await internal.post("/internal/usage/rank", json=body)).json() == {"people": 0}
 
     p = await add_person(admin, org.fac_a, "Архивный", rank_id=str(org.rank_major))
     await admin.post(f"/people/{p['id']}/archive", json={"version": p["version"]})
-    assert (await internal.post("/internal/ranks/usage", json=body)).json() == {"people": 1}
+    assert (await internal.post("/internal/usage/rank", json=body)).json() == {"people": 1}
+    unit = {"id": str(org.fac_a)}
+    assert (await internal.post("/internal/usage/unit", json=unit)).json() == {"people": 1}
+    assert (await internal.post("/internal/usage/other", json=unit)).json() == {}
 
     maker = app.state.db.sessionmaker
     await emit(maker, "rank.deleted", org.rank_private, {"order": 10})

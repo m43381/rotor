@@ -578,6 +578,45 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "references"
+        ],
+        "summary": "Удалить тип подразделения, если подразделений этого типа нет (ADR-0023)",
+        "operationId": "delete_unit_type_unit_types__type_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "type_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Type Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/ranks": {

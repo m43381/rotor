@@ -505,7 +505,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/internal/ranks/usage": {
+    "/internal/usage/{kind}": {
         parameters: {
             query?: never;
             header?: never;
@@ -514,8 +514,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Роли с этим минимальным званием и лимиты по званию (ADR-0022) */
-        post: operations["rank_usage_internal_ranks_usage_post"];
+        /**
+         * Ссылки на чужую запись перед её удалением (ADR-0022, ADR-0023)
+         * @description Где в scheduling упоминается запись org или personnel. Неизвестный вид — пустой ответ.
+         */
+        post: operations["usage_internal_usage__kind__post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1331,16 +1334,6 @@ export interface components {
             /** Warnings */
             warnings: components["schemas"]["PendingWarning"][];
         };
-        /** RankUsageIn */
-        RankUsageIn: {
-            /**
-             * Rank Id
-             * Format: uuid
-             */
-            rank_id: string;
-            /** Order */
-            order: number;
-        };
         /** RosterDuty */
         RosterDuty: {
             /** Duty Type Name */
@@ -1619,6 +1612,23 @@ export interface components {
             name: string;
             /** Short Name */
             short_name: string | null;
+        };
+        /**
+         * UsageIn
+         * @description Тело `POST /internal/usage/{kind}`. `order` — для званий (минимальное звание роли
+         *     хранится числом старшинства), `code` — для характеристик (требования ролей ссылаются
+         *     на код).
+         */
+        UsageIn: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Order */
+            order?: number | null;
+            /** Code */
+            code?: string | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -2794,16 +2804,18 @@ export interface operations {
             };
         };
     };
-    rank_usage_internal_ranks_usage_post: {
+    usage_internal_usage__kind__post: {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                kind: string;
+            };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["RankUsageIn"];
+                "application/json": components["schemas"]["UsageIn"];
             };
         };
         responses: {

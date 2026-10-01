@@ -1,4 +1,4 @@
-import uuid
+from typing import Any
 
 import pytest
 from conftest import ClientFactory
@@ -72,13 +72,13 @@ async def test_delete_rank_only_when_unused(
     """ADR-0022: org спрашивает personnel и scheduling; используемое звание не удаляется."""
     rank = (await admin.post("/ranks", json={"name": "Сержант", "order": 40})).json()
     usage: dict[str, int] = {"people": 2, "duty_roles": 1, "duty_limits": 0}
-    asked: list[tuple[uuid.UUID, int]] = []
+    asked: list[tuple[str, dict[str, Any]]] = []
 
-    async def fake_usage(rank_id: uuid.UUID, order: int) -> dict[str, int]:
-        asked.append((rank_id, order))
+    async def fake_usage(kind: str, body: dict[str, Any]) -> dict[str, int]:
+        asked.append((kind, body))
         return usage
 
-    monkeypatch.setattr(app.state, "rank_usage", fake_usage)
+    monkeypatch.setattr(app.state, "usage", fake_usage)
 
     op = client_for(settings.root_unit_id, "operator")
     assert (await op.delete(f"/ranks/{rank['id']}")).status_code == 403
@@ -88,7 +88,7 @@ async def test_delete_rank_only_when_unused(
     assert "людей (включая архивных): 2" in r.text
     assert "ролей нарядов" in r.text
     assert "лимитов" not in r.text
-    assert asked == [(uuid.UUID(rank["id"]), 40)]
+    assert asked == [("rank", {"id": rank["id"], "order": 40})]
 
     usage = {"people": 0, "duty_roles": 0, "duty_limits": 0}
     assert (await admin.delete(f"/ranks/{rank['id']}")).status_code == 204
@@ -130,9 +130,33 @@ async def test_delete_rank_refused_when_owner_unavailable(
 
     rank = (await admin.post("/ranks", json={"name": "Майор", "order": 100})).json()
 
-    async def down(rank_id: uuid.UUID, order: int) -> dict[str, int]:
+    async def down(kind: str, body: dict[str, Any]) -> dict[str, int]:
         raise ServiceUnavailableError("Сервис недоступен: personnel")
 
-    monkeypatch.setattr(app.state, "rank_usage", down)
+    monkeypatch.setattr(app.state, "usage", down)
     assert (await admin.delete(f"/ranks/{rank['id']}")).status_code == 503
     assert [r["name"] for r in (await admin.get("/ranks")).json()] == ["Майор"]
+
+
+async def test_delete_unit_type_only_without_units(
+    admin: AsyncClient, settings: OrgSettings
+) -> None:
+    """ADR-0023: тип удаляется, если на него не ссылается ни одно подразделение."""
+    faculty = (
+        await admin.post("/unit-types", json={"code": "faculty", "name": "Факультет", "level": 1})
+    ).json()
+    spare = (
+        await admin.post("/unit-types", json={"code": "spare", "name": "Лишний", "level": 2})
+    ).json()
+    r = await admin.post(
+        "/units",
+        json={"parent_id": str(settings.root_unit_id), "name": "Ф1", "unit_type_id": faculty["id"]},
+    )
+    assert r.status_code == 201, r.text
+
+    r = await admin.delete(f"/unit-types/{faculty['id']}")
+    assert r.status_code == 409
+    assert "подразделений этого типа: 1" in r.text
+    assert (await admin.delete(f"/unit-types/{spare['id']}")).status_code == 204
+    codes = {t["code"] for t in (await admin.get("/unit-types")).json()}
+    assert codes == {"academy", "faculty"}

@@ -345,7 +345,8 @@ export interface paths {
         /** Update Position */
         put: operations["update_position_positions__item_id__put"];
         post?: never;
-        delete?: never;
+        /** Удалить, если нигде не используется */
+        delete: operations["delete_position_positions__item_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -380,7 +381,8 @@ export interface paths {
         /** Update Person Category */
         put: operations["update_person_category_person_categories__item_id__put"];
         post?: never;
-        delete?: never;
+        /** Удалить, если нигде не используется */
+        delete: operations["delete_person_category_person_categories__item_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -415,7 +417,8 @@ export interface paths {
         /** Update Attribute Definition */
         put: operations["update_attribute_definition_attribute_definitions__item_id__put"];
         post?: never;
-        delete?: never;
+        /** Удалить, если нигде не используется */
+        delete: operations["delete_attribute_definition_attribute_definitions__item_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -450,7 +453,8 @@ export interface paths {
         /** Update Exemption Reason */
         put: operations["update_exemption_reason_exemption_reasons__item_id__put"];
         post?: never;
-        delete?: never;
+        /** Удалить, если нигде не используется */
+        delete: operations["delete_exemption_reason_exemption_reasons__item_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -531,7 +535,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/internal/ranks/usage": {
+    "/internal/usage/{kind}": {
         parameters: {
             query?: never;
             header?: never;
@@ -540,8 +544,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Сколько людей (включая архивных) носят звание (ADR-0022) */
-        post: operations["rank_usage_internal_ranks_usage_post"];
+        /**
+         * Ссылки на чужую запись перед её удалением (ADR-0022, ADR-0023)
+         * @description Звание и подразделение (org): люди, включая архивных, — они остаются в истории.
+         */
+        post: operations["usage_internal_usage__kind__post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1505,16 +1512,6 @@ export interface components {
              */
             id: string;
         };
-        /** RankUsageIn */
-        RankUsageIn: {
-            /**
-             * Rank Id
-             * Format: uuid
-             */
-            rank_id: string;
-            /** Order */
-            order: number;
-        };
         /**
          * ReferencesOut
          * @description Внутренний API для scheduling: справочники, на которые ссылаются требования ролей.
@@ -1579,6 +1576,23 @@ export interface components {
             unit_id: string;
             /** People */
             people: number;
+        };
+        /**
+         * UsageIn
+         * @description Тело `POST /internal/usage/{kind}`. `order` — для званий (минимальное звание роли
+         *     хранится числом старшинства), `code` — для характеристик (требования ролей ссылаются
+         *     на код).
+         */
+        UsageIn: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Order */
+            order?: number | null;
+            /** Code */
+            code?: string | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -2423,6 +2437,35 @@ export interface operations {
             };
         };
     };
+    delete_position_positions__item_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_person_categories_person_categories_get: {
         parameters: {
             query?: never;
@@ -2499,6 +2542,35 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["PersonCategoryOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_person_category_person_categories__item_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -2599,6 +2671,35 @@ export interface operations {
             };
         };
     };
+    delete_attribute_definition_attribute_definitions__item_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_exemption_reasons_exemption_reasons_get: {
         parameters: {
             query?: never;
@@ -2675,6 +2776,35 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ExemptionReasonOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_exemption_reason_exemption_reasons__item_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -2807,16 +2937,18 @@ export interface operations {
             };
         };
     };
-    rank_usage_internal_ranks_usage_post: {
+    usage_internal_usage__kind__post: {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                kind: string;
+            };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["RankUsageIn"];
+                "application/json": components["schemas"]["UsageIn"];
             };
         };
         responses: {

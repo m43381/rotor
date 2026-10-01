@@ -317,9 +317,9 @@ async def test_rank_usage_counts_roles_by_order_and_limits(
     admin: AsyncClient, internal: AsyncClient, org: Org
 ) -> None:
     """ADR-0022: минимальное звание роли хранится числом старшинства, лимит — id звания."""
-    major = {"rank_id": str(org.rank_major), "order": 100}
+    major = {"id": str(org.rank_major), "order": 100}
     empty = {"duty_roles": 0, "duty_limits": 0}
-    assert (await internal.post("/internal/ranks/usage", json=major)).json() == empty
+    assert (await internal.post("/internal/usage/rank", json=major)).json() == empty
 
     await add_type(admin, org.fac_a, "Наряд", roles=[role("Дежурный", min_rank_order=100)])
     r = await admin.post(
@@ -327,9 +327,45 @@ async def test_rank_usage_counts_roles_by_order_and_limits(
         json={"unit_id": str(org.fac_a), "rank_id": str(org.rank_major), "max_duties": 2},
     )
     assert r.status_code == 201, r.text
-    assert (await internal.post("/internal/ranks/usage", json=major)).json() == {
+    assert (await internal.post("/internal/usage/rank", json=major)).json() == {
         "duty_roles": 1,
         "duty_limits": 1,
     }
-    private = {"rank_id": str(org.rank_private), "order": 10}
-    assert (await internal.post("/internal/ranks/usage", json=private)).json() == empty
+    private = {"id": str(org.rank_private), "order": 10}
+    assert (await internal.post("/internal/usage/rank", json=private)).json() == empty
+
+
+async def test_usage_of_personnel_refs_and_units(
+    admin: AsyncClient, internal: AsyncClient, org: Org
+) -> None:
+    """ADR-0023: требования ролей ссылаются на должности, категории (id) и характеристики (код)."""
+
+    async def usage(kind: str, **body: object) -> dict[str, int]:
+        r = await internal.post(f"/internal/usage/{kind}", json=body)
+        assert r.status_code == 200, r.text
+        return dict(r.json())
+
+    assert await usage("position", id=str(POSITION_OFFICER)) == {"duty_roles": 0, "duty_limits": 0}
+    await add_type(
+        admin,
+        org.fac_a,
+        "Наряд",
+        roles=[
+            role(
+                "Дежурный",
+                allowed_position_ids=[str(POSITION_OFFICER)],
+                allowed_category_ids=[str(CADET)],
+                attribute_requirements=[{"code": "course_no", "op": "gte", "value": 2}],
+                assigned_unit_id=str(org.course_a1),
+            )
+        ],
+    )
+    assert await usage("position", id=str(POSITION_OFFICER)) == {"duty_roles": 1, "duty_limits": 0}
+    assert await usage("person_category", id=str(CADET)) == {"duty_roles": 1}
+    attr = await usage("attribute_definition", id=str(org.root), code="course_no")
+    assert attr == {"duty_roles": 1}
+    assert await usage("attribute_definition", id=str(org.root), code="other") == {"duty_roles": 0}
+    fac = await usage("unit", id=str(org.fac_a))
+    assert (fac["duty_types"], fac["duty_roles"]) == (1, 0)
+    course = await usage("unit", id=str(org.course_a1))
+    assert (course["duty_types"], course["duty_roles"]) == (0, 1)

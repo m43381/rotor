@@ -1430,6 +1430,45 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "references"
+        ],
+        "summary": "Удалить, если нигде не используется",
+        "operationId": "delete_position_positions__item_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/person-categories": {
@@ -1550,6 +1589,45 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "references"
+        ],
+        "summary": "Удалить, если нигде не используется",
+        "operationId": "delete_person_category_person_categories__item_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
           },
           "422": {
             "description": "Validation Error",
@@ -1694,6 +1772,45 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "references"
+        ],
+        "summary": "Удалить, если нигде не используется",
+        "operationId": "delete_attribute_definition_attribute_definitions__item_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/exemption-reasons": {
@@ -1814,6 +1931,45 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "references"
+        ],
+        "summary": "Удалить, если нигде не используется",
+        "operationId": "delete_exemption_reason_exemption_reasons__item_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
           },
           "422": {
             "description": "Validation Error",
@@ -2031,22 +2187,34 @@
         }
       }
     },
-    "/internal/ranks/usage": {
+    "/internal/usage/{kind}": {
       "post": {
         "tags": [
           "internal"
         ],
-        "summary": "Сколько людей (включая архивных) носят звание (ADR-0022)",
-        "operationId": "rank_usage_internal_ranks_usage_post",
+        "summary": "Ссылки на чужую запись перед её удалением (ADR-0022, ADR-0023)",
+        "description": "Звание и подразделение (org): люди, включая архивных, — они остаются в истории.",
+        "operationId": "usage_internal_usage__kind__post",
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Kind"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RankUsageIn"
+                "$ref": "#/components/schemas/UsageIn"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -2054,11 +2222,11 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "type": "object",
                   "additionalProperties": {
                     "type": "integer"
                   },
-                  "type": "object",
-                  "title": "Response Rank Usage Internal Ranks Usage Post"
+                  "title": "Response Usage Internal Usage  Kind  Post"
                 }
               }
             }
@@ -4794,25 +4962,6 @@
         ],
         "title": "PositionOut"
       },
-      "RankUsageIn": {
-        "properties": {
-          "rank_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Rank Id"
-          },
-          "order": {
-            "type": "integer",
-            "title": "Order"
-          }
-        },
-        "type": "object",
-        "required": [
-          "rank_id",
-          "order"
-        ],
-        "title": "RankUsageIn"
-      },
       "ReferencesOut": {
         "properties": {
           "positions": {
@@ -4969,6 +5118,43 @@
           "people"
         ],
         "title": "UnitCount"
+      },
+      "UsageIn": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "order": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "UsageIn",
+        "description": "Тело `POST /internal/usage/{kind}`. `order` — для званий (минимальное звание роли\nхранится числом старшинства), `code` — для характеристик (требования ролей ссылаются\nна код)."
       },
       "ValidationError": {
         "properties": {

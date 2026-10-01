@@ -8,7 +8,7 @@ import uuid
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Query, Request, Response
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from dutyflow_common import audit
@@ -16,8 +16,9 @@ from dutyflow_common.errors import ConflictError, NotFoundError
 from dutyflow_common.ids import uuid7
 from dutyflow_common.outbox import add_event
 from dutyflow_common.policy import default_policy
+from dutyflow_common.usage import ensure_unused
 from org.api.deps import OperatorDep, SessionDep
-from org.models import CalendarDay, Rank, UnitType
+from org.models import CalendarDay, Rank, Unit, UnitType
 from org.schemas import CalendarDayModel, RankIn, RankOut, UnitTypeIn, UnitTypeOut
 
 router = APIRouter(tags=["references"])
@@ -91,6 +92,37 @@ async def update_unit_type(
     return item
 
 
+@router.delete(
+    "/unit-types/{type_id}",
+    status_code=204,
+    summary="Удалить тип подразделения, если подразделений этого типа нет (ADR-0023)",
+)
+async def delete_unit_type(
+    type_id: uuid.UUID, session: SessionDep, operator: OperatorDep
+) -> Response:
+    default_policy.require(operator.roles, "unit_type", "delete")
+    item = await session.get(UnitType, type_id)
+    if item is None:
+        raise NotFoundError("Тип подразделения не найден")
+    # Расформированные подразделения тоже ссылаются на тип
+    units = await session.scalar(
+        select(func.count()).select_from(Unit).where(Unit.unit_type_id == item.id)
+    )
+    ensure_unused(f"Тип «{item.name}»", {"units": units or 0}, "")
+    audit.record(
+        session,
+        action="unit_type.delete",
+        entity_type="unit_type",
+        entity_id=item.id,
+        scope_unit_id=None,
+        before=_row(item, _TYPE_FIELDS),
+    )
+    add_event(session, "unit_type.deleted", "unit_type", item.id, {"code": item.code})
+    await session.delete(item)
+    await session.commit()
+    return Response(status_code=204)
+
+
 # --- звания -------------------------------------------------------------------------------
 
 _RANK_FIELDS = ("name", "short_name", "order", "is_active")
@@ -145,13 +177,6 @@ async def update_rank(
     return item
 
 
-_USAGE_LABELS = {
-    "people": "людей (включая архивных)",
-    "duty_roles": "ролей нарядов (минимальное звание)",
-    "duty_limits": "лимитов нарядов по званию",
-}
-
-
 @router.delete(
     "/ranks/{rank_id}",
     status_code=204,
@@ -165,12 +190,8 @@ async def delete_rank(
     if item is None:
         raise NotFoundError("Звание не найдено")
     # Без ответа personnel или scheduling удалять нельзя: ServiceUnavailableError → 503
-    usage = await request.app.state.rank_usage(item.id, item.order)
-    used = [f"{_USAGE_LABELS.get(k, k)}: {n}" for k, n in usage.items() if n]
-    if used:
-        raise ConflictError(
-            f"Звание «{item.name}» используется — {'; '.join(used)}. Его можно только выключить."
-        )
+    usage = await request.app.state.usage("rank", {"id": str(item.id), "order": item.order})
+    ensure_unused(f"Звание «{item.name}»", usage, "Его можно только выключить.")
     audit.record(
         session,
         action="rank.delete",
