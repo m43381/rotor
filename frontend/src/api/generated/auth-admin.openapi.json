@@ -261,6 +261,45 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "operators"
+        ],
+        "summary": "Удалить учётную запись оператора (суперадминистратор, ADR-0023)",
+        "operationId": "delete_operator_operators__user_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/operators/{user_id}/block": {

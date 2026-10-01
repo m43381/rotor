@@ -27,6 +27,7 @@ from auth_admin.keycloak import ROLES, KeycloakAdmin
 from dutyflow_common import audit
 from dutyflow_common.context import Operator
 from dutyflow_common.errors import ForbiddenError, ValidationFailedError
+from dutyflow_common.policy import Role
 from dutyflow_common.upstream import UpstreamClient
 
 ROLE_NAMES = {
@@ -267,6 +268,24 @@ class OperatorService:
         )
         await self.session.commit()
         return self._out(fresh, role, scope)
+
+    async def delete(self, user_id: str) -> None:
+        """Удалить учётную запись (ADR-0023, меняет решение №59): только суперадминистратор.
+        В журнале аудита остаются логин и ФИО — записи хранят их копию, а не ссылку."""
+        if Role.SUPERADMIN not in self.operator.roles:
+            raise ForbiddenError("Удалять операторов может только суперадминистратор")
+        if user_id == self.operator.subject:
+            raise ValidationFailedError("Нельзя удалить самого себя")
+        scope = await self._scope()
+        user, role = await self._target(user_id, scope)
+        if role == "superadmin":
+            members = await self.keycloak.role_members()
+            if sum(1 for r in members.values() if r == "superadmin") <= 1:
+                raise ValidationFailedError("Это последний суперадминистратор — удалить нельзя")
+        before = self._snapshot(user, role)
+        await self.keycloak.delete_user(user_id)
+        self._audit("operator.delete", user_id, before["unit_id"], before, None)
+        await self.session.commit()
 
     async def reset_password(self, user_id: str) -> dict[str, Any]:
         scope = await self._scope()

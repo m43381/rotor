@@ -5,7 +5,7 @@ import re
 import uuid
 from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -149,6 +149,16 @@ async def unblock(user_id: uuid.UUID, svc: ServiceDep) -> dict[str, Any]:
 )
 async def reset_password(user_id: uuid.UUID, svc: ServiceDep) -> dict[str, Any]:
     return await svc.reset_password(str(user_id))
+
+
+@router.delete(
+    "/operators/{user_id}",
+    status_code=204,
+    summary="Удалить учётную запись оператора (суперадминистратор, ADR-0023)",
+)
+async def delete_operator(user_id: uuid.UUID, svc: ServiceDep) -> Response:
+    await svc.delete(str(user_id))
+    return Response(status_code=204)
 
 
 @router.post(

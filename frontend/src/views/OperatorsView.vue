@@ -14,7 +14,7 @@ import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
-import { onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 
 import { ApiError, authAdmin, unwrap, type OperatorAccount, type OperatorRole } from '@/api/client'
 import UnitTreeSelect from '@/components/UnitTreeSelect.vue'
@@ -132,12 +132,21 @@ async function save() {
   }
 }
 
-function action(o: OperatorAccount, kind: 'block' | 'unblock' | 'reset' | 'logout') {
+// Удалить учётную запись — только суперадминистратор (ADR-0023); в журнале изменений
+// логин и ФИО остаются
+const isSuperadmin = computed(() => units.me?.roles.includes('superadmin') === true)
+
+function action(o: OperatorAccount, kind: 'block' | 'unblock' | 'reset' | 'logout' | 'delete') {
   const texts = {
     block: { header: 'Заблокировать оператора?', message: `${o.full_name} не сможет войти, открытые сессии завершатся.`, accept: 'Заблокировать' },
     unblock: { header: 'Разблокировать оператора?', message: `${o.full_name} снова сможет входить.`, accept: 'Разблокировать' },
     reset: { header: 'Сбросить пароль?', message: `Будет выдан временный пароль, при входе ${o.full_name} должен его сменить. Сессии завершатся.`, accept: 'Сбросить' },
     logout: { header: 'Завершить сессии?', message: `${o.full_name} будет выведен из системы на всех устройствах.`, accept: 'Завершить' },
+    delete: {
+      header: 'Удалить учётную запись?',
+      message: `Учётная запись ${o.username} (${o.full_name}) будет удалена без возможности восстановления. Если нужно лишь закрыть доступ, лучше заблокировать.`,
+      accept: 'Удалить',
+    },
   }[kind]
   confirm.require({
     header: texts.header,
@@ -152,6 +161,7 @@ function action(o: OperatorAccount, kind: 'block' | 'unblock' | 'reset' | 'logou
           issued.value = { username: r.username, password: r.temporary_password }
         } else if (kind === 'block') await unwrap(authAdmin.POST('/operators/{user_id}/block', path))
         else if (kind === 'unblock') await unwrap(authAdmin.POST('/operators/{user_id}/unblock', path))
+        else if (kind === 'delete') await unwrap(authAdmin.DELETE('/operators/{user_id}', path))
         else await unwrap(authAdmin.POST('/operators/{user_id}/logout', path))
         await load()
       } catch (e) {
@@ -279,6 +289,17 @@ onMounted(async () => {
               size="small"
               :aria-label="`Разблокировать ${data.username}`"
               @click="action(data, 'unblock')"
+            />
+            <Button
+              v-if="isSuperadmin"
+              v-tooltip.left="'Удалить учётную запись'"
+              icon="pi pi-trash"
+              text
+              rounded
+              size="small"
+              severity="danger"
+              :aria-label="`Удалить ${data.username}`"
+              @click="action(data, 'delete')"
             />
           </div>
         </template>

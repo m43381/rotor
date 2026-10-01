@@ -184,3 +184,40 @@ async def test_internal_usage_counts_operators_of_unit(
         empty = "00000000-0000-7000-8000-0000000000ee"
         assert (await c.post("/internal/usage/unit", json={"id": empty})).json() == {"operators": 0}
         assert (await c.post("/internal/usage/rank", json={"id": empty})).json() == {}
+
+
+async def test_delete_operator_superadmin_only(
+    client_for: ClientFactory,
+    people: People,
+    keycloak: FakeKeycloak,
+    sessionmaker: async_sessionmaker[AsyncSession],
+) -> None:
+    """ADR-0023 (меняет №59): удалить учётную запись может только суперадминистратор."""
+    fac = client_for(FACULTY, "unit_admin", sub=people.fac_admin)
+    assert (await fac.delete(f"/operators/{people.fac_operator}")).status_code == 403
+
+    root = client_for(ROOT, "superadmin", sub=people.root_admin)
+    assert (await root.delete(f"/operators/{people.root_admin}")).status_code == 422  # себя
+    assert (await root.delete(f"/operators/{people.fac_operator}")).status_code == 204
+    assert people.fac_operator not in keycloak.users
+
+    async with sessionmaker() as session:
+        entry = await session.scalar(select(AuditLog).where(AuditLog.action == "operator.delete"))
+    assert entry is not None
+    assert entry.before is not None
+    assert entry.before["username"]  # логин остаётся в журнале
+
+
+async def test_last_superadmin_cannot_be_deleted(
+    client_for: ClientFactory, people: People, keycloak: FakeKeycloak
+) -> None:
+    other = keycloak.add("second_root", "superadmin", ROOT)
+    root = client_for(ROOT, "superadmin", sub=other)
+    # Второй суперадминистратор удаляет первого — первый не последний
+    assert (await root.delete(f"/operators/{people.root_admin}")).status_code == 204
+    # Остался один суперадминистратор «second_root»: его не удалит никто — ни он сам, ни
+    # другой суперадминистратор из ещё действующего токена (учётка уже удалена в Keycloak)
+    stale = client_for(ROOT, "superadmin", sub=people.root_admin)
+    r = await stale.delete(f"/operators/{other}")
+    assert r.status_code == 422
+    assert "последний суперадминистратор" in r.text
