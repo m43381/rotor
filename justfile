@@ -131,6 +131,11 @@ seed:
     uv run python tools/gen/seed_duties.py
     uv run python tools/gen/seed_schedules.py
 
+# Демонстрационные данные академии (структура, ~5 тыс. человек, наряды, допуски, операторы);
+# то же на сервере — `./dutyflow.sh demo`. Повторный запуск не дублирует
+demo:
+    bash deploy/dutyflow.sh demo
+
 # Нагрузочный прогон на отдельном стенде (№62): up → populate → run → down, отчёт docs/benchmarks/load.md
 load *args:
     uv run python -m tools.load {{args}}

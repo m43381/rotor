@@ -9,6 +9,7 @@
     .env.example         шаблон настроек с DUTYFLOW_VERSION
     dutyflow.sh          init / install / update / backup / restore / doctor
     nginx/ keycloak/ postgres/   конфигурация, как в deploy/
+    demo/                        демонстрационные данные (`./dutyflow.sh demo`)
     README.md            руководство администратора (deploy/README.md)
     VERSION, MANIFEST.sha256
 
@@ -31,7 +32,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DEPLOY = ROOT / "deploy"
 COMPOSE = DEPLOY / "docker-compose.yml"
 # Каталоги и файлы deploy/, которые едут в пакет как есть
-PAYLOAD = ("nginx", "keycloak", "postgres", "dutyflow.sh", "README.md")
+PAYLOAD = ("nginx", "keycloak", "postgres", "demo", "dutyflow.sh", "README.md")
 VERSION_RE = re.compile(r"^[0-9A-Za-z][0-9A-Za-z._-]{0,63}$")
 
 

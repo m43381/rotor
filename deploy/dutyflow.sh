@@ -11,6 +11,7 @@
 #   ./dutyflow.sh backup             резервная копия всех БД (включая Keycloak) и настроек
 #   ./dutyflow.sh restore <каталог>  восстановление из копии (стенд останавливается)
 #   ./dutyflow.sh doctor             проверка: контейнеры, /health, очереди, свежесть копий
+#   ./dutyflow.sh demo               демонстрационные данные (стенд должен быть запущен)
 #
 # Скрипт лежит рядом с docker-compose.yml и .env: в репозитории — в deploy/, в пакете — в корне.
 set -euo pipefail
@@ -221,5 +222,6 @@ case "$cmd" in
     backup) cmd_backup ;;
     restore) cmd_restore "$@" ;;
     doctor) cmd_doctor ;;
-    *) sed -n '2,15p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; [ -z "$cmd" ] || exit 1 ;;
+    demo) require_env; compose --profile demo run --rm demo ;;
+    *) sed -n '2,16p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; [ -z "$cmd" ] || exit 1 ;;
 esac

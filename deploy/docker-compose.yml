@@ -524,6 +524,28 @@ services:
         condition: service_healthy
     restart: "no"
 
+  # Демонстрационные данные (`dutyflow.sh demo`): структура, люди, наряды, допуски, операторы.
+  # Идёт через шлюз от имени admin — как ручной ввод, с аудитом; повторный запуск не дублирует.
+  demo:
+    profiles: ["demo"]
+    image: dutyflow/org:${DUTYFLOW_VERSION:-dev}
+    command: ["python", "/demo/demo.py"]
+    logging: *logging
+    healthcheck:
+      disable: true
+    environment:
+      DEMO_BASE_URL: http://gateway
+      DUTYFLOW_ADMIN_PASSWORD: ${DUTYFLOW_ADMIN_PASSWORD}
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      PYTHONDONTWRITEBYTECODE: "1"
+    volumes:
+      - ./demo:/demo:ro
+    depends_on:
+      gateway:
+        condition: service_started
+    restart: "no"
+
   # Проверка работоспособности изнутри сети стенда (`dutyflow.sh doctor`)
   ops:
     profiles: ["ops"]
