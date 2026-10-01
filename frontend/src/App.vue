@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import Button from 'primevue/button'
 import ConfirmDialog from 'primevue/confirmdialog'
+import Popover from 'primevue/popover'
 import Toast from 'primevue/toast'
 import { computed, onMounted, ref, watch } from 'vue'
 
@@ -8,11 +9,12 @@ import { useRoute } from 'vue-router'
 
 import { signOut } from '@/auth'
 import { useUnitsStore } from '@/stores/units'
-import { useTheme } from '@/theme'
+import { SCALES, useTheme } from '@/theme'
 
 const store = useUnitsStore()
 const route = useRoute()
 const theme = useTheme()
+const scalePanel = ref<InstanceType<typeof Popover> | null>(null)
 const today = new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })
 // Оператор и дерево нужны всем экранам (шапка, фильтры по подразделению).
 onMounted(() => {
@@ -139,6 +141,38 @@ watch(collapsed, (value) => {
       <div class="spacer" />
       <span class="today">{{ today }}</span>
       <Button
+        v-tooltip.bottom="'Размер шрифта'"
+        text
+        rounded
+        severity="secondary"
+        class="scale-button"
+        aria-label="Размер шрифта и элементов интерфейса"
+        aria-haspopup="true"
+        @click="scalePanel?.toggle($event)"
+      >
+        <span aria-hidden="true">A<small>A</small></span>
+      </Button>
+      <Popover ref="scalePanel">
+        <div class="scale-panel" role="radiogroup" aria-label="Размер шрифта">
+          <strong>Размер шрифта</strong>
+          <button
+            v-for="s in SCALES"
+            :key="s.value"
+            type="button"
+            role="radio"
+            class="scale-option"
+            :class="{ active: theme.scale.value === s.value }"
+            :aria-checked="theme.scale.value === s.value"
+            @click="theme.setScale(s.value)"
+          >
+            <span class="scale-sample" :style="{ fontSize: `${s.value * 14}px` }">Аа</span>
+            <span>{{ s.label }}</span>
+            <i v-if="theme.scale.value === s.value" class="pi pi-check" aria-hidden="true" />
+          </button>
+          <small>Масштаб запоминается в этом браузере. Ctrl + колёсико мыши тоже увеличивает страницу.</small>
+        </div>
+      </Popover>
+      <Button
         v-tooltip.bottom="theme.isDark.value ? 'Светлая тема' : 'Тёмная тема'"
         :icon="theme.isDark.value ? 'pi pi-sun' : 'pi pi-moon'"
         text
@@ -251,6 +285,58 @@ watch(collapsed, (value) => {
   color: var(--app-ink-3);
   font-size: 0.85rem;
   margin-right: 0.25rem;
+}
+.scale-button span {
+  font-weight: 700;
+  font-size: 1rem;
+  line-height: 1;
+}
+.scale-button small {
+  font-size: 0.7em;
+}
+.scale-panel {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 15rem;
+}
+.scale-panel strong {
+  font-size: 0.9rem;
+  padding: 0 0.5rem 0.3rem;
+}
+.scale-panel small {
+  color: var(--app-ink-3);
+  font-size: 0.78rem;
+  padding: 0.4rem 0.5rem 0;
+  max-width: 15rem;
+}
+.scale-option {
+  display: grid;
+  grid-template-columns: 2.6rem 1fr auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--app-ink-2);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.scale-option:hover {
+  background: var(--app-hover);
+}
+.scale-option.active {
+  background: var(--app-accent-soft);
+  color: var(--app-ink);
+  font-weight: 600;
+}
+.scale-option .pi {
+  color: var(--app-accent);
+}
+.scale-sample {
+  font-weight: 600;
+  line-height: 1;
 }
 .divider {
   width: 1px;

@@ -36,9 +36,12 @@ defineProps<{ items: Stat[]; loading?: boolean }>()
 
 <style scoped>
 .strip {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
-  background: var(--app-card-bg);
+  /* Плитки растягиваются на всю строку, и при переносе (узкое окно, крупный шрифт) не остаётся
+     пустого хвоста; разделители — зазором в 1px на фоне цвета границы */
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1px;
+  background: var(--app-border);
   border: 1px solid var(--app-border);
   border-radius: var(--app-radius);
   overflow: hidden;
@@ -47,11 +50,10 @@ defineProps<{ items: Stat[]; loading?: boolean }>()
   display: grid;
   align-content: start;
   gap: 0.3rem;
+  flex: 1 1 11rem;
   padding: 0.85rem 1rem 0.9rem;
   border: none;
-  border-right: 1px solid var(--app-border);
-  margin-right: -1px;
-  background: none;
+  background: var(--app-card-bg);
   font: inherit;
   color: inherit;
   text-align: left;
@@ -60,7 +62,7 @@ defineProps<{ items: Stat[]; loading?: boolean }>()
   cursor: pointer;
 }
 .stat.link:hover {
-  background: var(--app-subtle);
+  background: var(--app-hover);
 }
 .stat.link:hover .label {
   color: var(--app-accent);

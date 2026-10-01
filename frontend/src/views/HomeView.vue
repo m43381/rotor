@@ -232,7 +232,7 @@ const dayOption = computed(() => {
             ? {
                 silent: true,
                 symbol: 'none',
-                label: { formatter: 'сегодня', position: 'end', fontSize: 11, color: theme.ink.value },
+                label: { formatter: 'сегодня', position: 'end', fontSize: theme.fs(11), color: theme.ink.value },
                 lineStyle: { type: 'dashed', width: 1 },
                 data: [{ xAxis: labels[todayIndex] }],
               }
@@ -269,7 +269,7 @@ const unitOption = computed(() => {
         data: items.map((u) => u.duties),
         barMaxWidth: 16,
         itemStyle: { borderRadius: [0, 3, 3, 0] },
-        label: { show: true, position: 'right', fontSize: 11, color: theme.ink.value, textBorderWidth: 0 },
+        label: { show: true, position: 'right', fontSize: theme.fs(11), color: theme.ink.value, textBorderWidth: 0 },
       },
     ],
   }

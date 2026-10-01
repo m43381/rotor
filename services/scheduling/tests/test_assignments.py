@@ -259,6 +259,67 @@ async def test_delegated_cells_and_dropping_assignments(admin: AsyncClient, org:
     assert (helper["cells"][6]["state"], helper["cells"][6]["filled"]) == ("delegated_accepted", 1)
 
 
+async def test_delete_draft_schedule(
+    admin: AsyncClient, org: Org, sessionmaker: async_sessionmaker[AsyncSession]
+) -> None:
+    s = await setup(admin, org)
+    sid = s.schedule["id"]
+    p = person(org, s, "Удаляемый")
+    q = person(org, s, "Нижний")
+    assert (await assign(admin, s.cell("Дежурный", 3), p)).status_code == 201
+    r = await admin.post(
+        f"/schedules/{sid}/delegate",
+        json={"cell_ids": [s.cell("Дневальный", 5)], "executor_unit_id": str(org.course_a1)},
+    )
+    assert r.json() == {"changed": 1}
+    course = (
+        await admin.get("/schedules", params={"month": str(MONTH), "unit_id": str(org.course_a1)})
+    ).json()[0]
+    ct = (await admin.get(f"/schedules/{course['id']}/table")).json()
+    incoming = next(c for c in ct["rows"][0]["cells"] if c)
+    assert (await assign(admin, incoming["id"], q)).status_code == 201
+
+    # График с входящими ячейками удаляет только вышестоящее, вернув их себе
+    r = await admin.delete(f"/schedules/{course['id']}", params={"version": course["version"]})
+    assert r.status_code == 422
+    assert "вышестоящего" in r.json()["message"]
+
+    # Назначения — своё и ниже по цепочке — снимаются только с согласия
+    r = await admin.delete(f"/schedules/{sid}", params={"version": s.schedule["version"]})
+    assert r.status_code == 409
+    assert r.json()["details"] == {"assignments": 2}
+    stale = await admin.delete(
+        f"/schedules/{sid}", params={"version": 99, "drop_assignments": True}
+    )
+    assert stale.status_code == 409
+    r = await admin.delete(
+        f"/schedules/{sid}", params={"version": s.schedule["version"], "drop_assignments": True}
+    )
+    assert r.status_code == 204, r.text
+    assert (await admin.get(f"/schedules/{sid}")).status_code == 404
+    async with sessionmaker() as session:
+        left = await session.scalars(select(Assignment.person_id))
+        assert not {p.id, q.id} & set(left)
+        entry = await session.scalar(select(AuditLog).where(AuditLog.action == "schedule.delete"))
+        assert entry is not None
+        assert entry.after is not None
+        assert entry.after["dropped_assignments"] == 2
+    # Входящая ячейка курса ушла каскадом — теперь пустой график курса удаляется
+    r = await admin.delete(f"/schedules/{course['id']}", params={"version": course["version"]})
+    assert r.status_code == 204, r.text
+
+
+async def test_published_schedule_is_not_deleted(admin: AsyncClient, org: Org) -> None:
+    s = await setup(admin, org)
+    sid = s.schedule["id"]
+    r = await admin.post(f"/schedules/{sid}/publish", json={"version": s.schedule["version"]})
+    assert r.status_code == 200
+    version = r.json()["schedule"]["version"]
+    r = await admin.delete(f"/schedules/{sid}", params={"version": version})
+    assert r.status_code == 422
+    assert "неопубликованный" in r.json()["message"]
+
+
 async def test_remove_pin_and_viewer(
     client_for: ClientFactory, admin: AsyncClient, org: Org
 ) -> None:

@@ -1063,6 +1063,52 @@ class ScheduleService:
         await self._commit()
         return schedule
 
+    async def delete(
+        self, schedule_id: uuid.UUID, version: int, *, drop_assignments: bool = False
+    ) -> None:
+        """Удалить черновик вместе с его ячейками. Переданное дочерним уходит каскадом, как
+        при смене решения; график с входящими ячейками удалить нельзя — их передало
+        вышестоящее, и вернуть их себе должно оно."""
+        schedule, unit = await self._schedule(schedule_id, "create")
+        _check_version(schedule.version, version)
+        if schedule.status != "draft":
+            raise ValidationFailedError("Удалить можно только неопубликованный график")
+        incoming = await self.session.scalar(
+            select(func.count())
+            .select_from(DayPlan)
+            .where(DayPlan.schedule_id == schedule.id, DayPlan.origin == "incoming")
+        )
+        if incoming:
+            raise ValidationFailedError(
+                f"В график переданы наряды вышестоящего подразделения (ячеек: {incoming}). "
+                "Удалить его можно, когда вышестоящее вернёт их себе."
+            )
+        chain = chain_cte(DayPlan.schedule_id == schedule.id)
+        gone = list(
+            await self.session.scalars(
+                select(Assignment).join(chain, chain.c.id == Assignment.day_plan_id)
+            )
+        )
+        if gone and not drop_assignments:
+            raise AssignmentsExistError(
+                f"В графике и у подразделений, которым переданы наряды, назначено людей: "
+                f"{len(gone)}. Удаление графика снимет эти назначения.",
+                details={"assignments": len(gone)},
+            )
+        await emit_removed(self.session, gone)
+        audit.record(
+            self.session,
+            action="schedule.delete",
+            entity_type="schedule",
+            entity_id=schedule.id,
+            scope_unit_id=unit.unit_id,
+            before={"unit_id": unit.unit_id, "month": schedule.month, "status": schedule.status},
+            after={"dropped_assignments": len(gone) or None},
+        )
+        # Ячейки, назначения и цепочки делегирования вниз удаляет каскад БД
+        await self.session.delete(schedule)
+        await self._commit()
+
     # --- вспомогательное -----------------------------------------------------------------------
 
     async def _flush(self) -> None:

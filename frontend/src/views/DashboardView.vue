@@ -299,7 +299,7 @@ function hbar(labels: string[], values: number[], name: string, digits = 2) {
         label: {
           show: true,
           position: 'right',
-          fontSize: 11,
+          fontSize: theme.fs(11),
           color: theme.ink.value,
           textBorderWidth: 0,
           formatter: (p: { value: number }) => fmt(p.value, digits),
@@ -353,7 +353,7 @@ const trendGiniOption = computed(() => {
         markArea: {
           silent: true,
           itemStyle: { color: 'rgba(12,163,12,0.07)' },
-          label: { show: true, position: 'insideTopLeft', formatter: 'ровно', fontSize: 11 },
+          label: { show: true, position: 'insideTopLeft', formatter: 'ровно', fontSize: theme.fs(11) },
           data: [[{ yAxis: 0 }, { yAxis: 0.2 }]],
         },
       },
@@ -440,31 +440,69 @@ const pivotSplit = ref<Dim | null>(null)
 const pivotMetric = ref<Metric>('load')
 const pivotView = ref<View>('hbar')
 const metricInfo = computed(() => METRICS.find((m) => m.value === pivotMetric.value) ?? METRICS[0]!)
-const VIEWS = computed(() => [
-  { value: 'hbar', label: 'Полосы', icon: 'pi pi-align-left', disabled: false },
-  { value: 'bar', label: 'Столбцы', icon: 'pi pi-chart-bar', disabled: false },
-  { value: 'stack', label: 'Накопление', icon: 'pi pi-server', disabled: !pivotSplit.value || !metricInfo.value.additive },
-  { value: 'share', label: 'Доли, %', icon: 'pi pi-percentage', disabled: !pivotSplit.value || !metricInfo.value.additive },
-  { value: 'heatmap', label: 'Тепловая карта', icon: 'pi pi-th-large', disabled: !pivotSplit.value },
-])
-watch([pivotDim, pivotSplit], () => void breakdown(pivotDim.value, pivotSplit.value))
-watch([pivotSplit, pivotMetric], () => {
-  const view = VIEWS.value.find((v) => v.value === pivotView.value)
-  if (view?.disabled) pivotView.value = pivotSplit.value ? 'bar' : 'hbar'
+const VIEWS: { value: View; label: string; icon: string }[] = [
+  { value: 'hbar', label: 'Полосы', icon: 'pi pi-align-left' },
+  { value: 'bar', label: 'Столбцы', icon: 'pi pi-chart-bar' },
+  { value: 'stack', label: 'Накопление', icon: 'pi pi-server' },
+  { value: 'share', label: 'Доли, %', icon: 'pi pi-percentage' },
+  { value: 'heatmap', label: 'Тепловая карта', icon: 'pi pi-th-large' },
+]
+// Накопление, доли и тепловая карта сравнивают группы по второму измерению: без разбивки
+// им нечего показать, а складывать и делить на доли можно только суммируемые показатели.
+// Вид не блокируется молча — недостающее подставляется, и об этом говорит подсказка.
+const needsSplit = (v: View) => v === 'stack' || v === 'share' || v === 'heatmap'
+const needsAdditive = (v: View) => v === 'stack' || v === 'share'
+const SPLIT_DEFAULTS: Dim[] = ['duty_type', 'category', 'day_kind', 'unit']
+const dimLabel = (d: Dim | null) => DIMS.find((x) => x.value === d)?.label.toLowerCase() ?? ''
+// Что подставлено автоматически; подсказка гаснет, как только пользователь выберет своё
+const autoSplit = ref<Dim | null>(null)
+const autoMetric = ref(false)
+watch(pivotView, (v) => {
+  autoSplit.value = null
+  autoMetric.value = false
+  if (needsSplit(v) && !pivotSplit.value) {
+    pivotSplit.value = SPLIT_DEFAULTS.find((d) => d !== pivotDim.value) ?? null
+    autoSplit.value = pivotSplit.value
+  }
+  if (needsAdditive(v) && !metricInfo.value.additive) {
+    pivotMetric.value = 'load'
+    autoMetric.value = true
+  }
 })
+watch([pivotSplit, pivotMetric], () => {
+  const v = pivotView.value
+  if (needsSplit(v) && !pivotSplit.value) pivotView.value = 'hbar'
+  else if (needsAdditive(v) && !metricInfo.value.additive) pivotView.value = 'bar'
+})
+const pivotNote = computed(() => {
+  const notes: string[] = []
+  if (autoSplit.value && autoSplit.value === pivotSplit.value) notes.push(`разбивка «${dimLabel(autoSplit.value)}»`)
+  if (autoMetric.value && pivotMetric.value === 'load') notes.push('показатель «нагрузка» — людей и нагрузку на человека складывать нельзя')
+  return notes.length ? `Для этого вида автоматически выбраны ${notes.join('; ')}.` : ''
+})
+watch(pivotDim, (d) => {
+  if (pivotSplit.value === d) pivotSplit.value = SPLIT_DEFAULTS.find((x) => x !== d) ?? null
+})
+watch([pivotDim, pivotSplit], () => void breakdown(pivotDim.value, pivotSplit.value))
 const splitOptions = computed(() => [
   { value: null, label: 'Без разбивки' },
   ...DIMS.filter((d) => d.value !== pivotDim.value),
 ])
 
 const pivotRows = computed(() => items(pivotDim.value, pivotSplit.value))
+const ORDERED = new Set<Dim | null>(['weekday', 'month', 'rank', 'day_kind'])
 const MAX_SERIES = 8 // категориальных цветов восемь; остальное сворачивается в «Прочие»
 
 const pivotOption = computed(() => {
   const rows = pivotRows.value
   const metric = pivotMetric.value
   const info = metricInfo.value
-  const cats = [...new Set(rows.map((r) => r.label))]
+  // Группы без собственного порядка — по убыванию показателя: так сравнивать легче всего
+  const catTotals = new Map<string, number>()
+  for (const r of rows) catTotals.set(r.label, (catTotals.get(r.label) ?? 0) + r[metric])
+  const cats = ORDERED.has(pivotDim.value)
+    ? [...catTotals.keys()]
+    : [...catTotals.entries()].sort((a, b) => b[1] - a[1]).map(([c]) => c)
   const catIndex = new Map(cats.map((c, i) => [c, i]))
   const view = pivotView.value
   const horizontal = view === 'hbar' || view === 'share'
@@ -498,7 +536,7 @@ const pivotOption = computed(() => {
           label: {
             show: cats.length <= 24,
             position: horizontal ? 'right' : 'top',
-            fontSize: 11,
+            fontSize: theme.fs(11),
             color: theme.ink.value,
             textBorderWidth: 0,
             formatter: (p: { value: number }) => fmt(p.value, info.digits),
@@ -511,7 +549,10 @@ const pivotOption = computed(() => {
   // Второе измерение: не больше восьми серий, остальные — «Прочие» (для суммируемых показателей)
   const totals = new Map<string, number>()
   for (const r of rows) totals.set(r.split_label ?? '—', (totals.get(r.split_label ?? '—') ?? 0) + r[metric])
-  let series = [...totals.entries()].sort((a, b) => b[1] - a[1]).map(([s]) => s)
+  // У упорядоченных измерений (дни недели, месяцы, звания) — их порядок, у остальных — по убыванию
+  let series = ORDERED.has(pivotSplit.value)
+    ? [...totals.keys()]
+    : [...totals.entries()].sort((a, b) => b[1] - a[1]).map(([s]) => s)
   let other = false
   if (series.length > MAX_SERIES) {
     other = info.additive
@@ -541,7 +582,7 @@ const pivotOption = computed(() => {
           `${cats[p.value[0]]}<br/>${names[p.value[1]]}: <b>${fmt(p.value[2], info.digits)}</b>`,
       },
       xAxis: { type: 'category', data: cats, axisLabel: { interval: 0, rotate: cats.length > 6 ? 30 : 0 } },
-      yAxis: { type: 'category', data: names, axisLabel: { width: 160, overflow: 'truncate' } },
+      yAxis: { type: 'category', data: names, inverse: true, axisLabel: { width: 160, overflow: 'truncate' } },
       visualMap: {
         min: 0,
         max,
@@ -559,7 +600,7 @@ const pivotOption = computed(() => {
           data: cells,
           label: {
             show: cats.length * names.length <= 120,
-            fontSize: 10,
+            fontSize: theme.fs(10),
             formatter: (p: { value: [number, number, number] }) => (p.value[2] ? fmt(p.value[2], info.digits) : ''),
           },
           itemStyle: { borderColor: surface.value, borderWidth: 2, borderRadius: 3 },
@@ -777,7 +818,7 @@ const weekMonthOption = computed(() => {
         type: 'heatmap',
         name: 'Нарядов',
         data: cells,
-        label: { show: months.length <= 12, fontSize: 10 },
+        label: { show: months.length <= 12, fontSize: theme.fs(10) },
         itemStyle: { borderColor: surface.value, borderWidth: 2, borderRadius: 3 },
       },
     ],
@@ -983,7 +1024,6 @@ const topLoad = computed(() => data.value?.top[0]?.load || 1)
                   :options="VIEWS"
                   option-label="label"
                   option-value="value"
-                  option-disabled="disabled"
                   :allow-empty="false"
                   size="small"
                 >
@@ -993,6 +1033,7 @@ const topLoad = computed(() => data.value?.top[0]?.load || 1)
                 </SelectButton>
               </label>
             </div>
+            <p v-if="pivotNote" class="pivot-note"><i class="pi pi-info-circle" /> {{ pivotNote }}</p>
             <AppChart
               v-if="pivotRows.length"
               :option="pivotOption"
@@ -1273,6 +1314,14 @@ h1 {
   padding-bottom: 0.75rem;
   margin-bottom: 0.5rem;
   border-bottom: 1px solid var(--app-border);
+}
+.pivot-note {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  color: var(--app-ink-2);
 }
 .pivot-controls label {
   display: grid;

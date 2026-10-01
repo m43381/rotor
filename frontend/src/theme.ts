@@ -60,43 +60,90 @@ const CHROME = {
   dark: { ink: '#f4f3ef', secondary: '#c3c2b7', muted: '#898781', grid: '#2c2c2a', axis: '#383835', tip: '#252523' },
 }
 
-function chartTheme(mode: 'light' | 'dark') {
+function chartTheme(mode: 'light' | 'dark', scale: number) {
   const c = CHROME[mode]
+  const fontSize = Math.round(12 * scale)
   const axis = {
     axisLine: { lineStyle: { color: c.axis } },
     axisTick: { show: false },
-    axisLabel: { color: c.muted },
+    axisLabel: { color: c.muted, fontSize },
     splitLine: { lineStyle: { color: c.grid } },
-    nameTextStyle: { color: c.muted },
+    nameTextStyle: { color: c.muted, fontSize },
   }
   return {
     color: SERIES[mode],
     backgroundColor: 'transparent',
-    textStyle: { color: c.secondary, fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif' },
+    textStyle: { color: c.secondary, fontSize, fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif' },
     title: { textStyle: { color: c.ink } },
-    legend: { textStyle: { color: c.secondary }, icon: 'roundRect', itemWidth: 12, itemHeight: 8 },
+    legend: { textStyle: { color: c.secondary, fontSize }, icon: 'roundRect', itemWidth: 12, itemHeight: 8 },
     tooltip: {
       backgroundColor: c.tip,
       borderColor: c.grid,
-      textStyle: { color: c.ink },
+      textStyle: { color: c.ink, fontSize: Math.round(13 * scale) },
       extraCssText: 'box-shadow: 0 4px 16px rgba(0,0,0,0.12); border-radius: 8px;',
     },
     categoryAxis: { ...axis, splitLine: { show: false } },
     valueAxis: { ...axis, axisLine: { show: false } },
     line: { symbolSize: 8, lineStyle: { width: 2 } },
     bar: { itemStyle: { borderRadius: 4 } },
-    visualMap: { textStyle: { color: c.secondary } },
+    visualMap: { textStyle: { color: c.secondary, fontSize } },
     calendar: {
       itemStyle: { color: 'transparent', borderColor: c.grid },
       splitLine: { lineStyle: { color: c.axis } },
-      dayLabel: { color: c.muted },
-      monthLabel: { color: c.secondary },
+      dayLabel: { color: c.muted, fontSize },
+      monthLabel: { color: c.secondary, fontSize },
       yearLabel: { show: false },
     },
   }
 }
-registerTheme('dutyflow-light', chartTheme('light'))
-registerTheme('dutyflow-dark', chartTheme('dark'))
+
+// --- масштаб интерфейса ------------------------------------------------------------------------
+// Размеры в интерфейсе заданы в rem, поэтому достаточно поменять корневой шрифт; графики
+// ECharts рисуют текст в пикселях — для каждого масштаба своя тема и пропорциональная высота.
+export const SCALES = [
+  { value: 1, label: 'Обычный' },
+  { value: 1.15, label: 'Крупнее' },
+  { value: 1.3, label: 'Крупный' },
+  { value: 1.5, label: 'Очень крупный' },
+] as const
+const BASE_FONT = 14
+const SCALE_KEY = 'dutyflow.scale'
+
+const registered = new Set<string>()
+function chartThemeName(m: 'light' | 'dark', value: number): string {
+  const name = `dutyflow-${m}-${Math.round(value * 100)}`
+  if (!registered.has(name)) {
+    registerTheme(name, chartTheme(m, value))
+    registered.add(name)
+  }
+  return name
+}
+
+function initialScale(): number {
+  try {
+    const saved = Number(localStorage.getItem(SCALE_KEY))
+    if (SCALES.some((x) => x.value === saved)) return saved
+  } catch {
+    /* хранилище недоступно — обычный масштаб */
+  }
+  return 1
+}
+const scale = ref(initialScale())
+
+function applyScale(value: number) {
+  document.documentElement.style.fontSize = `${BASE_FONT * value}px`
+}
+applyScale(scale.value)
+
+function setScale(value: number) {
+  scale.value = value
+  applyScale(value)
+  try {
+    localStorage.setItem(SCALE_KEY, String(value))
+  } catch {
+    /* не запомнили — масштаб продержится до перезагрузки */
+  }
+}
 
 // --- переключение темы -------------------------------------------------------------------------
 type Mode = 'light' | 'dark'
@@ -137,7 +184,11 @@ export function useTheme() {
     mode,
     isDark,
     toggle,
-    chartTheme: computed(() => (isDark.value ? 'dutyflow-dark' : 'dutyflow-light')),
+    chartTheme: computed(() => chartThemeName(mode.value, scale.value)),
+    scale,
+    setScale,
+    /** Размер шрифта подписей на графиках с учётом масштаба интерфейса */
+    fs: (px: number) => Math.round(px * scale.value),
     series: computed(() => SERIES[mode.value]),
     sequential: computed(() => (isDark.value ? SEQUENTIAL_DARK : SEQUENTIAL)),
     /** Цвет подписей значений на графиках — текстовый, а не цвет серии */

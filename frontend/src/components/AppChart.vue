@@ -14,6 +14,7 @@ import {
 } from 'echarts/components'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
+import { computed } from 'vue'
 import VChart from 'vue-echarts'
 
 import { useTheme } from '@/theme'
@@ -35,15 +36,20 @@ use([
   CanvasRenderer,
 ])
 
-withDefaults(defineProps<{ option: Record<string, unknown>; height?: string; label?: string }>(), {
+const props = withDefaults(defineProps<{ option: Record<string, unknown>; height?: string; label?: string }>(), {
   height: '280px',
   label: undefined,
 })
-const { chartTheme } = useTheme()
+const { chartTheme, scale } = useTheme()
+// Высота в пикселях растёт вместе с масштабом интерфейса, иначе крупный текст не поместится
+const scaledHeight = computed(() => {
+  const px = /^(\d+(?:\.\d+)?)px$/.exec(props.height)
+  return px ? `${Math.round(Number(px[1]) * scale.value)}px` : props.height
+})
 </script>
 
 <template>
-  <div class="chart" :style="{ height }" role="img" :aria-label="label">
+  <div class="chart" :style="{ height: scaledHeight }" role="img" :aria-label="label">
     <VChart :key="chartTheme" :option="option" :theme="chartTheme" autoresize />
   </div>
 </template>

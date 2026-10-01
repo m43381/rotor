@@ -90,3 +90,16 @@ test('наблюдатель видит график без действий', a
   await expect(page.getByRole('button', { name: 'Опубликовать' })).toHaveCount(0)
   await expect(page.locator('.selection-bar')).toHaveCount(0)
 })
+
+test('пустой черновик графика можно удалить', async ({ page }) => {
+  // Кафедра: своих нарядов и закреплённых ролей нет — график создаётся пустым, в цепочки
+  // делегирования не попадает, и удаление не трогает других
+  await login(page, 'faculty_admin', `/schedules?month=${month(7)}`)
+  await page.locator('.unit-filter .p-treeselect').click()
+  await page.getByRole('treeitem', { name: /Кафедра тактики/ }).locator('.p-tree-node-content').first().click()
+  await page.getByRole('button', { name: 'Создать график' }).click()
+  await page.getByRole('button', { name: 'Удалить график' }).click()
+  await page.locator('.p-confirmdialog').getByRole('button', { name: 'Удалить' }).click()
+  await expect(page.locator('.p-toast-message', { hasText: 'График удалён' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Создать график' })).toBeVisible()
+})

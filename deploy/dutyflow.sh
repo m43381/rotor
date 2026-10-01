@@ -2,7 +2,9 @@
 # Эксплуатация стенда DutyFlow (фаза 7c). Нужны только bash и Docker с плагином compose:
 # Python, just и доступ в интернет на сервере не требуются.
 #
-#   ./dutyflow.sh install            первая установка из пакета поставки: образы, .env, сертификаты
+#   ./dutyflow.sh init               создать .env со случайными паролями (установка из git:
+#                                    затем `docker compose up -d --build` в этом же каталоге)
+#   ./dutyflow.sh install            первая установка: .env, образы (из пакета или сборка), запуск
 #   ./dutyflow.sh update <каталог>   переход на эту версию с прежней (каталог прежнего пакета):
 #                                    перенос .env и сертификатов, резервная копия, запуск
 #   ./dutyflow.sh up | down | status | logs [сервис]
@@ -24,10 +26,16 @@ compose() { docker compose -f "$DIR_HOST/docker-compose.yml" --env-file "$DIR_HO
 say() { printf '%s\n' "$*"; }
 die() { printf 'Ошибка: %s\n' "$*" >&2; exit 1; }
 
-env_value() { # значение переменной из .env (без подстановок)
-    local key="$1" default="${2:-}" line
+env_value() { # значение переменной из .env; ссылки ${VAR} на другие строки .env раскрываются
+    local key="$1" default="${2:-}" line value ref re='\$\{([A-Za-z0-9_]+)\}'
     line="$(grep -E "^${key}=" "$ENV_FILE" 2>/dev/null | tail -n1 || true)"
-    if [ -n "$line" ]; then printf '%s' "${line#*=}"; else printf '%s' "$default"; fi
+    if [ -z "$line" ]; then printf '%s' "$default"; return; fi
+    value="${line#*=}"
+    while [[ "$value" =~ $re ]]; do
+        ref="${BASH_REMATCH[1]}"
+        value="${value//"\${$ref}"/"$(env_value "$ref")"}"
+    done
+    printf '%s' "$value"
 }
 
 host_path() { # абсолютный путь в форме, понятной Docker (на Windows — C:/...)
@@ -70,31 +78,37 @@ make_env() {
     say "Создан $ENV_FILE со случайными секретами. Пароль admin: DUTYFLOW_ADMIN_PASSWORD."
 }
 
-issue_certs() { # $1=force — перевыпустить сертификат сервера
-    local certs="$DIR/certs"
-    mkdir -p "$certs"
-    if [ -f "$certs/server.crt" ] && [ "${1:-}" != force ]; then return; fi
-    local args=() user=()
-    IFS=',' read -ra hosts <<< "$(env_value TLS_HOSTS localhost)"
-    for h in "${hosts[@]}"; do h="${h// /}"; [ -n "$h" ] && args+=(--host "$h"); done
-    [ "$(uname -s)" = Linux ] && user=(--user "$(id -u):$(id -g)")
-    compose run --rm --no-deps "${user[@]}" -v "$(host_path "$certs"):/out" ops \
-        python -m dutyflow_common.certs generate --out /out "${args[@]}"
-    say "Корневой сертификат для рабочих мест: $certs/ca.crt (установка — README, «HTTPS»)"
+issue_certs() { # перевыпуск сертификата сервера, даже если текущий подходит
+    # Обычно сертификат выпускает контейнер certs-init при каждом `up` (имена — TLS_HOSTS)
+    compose run --rm --no-deps certs-init sh -c \
+        'rm -f /certs/server.crt && python -m dutyflow_common.certs ensure --out /certs --hosts "$TLS_HOSTS"'
+    say "Корневой сертификат для рабочих мест: $DIR/certs/ca.crt (установка — README, «HTTPS»)"
 }
 
 # --- Команды ---------------------------------------------------------------------------------
+
+cmd_init() {
+    [ -f "$ENV_FILE" ] && say "$ENV_FILE уже есть — пароли не меняются."
+    make_env
+    say "Проверьте в .env: SERVER_HOST (IP или имя сервера), GATEWAY_HTTPS_PORT и GATEWAY_PORT"
+    say "(внешние порты), BACKUP_DIR. Затем в этом каталоге: docker compose up -d --build"
+}
 
 cmd_install() {
     if [ ! -f "$ENV_FILE" ]; then
         # Адрес сервера нужен до выпуска сертификата и первого запуска Keycloak
         make_env
-        say "Укажите в .env PUBLIC_URL, TLS_HOSTS и BACKUP_DIR и запустите ./dutyflow.sh install ещё раз."
+        say "Укажите в .env SERVER_HOST, порты и BACKUP_DIR и запустите ./dutyflow.sh install ещё раз."
         return
     fi
-    load_images
+    if [ -f "$DIR/images.tar.gz" ]; then
+        load_images
+    else
+        # Каталог deploy/ репозитория: образы собираются из исходников
+        say "Сборка образов из исходников (в первый раз — 5–15 минут)…"
+        compose build
+    fi
     make_env
-    issue_certs
     cmd_up
     say "Готово. Адрес: $(env_value PUBLIC_URL), вход: admin / DUTYFLOW_ADMIN_PASSWORD из .env"
     say "Проверка: ./dutyflow.sh doctor (через 1–2 минуты, пока стартует Keycloak)"
@@ -116,7 +130,6 @@ cmd_update() {
     fi
     load_images
     make_env
-    issue_certs
     cmd_up
     say "Обновлено до версии $(env_value DUTYFLOW_VERSION dev). Откат — README, «Откат»."
 }
@@ -207,6 +220,7 @@ cmd_doctor() {
 cmd="${1:-}"
 shift || true
 case "$cmd" in
+    init) cmd_init ;;
     install) cmd_install ;;
     update) cmd_update "$@" ;;
     up) cmd_up ;;
@@ -217,5 +231,5 @@ case "$cmd" in
     restore) cmd_restore "$@" ;;
     doctor) cmd_doctor ;;
     certs) require_env; issue_certs force; compose restart gateway; say "Шлюз перезапущен с новым сертификатом" ;;
-    *) sed -n '2,14p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; [ -z "$cmd" ] || exit 1 ;;
+    *) sed -n '2,16p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; [ -z "$cmd" ] || exit 1 ;;
 esac

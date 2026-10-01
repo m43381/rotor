@@ -90,6 +90,21 @@ async def archive(schedule_id: uuid.UUID, data: VersionIn, svc: ScheduleServiceD
     return await svc.get(schedule_id)
 
 
+@router.delete(
+    "/schedules/{schedule_id}",
+    status_code=204,
+    summary="Удалить неопубликованный график (назначения — только с drop_assignments)",
+)
+async def delete_schedule(
+    schedule_id: uuid.UUID,
+    svc: ScheduleServiceDep,
+    version: Annotated[int, Query()],
+    drop_assignments: Annotated[bool, Query()] = False,
+) -> Response:
+    await svc.delete(schedule_id, version, drop_assignments=drop_assignments)
+    return Response(status_code=204)
+
+
 @router.get(
     "/schedules/{schedule_id}/snapshot",
     summary="Снимок задачи распределения (ADR-0013), файлом JSON",

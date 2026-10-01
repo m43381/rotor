@@ -725,6 +725,59 @@ function archive() {
     },
   })
 }
+/** Удалить черновик: пустой или созданный по ошибке. Назначенных людей — только с согласия. */
+function removeSchedule() {
+  const s = table.value?.schedule
+  if (!s) return
+  const send = (drop: boolean) =>
+    unwrap(
+      scheduling.DELETE('/schedules/{schedule_id}', {
+        params: { path: { schedule_id: s.id }, query: { version: s.version, drop_assignments: drop } },
+      }),
+    )
+  const ask = (header: string, message: string, label: string) =>
+    new Promise<boolean>((resolve) =>
+      confirm.require({
+        header,
+        message,
+        icon: 'pi pi-exclamation-triangle',
+        acceptProps: { label, severity: 'danger' },
+        rejectProps: { label: 'Отмена', severity: 'secondary', text: true },
+        accept: () => resolve(true),
+        reject: () => resolve(false),
+        onHide: () => resolve(false),
+      }),
+    )
+  void (async () => {
+    const title = `${s.unit_name ?? 'Подразделение'}, ${monthTitle(month.value)}`
+    if (
+      !(await ask(
+        'Удалить график?',
+        `График «${title}» будет удалён вместе с ячейками. Наряды, переданные нижестоящим, у них тоже исчезнут.`,
+        'Удалить',
+      ))
+    )
+      return
+    busy.value = true
+    try {
+      try {
+        await send(false)
+      } catch (e) {
+        if (!(e instanceof ApiError && e.code === 'assignments_exist')) throw e
+        if (!(await ask('Снять назначенных людей?', `${e.message} Продолжить?`, 'Снять и удалить'))) return
+        await send(true)
+      }
+      toast.add({ severity: 'success', summary: 'График удалён', life: 3000 })
+      preview.value = null
+      selected.value = new Set()
+      await load()
+    } catch (e) {
+      showError(e)
+    } finally {
+      busy.value = false
+    }
+  })()
+}
 </script>
 
 <template>
@@ -777,6 +830,16 @@ function archive() {
           text
           :loading="busy"
           @click="downloadSnapshot"
+        />
+        <Button
+          v-if="editable && table?.schedule.status === 'draft'"
+          v-tooltip.bottom="'Удалить черновик графика'"
+          icon="pi pi-trash"
+          severity="danger"
+          text
+          aria-label="Удалить график"
+          :loading="busy"
+          @click="removeSchedule"
         />
         <Button
           v-if="editable && table?.schedule.status === 'published'"
