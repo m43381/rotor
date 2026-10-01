@@ -36,6 +36,8 @@ REALM_SECURITY = {
     "maxDeltaTimeSeconds": 43200,
     "ssoSessionIdleTimeout": 3600,
     "ssoSessionMaxLifespan": 43200,
+    # Стенд работает по HTTP (ADR-0021); "external" пускал бы без TLS только с частных адресов
+    "sslRequired": "none",
 }
 # view-realm — только чтение настроек realm: без него Keycloak не отдаёт состав ролей
 # (`/roles/{role}/users`), и список операторов пришлось бы собирать запросом на каждого

@@ -13,11 +13,10 @@ ROOT = Path(__file__).resolve().parents[2]
 ENV_FILE = ROOT / "deploy" / ".env.load"
 STATE_FILE = ROOT / "tools" / "load" / ".state" / "state.json"
 PROJECT = "dutyflow-load"
-HTTPS_PORT = 9443
-BASE_URL = f"https://localhost:{HTTPS_PORT}"
+HTTP_PORT = 9080
+BASE_URL = f"http://localhost:{HTTP_PORT}"
 # Пароль рабочих учёток нагрузочного стенда (отдельные тома, данные синтетические)
 PASSWORD = "loadpass2026"  # noqa: S105
-CA = ROOT / "deploy" / "certs" / "ca.crt"
 
 
 def env_values(path: Path = ENV_FILE) -> dict[str, str]:
@@ -52,7 +51,6 @@ def run(cmd: list[str], *, capture: bool = False) -> str:
 def client(timeout: float = 60.0, connections: int = 20) -> httpx.AsyncClient:
     return httpx.AsyncClient(
         base_url=BASE_URL,
-        verify=str(CA),
         timeout=timeout,
         limits=httpx.Limits(max_connections=connections, max_keepalive_connections=connections),
     )

@@ -6,6 +6,7 @@
     just seed        # после just up
 """
 
+import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -69,7 +70,10 @@ def read_env() -> Env:
     for line in (ROOT / "deploy" / ".env").read_text(encoding="utf-8").splitlines():
         if "=" in line and not line.lstrip().startswith("#"):
             key, value = line.split("=", 1)
-            values[key.strip()] = value.strip()
+            # Ссылки ${VAR} на строки выше (PUBLIC_URL собирается из SERVER_HOST и порта)
+            values[key.strip()] = re.sub(
+                r"\$\{(\w+)\}", lambda m: values.get(m.group(1), ""), value.strip()
+            )
     return Env(
         public_url=values["PUBLIC_URL"],
         admin_password=values["DUTYFLOW_ADMIN_PASSWORD"],

@@ -18,10 +18,6 @@ install:
 env:
     uv run python tools/make_env.py
 
-# Перевыпустить сертификат HTTPS на имена из TLS_HOSTS (корневой сохраняется); потом `just up`
-certs:
-    uv run python tools/make_env.py --renew-certs
-
 # Поднять весь стенд
 up: env
     {{compose}} up -d --build

@@ -6,7 +6,7 @@
 - `/health` всех сервисов и готовность Keycloak;
 - очереди событий: отставание (`lag`) и неподтверждённые сообщения групп консьюмеров,
   непустые DLQ;
-- срок действия сертификата HTTPS (каталог `certs` смонтирован в `/certs`).
+- срок действия сертификата HTTPS, если задан CERTS_DIR (по умолчанию стенд по HTTP, ADR-0021).
 
 Код выхода: 0 — всё в порядке, 1 — есть проблемы (печатаются с пометкой «!!»),
 предупреждения («~~») на код выхода не влияют.
@@ -117,8 +117,10 @@ async def run() -> Report:
         report.fail(f"Redis недоступен: {exc}")
     finally:
         await redis.aclose()
-    print("HTTPS:")
-    check_cert(report, Path(os.environ.get("CERTS_DIR", "/certs")) / "server.crt")
+    # Стенд по HTTP (ADR-0021): сертификат проверяется, только если каталог задан явно
+    if certs := os.environ.get("CERTS_DIR"):
+        print("HTTPS:")
+        check_cert(report, Path(certs) / "server.crt")
     return report
 
 

@@ -1,4 +1,6 @@
-# Стенд DutyFlow 2. Запуск: `just up` (создаёт deploy/.env и поднимает всё).
+# Стенд DutyFlow 2. Запуск из каталога deploy/: `./dutyflow.sh init` (один раз создаёт .env
+# со случайными паролями), затем `docker compose up -d --build`. В разработке — `just up`.
+# Адрес сервера и внешний порт задаются в .env (SERVER_HOST, GATEWAY_PORT). Только HTTP (ADR-0021).
 # Все образы собираются или берутся заранее: во время работы стенд не обращается в интернет.
 name: dutyflow
 
@@ -475,14 +477,11 @@ services:
       context: ../frontend
     image: dutyflow/gateway:${DUTYFLOW_VERSION:-dev}
     ports:
+      # Внешний порт, по которому заходят пользователи: GATEWAY_PORT в .env
       - "${GATEWAY_PORT:-8088}:80"
-      - "${GATEWAY_HTTPS_PORT:-8443}:443"
-    environment:
-      PUBLIC_URL: ${PUBLIC_URL}
     volumes:
-      # Шаблон: образ nginx подставляет PUBLIC_URL и кладёт результат в conf.d
+      # Каталог шаблонов образа nginx: при старте конфигурация попадает в conf.d
       - ./nginx/nginx.conf:/etc/nginx/templates/default.conf.template:ro
-      - ./certs:/etc/nginx/certs:ro
     depends_on:
       org:
         condition: service_healthy
@@ -516,7 +515,6 @@ services:
       # Настройки стенда попадают в копию: без них копию не поднять на другом сервере.
       # Каталог копий (/backups) или копии (/restore) монтирует dutyflow.sh
       - ./.env:/config/.env:ro
-      - ./certs:/config/certs:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -532,9 +530,6 @@ services:
       disable: true
     environment:
       <<: *service-env
-      CERTS_DIR: /certs
-    volumes:
-      - ./certs:/certs:ro
     restart: "no"
 
 volumes:

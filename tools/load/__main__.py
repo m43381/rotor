@@ -1,6 +1,6 @@
 """Нагрузочный прогон (фаза 7d, open-questions №62).
 
-just load up          # отдельный стенд dutyflow-load на https://localhost:9443
+just load up          # отдельный стенд dutyflow-load на http://localhost:9080
 just load populate    # 50 тыс. человек, 5 000 операторов, распределённый месяц (десятки минут)
 just load run         # 300 операторов, 10 минут → docs/benchmarks/load.md
 just load down        # удалить стенд вместе с данными

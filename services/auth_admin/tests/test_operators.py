@@ -150,6 +150,7 @@ async def test_bootstrap_is_idempotent(settings: AuthAdminSettings, keycloak: Fa
     ]
     assert keycloak.realm["passwordPolicy"] == PASSWORD_POLICY
     assert keycloak.realm["waitIncrementSeconds"] == 900
+    assert keycloak.realm["sslRequired"] == "none"
 
 
 def test_spa_urls_follow_public_url() -> None:

@@ -1,5 +1,5 @@
 """Отдельный стенд для нагрузки: compose-проект `dutyflow-load` со своими томами и портами
-9080/9443, настройки — `deploy/.env.load` (копия `deploy/.env` с другим адресом).
+9080, настройки — `deploy/.env.load` (копия `deploy/.env` с другим адресом).
 Рабочий стенд разработки при этом не трогается; на время прогона его лучше остановить."""
 
 import asyncio
@@ -10,7 +10,7 @@ import httpx
 from tools.load.common import (
     BASE_URL,
     ENV_FILE,
-    HTTPS_PORT,
+    HTTP_PORT,
     ROOT,
     client,
     compose_cmd,
@@ -31,8 +31,7 @@ def make_env() -> None:
         key = line.split("=", 1)[0]
         line = {
             "PUBLIC_URL": f"PUBLIC_URL={BASE_URL}",
-            "GATEWAY_PORT": "GATEWAY_PORT=9080",
-            "GATEWAY_HTTPS_PORT": f"GATEWAY_HTTPS_PORT={HTTPS_PORT}",
+            "GATEWAY_PORT": f"GATEWAY_PORT={HTTP_PORT}",
             "BACKUP_DIR": "BACKUP_DIR=./backups-load",
             # Эталон — 8 CPU / 16 ГБ (№62): воркеру распределения — как на эталоне
             "ALLOCATION_WORKER_MEMORY": "ALLOCATION_WORKER_MEMORY=4g",

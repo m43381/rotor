@@ -2,11 +2,9 @@
 
 Существующий deploy/.env не перезаписывается — секреты стенда не должны меняться сами.
 Если в шаблоне появились новые переменные (например, пароль БД нового сервиса), они
-дописываются в конец существующего файла. Адрес стенда по HTTP, заданный по умолчанию
-до фазы 7c, переводится на HTTPS.
+дописываются в конец существующего файла.
 
-Если сертификатов HTTPS ещё нет (deploy/certs), они выпускаются на имена из TLS_HOSTS
-(внутренний УЦ, `dutyflow_common.certs`).
+То же без Python на хосте: `deploy/dutyflow.sh init`.
 """
 
 import io
@@ -17,61 +15,27 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE = ROOT / "deploy" / ".env.example"
 TARGET = ROOT / "deploy" / ".env"
-# Адрес стенда по умолчанию до фазы 7c (HTTP) и после (HTTPS)
-OLD_URL = "PUBLIC_URL=http://localhost:8088"
-NEW_URL = "PUBLIC_URL=https://localhost:8443"
 
 
 def main() -> int:
     if isinstance(sys.stdout, io.TextIOWrapper):
         sys.stdout.reconfigure(encoding="utf-8")  # консоль Windows по умолчанию в cp1251
-    if "--renew-certs" in sys.argv:
-        # Перевыпуск сертификата сервера (новые имена в TLS_HOSTS, истекает срок); корневой
-        # сертификат сохраняется
-        (ROOT / "deploy" / "certs" / "server.crt").unlink(missing_ok=True)
-        ensure_certs()
-        return 0
     template = [_fill(line) for line in TEMPLATE.read_text(encoding="utf-8").splitlines()]
     name = TARGET.relative_to(ROOT)
     if TARGET.exists():
         existing = TARGET.read_text(encoding="utf-8")
         present = {_key(line) for line in existing.splitlines()}
         missing = [line for line in template if _key(line) and _key(line) not in present]
-        if OLD_URL in existing:
-            existing = existing.replace(OLD_URL, NEW_URL)
-            TARGET.write_text(existing, encoding="utf-8", newline="\n")
-            print(f"{name}: адрес стенда переведён на HTTPS ({NEW_URL.split('=', 1)[1]})")
         if not missing:
             print(f"{name} уже есть — оставляю как есть")
-            ensure_certs()
             return 0
         with TARGET.open("a", encoding="utf-8", newline="\n") as f:
             f.write(("" if existing.endswith("\n") else "\n") + "\n".join(missing) + "\n")
         print(f"{name}: добавлены новые переменные {', '.join(str(_key(m)) for m in missing)}")
-        ensure_certs()
         return 0
     TARGET.write_text("\n".join(template) + "\n", encoding="utf-8", newline="\n")
     print(f"Создан {name}. Пароль admin: см. DUTYFLOW_ADMIN_PASSWORD")
-    ensure_certs()
     return 0
-
-
-def ensure_certs() -> None:
-    certs = ROOT / "deploy" / "certs"
-    if (certs / "server.crt").exists():
-        return
-    from dutyflow_common.certs import generate
-
-    hosts = [h.strip() for h in _value("TLS_HOSTS", "localhost").split(",") if h.strip()]
-    generate(certs, hosts)
-    print(f"Выпущен сертификат HTTPS для {', '.join(hosts)}; корневой: deploy/certs/ca.crt")
-
-
-def _value(key: str, default: str) -> str:
-    for line in TARGET.read_text(encoding="utf-8").splitlines():
-        if _key(line) == key:
-            return line.split("=", 1)[1].strip()
-    return default
 
 
 def _fill(line: str) -> str:

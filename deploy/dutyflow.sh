@@ -6,12 +6,11 @@
 #                                    затем `docker compose up -d --build` в этом же каталоге)
 #   ./dutyflow.sh install            первая установка: .env, образы (из пакета или сборка), запуск
 #   ./dutyflow.sh update <каталог>   переход на эту версию с прежней (каталог прежнего пакета):
-#                                    перенос .env и сертификатов, резервная копия, запуск
+#                                    перенос .env, резервная копия, запуск
 #   ./dutyflow.sh up | down | status | logs [сервис]
 #   ./dutyflow.sh backup             резервная копия всех БД (включая Keycloak) и настроек
 #   ./dutyflow.sh restore <каталог>  восстановление из копии (стенд останавливается)
-#   ./dutyflow.sh doctor             проверка: контейнеры, /health, очереди, сертификат, копии
-#   ./dutyflow.sh certs              перевыпуск сертификата HTTPS на имена из TLS_HOSTS
+#   ./dutyflow.sh doctor             проверка: контейнеры, /health, очереди, свежесть копий
 #
 # Скрипт лежит рядом с docker-compose.yml и .env: в репозитории — в deploy/, в пакете — в корне.
 set -euo pipefail
@@ -52,7 +51,7 @@ backup_dir() {
 
 require_env() { [ -f "$ENV_FILE" ] || die "нет $ENV_FILE — сначала ./dutyflow.sh install"; }
 
-# --- .env и сертификаты ----------------------------------------------------------------------
+# --- .env ----------------------------------------------------------------------------------
 
 random_secret() { head -c 18 /dev/urandom | base64 | tr '+/' '-_'; }
 
@@ -78,27 +77,20 @@ make_env() {
     say "Создан $ENV_FILE со случайными секретами. Пароль admin: DUTYFLOW_ADMIN_PASSWORD."
 }
 
-issue_certs() { # перевыпуск сертификата сервера, даже если текущий подходит
-    # Обычно сертификат выпускает контейнер certs-init при каждом `up` (имена — TLS_HOSTS)
-    compose run --rm --no-deps certs-init sh -c \
-        'rm -f /certs/server.crt && python -m dutyflow_common.certs ensure --out /certs --hosts "$TLS_HOSTS"'
-    say "Корневой сертификат для рабочих мест: $DIR/certs/ca.crt (установка — README, «HTTPS»)"
-}
-
 # --- Команды ---------------------------------------------------------------------------------
 
 cmd_init() {
     [ -f "$ENV_FILE" ] && say "$ENV_FILE уже есть — пароли не меняются."
     make_env
-    say "Проверьте в .env: SERVER_HOST (IP или имя сервера), GATEWAY_HTTPS_PORT и GATEWAY_PORT"
-    say "(внешние порты), BACKUP_DIR. Затем в этом каталоге: docker compose up -d --build"
+    say "Проверьте в .env: SERVER_HOST (IP или имя сервера), GATEWAY_PORT (внешний порт)"
+    say "и BACKUP_DIR. Затем в этом каталоге: docker compose up -d --build"
 }
 
 cmd_install() {
     if [ ! -f "$ENV_FILE" ]; then
         # Адрес сервера нужен до выпуска сертификата и первого запуска Keycloak
         make_env
-        say "Укажите в .env SERVER_HOST, порты и BACKUP_DIR и запустите ./dutyflow.sh install ещё раз."
+        say "Укажите в .env SERVER_HOST, GATEWAY_PORT и BACKUP_DIR и запустите ./dutyflow.sh install ещё раз."
         return
     fi
     if [ -f "$DIR/images.tar.gz" ]; then
@@ -120,7 +112,6 @@ cmd_update() {
         [ -f "$old/.env" ] || die "в $old нет .env — укажите каталог прежней версии"
         [ "$(cd "$old" && pwd)" != "$DIR" ] || die "укажите каталог прежней версии, а не текущий"
         if [ ! -f "$ENV_FILE" ]; then cp -p "$old/.env" "$ENV_FILE"; fi
-        if [ -d "$old/certs" ] && [ ! -f "$DIR/certs/server.crt" ]; then cp -Rp "$old/certs" "$DIR/"; fi
         say "Настройки перенесены из $old"
     fi
     require_env
@@ -185,7 +176,7 @@ cmd_restore() {
     compose exec -T redis redis-cli FLUSHALL > /dev/null
     say "Redis очищен (очереди событий и фоновых задач)"
     compose up -d
-    say "Восстановлено. Настройки копии (.env, certs) — в $src/config, если стенд переносится."
+    say "Восстановлено. Настройки копии (.env) — в $src/config, если стенд переносится."
 }
 
 cmd_doctor() {
@@ -230,6 +221,5 @@ case "$cmd" in
     backup) cmd_backup ;;
     restore) cmd_restore "$@" ;;
     doctor) cmd_doctor ;;
-    certs) require_env; issue_certs force; compose restart gateway; say "Шлюз перезапущен с новым сертификатом" ;;
-    *) sed -n '2,16p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; [ -z "$cmd" ] || exit 1 ;;
+    *) sed -n '2,15p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; [ -z "$cmd" ] || exit 1 ;;
 esac

@@ -3,12 +3,12 @@
 import { chromium } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 
-const base = process.env.E2E_BASE_URL ?? 'https://localhost:8443'
+const base = process.env.E2E_BASE_URL ?? 'http://localhost:8088'
 const out = new URL('../screenshots/', import.meta.url)
 mkdirSync(out, { recursive: true })
 
 const browser = await chromium.launch({ channel: process.env.PW_CHANNEL || 'msedge' })
-const page = await browser.newPage({ viewport: { width: 1360, height: 820 }, locale: 'ru-RU', ignoreHTTPSErrors: true })
+const page = await browser.newPage({ viewport: { width: 1360, height: 820 }, locale: 'ru-RU' })
 const shot = (name) => page.screenshot({ path: new URL(`${name}.png`, out).pathname.replace(/^\/(\w:)/, '$1') })
 
 await page.goto(base)

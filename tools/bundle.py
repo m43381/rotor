@@ -7,7 +7,7 @@
     images.tar.gz        образы DutyFlow с тегом версии и сторонние (PostgreSQL, Redis, Keycloak)
     docker-compose.yml   без секций build, pull_policy: never — стенд не обращается в реестры
     .env.example         шаблон настроек с DUTYFLOW_VERSION
-    dutyflow.sh          install / update / backup / restore / doctor / certs
+    dutyflow.sh          init / install / update / backup / restore / doctor
     nginx/ keycloak/ postgres/   конфигурация, как в deploy/
     README.md            руководство администратора (deploy/README.md)
     VERSION, MANIFEST.sha256

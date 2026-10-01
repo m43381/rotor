@@ -12,7 +12,7 @@
     "ru"
   ],
   "defaultLocale": "ru",
-  "sslRequired": "external",
+  "sslRequired": "none",
   "bruteForceProtected": true,
   "failureFactor": 10,
   "accessTokenLifespan": 300,

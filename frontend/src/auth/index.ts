@@ -1,6 +1,11 @@
 // Вход через Keycloak (OIDC Authorization Code + PKCE). Пароли приложение не видит.
 import { UserManager, WebStorageStateStore, type User } from 'oidc-client-ts'
 
+import { ensureDigest } from './sha256'
+
+// По HTTP не с localhost у браузера нет crypto.subtle, а он нужен PKCE (ADR-0021)
+ensureDigest()
+
 const authority =
   import.meta.env.VITE_OIDC_AUTHORITY ?? `${window.location.origin}/auth/realms/dutyflow`
 
