@@ -134,7 +134,11 @@ class Api:
                 break
         if r.status_code >= 400 and r.status_code not in ok:
             raise SystemExit(f"{method} {path} → {r.status_code}: {r.text[:400]}")
-        return r.json() if r.content and r.headers.get("content-type", "").startswith("application/json") else None
+        return (
+            r.json()
+            if r.content and r.headers.get("content-type", "").startswith("application/json")
+            else None
+        )
 
     async def get(self, path: str, **params: Any) -> Any:
         return await self.call("GET", path, params=params)
@@ -304,18 +308,35 @@ def plan_people(root: UnitPlan) -> list[Person]:
             for _ in range(2):
                 add("Заместитель начальника академии", "Полковник", "permanent")
             for _ in range(6):
-                add("Офицер управления академии", rng.choice(["Подполковник", "Майор", "Капитан"]), "permanent")
+                add(
+                    "Офицер управления академии",
+                    rng.choice(["Подполковник", "Майор", "Капитан"]),
+                    "permanent",
+                )
         elif u.kind == "faculty":  # начальство факультета — прямо в факультете, без кафедр
             add("Начальник факультета", "Полковник", "permanent")
             for _ in range(2):
                 add("Заместитель начальника факультета", "Подполковник", "permanent")
             for _ in range(3):
-                add("Офицер управления факультета", rng.choice(["Майор", "Капитан", "Старший лейтенант"]), "permanent")
+                add(
+                    "Офицер управления факультета",
+                    rng.choice(["Майор", "Капитан", "Старший лейтенант"]),
+                    "permanent",
+                )
         elif u.kind == "course":
             add("Начальник курса", rng.choice(["Майор", "Капитан"]), "permanent")
-            add("Курсовой офицер", rng.choice(["Капитан", "Старший лейтенант", "Лейтенант"]), "permanent")
+            add(
+                "Курсовой офицер",
+                rng.choice(["Капитан", "Старший лейтенант", "Лейтенант"]),
+                "permanent",
+            )
             if u.faculty not in LISTENER_FACULTIES:
-                add("Старшина курса", rng.choice(["Старшина", "Старший сержант"]), "cadet", course=u.course)
+                add(
+                    "Старшина курса",
+                    rng.choice(["Старшина", "Старший сержант"]),
+                    "cadet",
+                    course=u.course,
+                )
         elif u.kind == "kafedra":
             add("Начальник кафедры", "Полковник", "permanent")
             add("Заместитель начальника кафедры", "Подполковник", "permanent")
@@ -338,7 +359,12 @@ def plan_people(root: UnitPlan) -> list[Person]:
                     add("Слушатель", rank, "listener", course=u.course)
             else:
                 size = rng.randint(18, 25)
-                add("Заместитель командира взвода", rng.choice(["Сержант", "Старший сержант"]), "cadet", course=u.course)
+                add(
+                    "Заместитель командира взвода",
+                    rng.choice(["Сержант", "Старший сержант"]),
+                    "cadet",
+                    course=u.course,
+                )
                 for _ in range(rng.choice([2, 3])):
                     add("Командир отделения", "Младший сержант", "cadet", course=u.course)
                 while sum(1 for p in people if p.unit is u) < size:
@@ -370,7 +396,17 @@ def _adder(people: list[Person], u: UnitPlan, rng: random.Random) -> Any:
         elif category == "permanent":
             attrs["weapon_access"] = rng.random() < 0.8
         people.append(
-            Person(u, f"ДЕМО-{_code(u)}-{n:02d}", rank, position, category, attrs, name.last, name.first, name.middle)
+            Person(
+                u,
+                f"ДЕМО-{_code(u)}-{n:02d}",
+                rank,
+                position,
+                category,
+                attrs,
+                name.last,
+                name.first,
+                name.middle,
+            )
         )
 
     return add
@@ -380,7 +416,9 @@ async def ensure_people(api: Api, people: list[Person], refs: Refs) -> list[Pers
     existing: dict[str, str] = {}
     offset = 0
     while True:
-        page = await api.get("/api/personnel/people", include_archived="true", limit=500, offset=offset)
+        page = await api.get(
+            "/api/personnel/people", include_archived="true", limit=500, offset=offset
+        )
         for p in page["items"]:
             if p.get("personal_no"):
                 existing[p["personal_no"]] = p["id"]
@@ -429,51 +467,176 @@ def plan_duties(root: UnitPlan, refs: Refs) -> list[tuple[UnitPlan, dict[str, An
     weapon = [{"code": "weapon_access", "op": "eq", "value": True}]
     duties: list[tuple[UnitPlan, dict[str, Any]]] = []
 
-    def duty(owner: UnitPlan, name: str, start: str, minutes: int, rest: int, roles: list[Any]) -> None:
+    def duty(
+        owner: UnitPlan, name: str, start: str, minutes: int, rest: int, roles: list[Any]
+    ) -> None:
         duties.append(
-            (owner, {"name": name, "start_time": start, "duration_minutes": minutes, "rest_hours": rest, "owner_unit_id": owner.id, "roles": roles})
+            (
+                owner,
+                {
+                    "name": name,
+                    "start_time": start,
+                    "duration_minutes": minutes,
+                    "rest_hours": rest,
+                    "owner_unit_id": owner.id,
+                    "roles": roles,
+                },
+            )
         )
 
     first_faculty = next(u for u in root.children if u.kind == "faculty")
-    duty(root, "Дежурный по академии", "08:00", 1440, 48, [
-        role("Дежурный по академии", allowed_category_ids=[permanent], min_rank_order=RANK_ORDER["Капитан"], attribute_requirements=weapon),
-        role("Помощник дежурного по академии", allowed_category_ids=[permanent], min_rank_order=RANK_ORDER["Лейтенант"]),
-    ])
-    duty(root, "Караул", "18:00", 1440, 48, [
-        role("Начальник караула", allowed_category_ids=[cadet], min_rank_order=RANK_ORDER["Сержант"], attribute_requirements=weapon, load_weight=1.2),
-        role("Разводящий", 2, allowed_category_ids=[cadet], min_rank_order=RANK_ORDER["Младший сержант"], attribute_requirements=weapon, load_weight=1.2),
-        role("Часовой", 6, allowed_category_ids=[cadet], attribute_requirements=[*weapon, {"code": "course_no", "op": "gte", "value": 2}], load_weight=1.2),
-    ])
-    duty(root, "Наряд по КПП", "08:00", 1440, 24, [
-        role("Дежурный по КПП", allowed_category_ids=[cadet], min_rank_order=RANK_ORDER["Сержант"]),
-        # Пример закрепления роли за подразделением (ADR-0018): дневальных даёт 1-й факультет
-        role("Дневальный по КПП", 2, allowed_category_ids=[cadet], assigned_unit_id=first_faculty.id),
-    ])
-    duty(root, "Наряд по столовой", "06:00", 1440, 24, [
-        role("Дежурный по столовой", allowed_category_ids=[cadet], min_rank_order=RANK_ORDER["Младший сержант"]),
-        role("Рабочий по столовой", 8, allowed_category_ids=[cadet], attribute_requirements=[{"code": "course_no", "op": "lte", "value": 2}], load_weight=0.8),
-    ])
+    duty(
+        root,
+        "Дежурный по академии",
+        "08:00",
+        1440,
+        48,
+        [
+            role(
+                "Дежурный по академии",
+                allowed_category_ids=[permanent],
+                min_rank_order=RANK_ORDER["Капитан"],
+                attribute_requirements=weapon,
+            ),
+            role(
+                "Помощник дежурного по академии",
+                allowed_category_ids=[permanent],
+                min_rank_order=RANK_ORDER["Лейтенант"],
+            ),
+        ],
+    )
+    duty(
+        root,
+        "Караул",
+        "18:00",
+        1440,
+        48,
+        [
+            role(
+                "Начальник караула",
+                allowed_category_ids=[cadet],
+                min_rank_order=RANK_ORDER["Сержант"],
+                attribute_requirements=weapon,
+                load_weight=1.2,
+            ),
+            role(
+                "Разводящий",
+                2,
+                allowed_category_ids=[cadet],
+                min_rank_order=RANK_ORDER["Младший сержант"],
+                attribute_requirements=weapon,
+                load_weight=1.2,
+            ),
+            role(
+                "Часовой",
+                6,
+                allowed_category_ids=[cadet],
+                attribute_requirements=[*weapon, {"code": "course_no", "op": "gte", "value": 2}],
+                load_weight=1.2,
+            ),
+        ],
+    )
+    duty(
+        root,
+        "Наряд по КПП",
+        "08:00",
+        1440,
+        24,
+        [
+            role(
+                "Дежурный по КПП",
+                allowed_category_ids=[cadet],
+                min_rank_order=RANK_ORDER["Сержант"],
+            ),
+            # Пример закрепления роли за подразделением (ADR-0018): дневальных даёт 1-й факультет
+            role(
+                "Дневальный по КПП",
+                2,
+                allowed_category_ids=[cadet],
+                assigned_unit_id=first_faculty.id,
+            ),
+        ],
+    )
+    duty(
+        root,
+        "Наряд по столовой",
+        "06:00",
+        1440,
+        24,
+        [
+            role(
+                "Дежурный по столовой",
+                allowed_category_ids=[cadet],
+                min_rank_order=RANK_ORDER["Младший сержант"],
+            ),
+            role(
+                "Рабочий по столовой",
+                8,
+                allowed_category_ids=[cadet],
+                attribute_requirements=[{"code": "course_no", "op": "lte", "value": 2}],
+                load_weight=0.8,
+            ),
+        ],
+    )
     for u in walk(root):
         students = listener if u.faculty in LISTENER_FACULTIES else cadet
         if u.kind == "faculty":
-            duty(u, "Дежурный по факультету", "08:00", 1440, 48, [
-                role("Дежурный по факультету", allowed_category_ids=[permanent], min_rank_order=RANK_ORDER["Старший лейтенант"]),
-                role("Помощник дежурного по факультету", allowed_category_ids=[students], min_rank_order=RANK_ORDER["Сержант"] if students == cadet else None),
-            ])
+            duty(
+                u,
+                "Дежурный по факультету",
+                "08:00",
+                1440,
+                48,
+                [
+                    role(
+                        "Дежурный по факультету",
+                        allowed_category_ids=[permanent],
+                        min_rank_order=RANK_ORDER["Старший лейтенант"],
+                    ),
+                    role(
+                        "Помощник дежурного по факультету",
+                        allowed_category_ids=[students],
+                        min_rank_order=RANK_ORDER["Сержант"] if students == cadet else None,
+                    ),
+                ],
+            )
         elif u.kind == "course":
-            duty(u, "Наряд по курсу", "19:00", 1440, 24, [
-                role("Дежурный по курсу", allowed_category_ids=[students], min_rank_order=RANK_ORDER["Младший сержант"] if students == cadet else None),
-                role("Дневальный по курсу", 2, allowed_category_ids=[students]),
-            ])
+            duty(
+                u,
+                "Наряд по курсу",
+                "19:00",
+                1440,
+                24,
+                [
+                    role(
+                        "Дежурный по курсу",
+                        allowed_category_ids=[students],
+                        min_rank_order=RANK_ORDER["Младший сержант"] if students == cadet else None,
+                    ),
+                    role("Дневальный по курсу", 2, allowed_category_ids=[students]),
+                ],
+            )
         elif u.kind == "kafedra":
             # Локальный наряд: владелец — кафедра, в графиках факультета и академии его нет
-            duty(u, "Дежурный по кафедре", "09:00", 540, 12, [
-                role("Дежурный по кафедре", allowed_category_ids=[permanent, refs.categories["civil"]]),
-            ])
+            duty(
+                u,
+                "Дежурный по кафедре",
+                "09:00",
+                540,
+                12,
+                [
+                    role(
+                        "Дежурный по кафедре",
+                        allowed_category_ids=[permanent, refs.categories["civil"]],
+                    ),
+                ],
+            )
     return duties
 
 
-async def ensure_duties(api: Api, duties: list[tuple[UnitPlan, dict[str, Any]]]) -> list[dict[str, Any]]:
+async def ensure_duties(
+    api: Api, duties: list[tuple[UnitPlan, dict[str, Any]]]
+) -> list[dict[str, Any]]:
     have = await api.get("/api/scheduling/duty-types", include_inactive="true")
     by_key = {(d["owner_unit_id"], d["name"].strip().lower()): d for d in have}
     result, created = [], 0
@@ -490,7 +653,9 @@ async def ensure_duties(api: Api, duties: list[tuple[UnitPlan, dict[str, Any]]])
 # --- допуски и освобождения ----------------------------------------------------------------------
 
 
-async def grant_clearances(api: Api, duties: list[dict[str, Any]], owners: list[UnitPlan], people: list[Person]) -> None:
+async def grant_clearances(
+    api: Api, duties: list[dict[str, Any]], owners: list[UnitPlan], people: list[Person]
+) -> None:
     """Допуск получает ~70% людей поддерева владельца; неподходящих по требованиям роли
     (категория, звание, характеристики, закрепление) сервер пропускает сам."""
     granted = skipped = 0
@@ -501,10 +666,17 @@ async def grant_clearances(api: Api, duties: list[dict[str, Any]], owners: list[
             rng = random.Random(f"{SEED}:clearance:{r['id']}")
             chosen = [p.id for p in pool if rng.random() < 0.7]
             for i in range(0, len(chosen), 1000):
-                res = await api.post("/api/personnel/clearances/bulk", {"person_ids": chosen[i : i + 1000], "duty_role_ids": [r["id"]]})
+                res = await api.post(
+                    "/api/personnel/clearances/bulk",
+                    {"person_ids": chosen[i : i + 1000], "duty_role_ids": [r["id"]]},
+                )
                 granted += int(res["done"])
-                skipped += len(res["skipped"]) if isinstance(res["skipped"], list) else int(res["skipped"])
-    print(f"Допуски: выдано {granted}, пропущено (не подходят по требованиям или уже есть) {skipped}")
+                skipped += (
+                    len(res["skipped"]) if isinstance(res["skipped"], list) else int(res["skipped"])
+                )
+    print(
+        f"Допуски: выдано {granted}, пропущено (не подходят по требованиям или уже есть) {skipped}"
+    )
 
 
 async def add_exemptions(api: Api, people: list[Person], refs: Refs) -> None:
@@ -520,7 +692,12 @@ async def add_exemptions(api: Api, people: list[Person], refs: Refs) -> None:
         end = start + dt.timedelta(days=rng.randint(lo, hi) - 1)
         await api.post(
             "/api/personnel/exemptions/bulk",
-            {"reason_id": refs.reasons[code], "date_from": start.isoformat(), "date_to": end.isoformat(), "person_ids": [p.id]},
+            {
+                "reason_id": refs.reasons[code],
+                "date_from": start.isoformat(),
+                "date_to": end.isoformat(),
+                "person_ids": [p.id],
+            },
         )
         count += 1
     print(f"Освобождения: {count}")
@@ -534,7 +711,10 @@ def plan_operators(root: UnitPlan) -> list[tuple[str, str, UnitPlan]]:
     for u in walk(root):
         digits = "".join(ch for ch in u.name if ch.isdigit())
         if u.kind == "faculty":
-            ops += [(f"fak{digits}_admin", "unit_admin", u), (f"fak{digits}_operator", "operator", u)]
+            ops += [
+                (f"fak{digits}_admin", "unit_admin", u),
+                (f"fak{digits}_operator", "operator", u),
+            ]
         elif u.kind == "course":
             ops.append((f"kurs{digits}", "operator", u))
         elif u.kind == "kafedra":
@@ -556,26 +736,46 @@ async def ensure_operators(api: Api, root: UnitPlan, kc_admin: str, kc_password:
         if username in existing:
             continue
         name = fio(random.Random(f"{SEED}:op:{username}"), female_share=0.2)
-        body = {"username": username, "last_name": name.last, "first_name": name.first, "role": role_name, "unit_id": unit.id}
+        body = {
+            "username": username,
+            "last_name": name.last,
+            "first_name": name.first,
+            "role": role_name,
+            "unit_id": unit.id,
+        }
         new.append((await api.post("/api/auth-admin/operators", body))["id"])
     if new:
         await set_demo_passwords(api.http, new, kc_admin, kc_password)
     print(f"Операторы: создано {len(new)} (пароль {DEMO_PASSWORD})")
 
 
-async def set_demo_passwords(http: httpx.AsyncClient, user_ids: list[str], kc_admin: str, kc_password: str) -> None:
+async def set_demo_passwords(
+    http: httpx.AsyncClient, user_ids: list[str], kc_admin: str, kc_password: str
+) -> None:
     """Постоянный демо-пароль вместо временного: через Keycloak Admin API (master realm)."""
     r = await http.post(
         "/auth/realms/master/protocol/openid-connect/token",
-        data={"grant_type": "password", "client_id": "admin-cli", "username": kc_admin, "password": kc_password},
+        data={
+            "grant_type": "password",
+            "client_id": "admin-cli",
+            "username": kc_admin,
+            "password": kc_password,
+        },
     )
     if r.status_code != 200:
-        print("!! Не удалось войти в Keycloak: у новых операторов временные пароли (см. журнал создания)")
+        print(
+            "!! Не удалось войти в Keycloak: у новых операторов временные пароли "
+            "(см. журнал создания)"
+        )
         return
     h = {"Authorization": f"Bearer {r.json()['access_token']}"}
     base = "/auth/admin/realms/dutyflow/users"
     for uid in user_ids:
-        await http.put(f"{base}/{uid}/reset-password", headers=h, json={"type": "password", "value": DEMO_PASSWORD, "temporary": False})
+        await http.put(
+            f"{base}/{uid}/reset-password",
+            headers=h,
+            json={"type": "password", "value": DEMO_PASSWORD, "temporary": False},
+        )
         user = (await http.get(f"{base}/{uid}", headers=h)).json()
         await http.put(f"{base}/{uid}", headers=h, json={**user, "requiredActions": []})
 
@@ -601,7 +801,12 @@ async def main() -> int:
         duties = await ensure_duties(api, duty_plan)
         await grant_clearances(api, duties, [o for o, _ in duty_plan], people)
         await add_exemptions(api, created, refs)
-        await ensure_operators(api, root, os.environ.get("KEYCLOAK_ADMIN", ""), os.environ.get("KEYCLOAK_ADMIN_PASSWORD", ""))
+        await ensure_operators(
+            api,
+            root,
+            os.environ.get("KEYCLOAK_ADMIN", ""),
+            os.environ.get("KEYCLOAK_ADMIN_PASSWORD", ""),
+        )
     finally:
         await api.http.aclose()
     print(f"Готово за {time.monotonic() - started:.0f} с")

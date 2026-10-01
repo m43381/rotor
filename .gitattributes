@@ -10,3 +10,4 @@
 *.xlsx binary
 *.docx binary
 *.pdf binary
+*.dump binary

@@ -11,7 +11,8 @@
 #   ./dutyflow.sh backup             резервная копия всех БД (включая Keycloak) и настроек
 #   ./dutyflow.sh restore <каталог>  восстановление из копии (стенд останавливается)
 #   ./dutyflow.sh doctor             проверка: контейнеры, /health, очереди, свежесть копий
-#   ./dutyflow.sh demo               демонстрационные данные (стенд должен быть запущен)
+#   ./dutyflow.sh demo               сгенерировать демо-данные (стенд должен быть запущен)
+#   ./dutyflow.sh demo-snapshot      сохранить текущие данные стенда как демо-снимок для git
 #
 # Скрипт лежит рядом с docker-compose.yml и .env: в репозитории — в deploy/, в пакете — в корне.
 set -euo pipefail
@@ -187,7 +188,7 @@ cmd_doctor() {
     # Разделитель не пробельный: иначе read склеит пустое поле Health с соседними
     while IFS='|' read -r service state health status; do
         case "$service" in
-            db-init | keycloak-init)
+            db-init | keycloak-init | demo-db | demo-operators)
                 if [[ "$status" == "Exited (0)"* ]]; then say "   $service: выполнен"
                 else say "!! $service: $status — ./dutyflow.sh logs $service"; failed=1; fi ;;
             *)
@@ -209,6 +210,14 @@ cmd_doctor() {
     return $failed
 }
 
+cmd_demo_snapshot() { # БД сервисов (без Keycloak) и список операторов → demo/snapshot
+    require_env
+    mkdir -p "$DIR/demo/snapshot"
+    compose run --rm --no-deps -v "$(host_path "$DIR/demo/snapshot"):/out" ops-db         sh /scripts/demo-snapshot.sh
+    compose --profile demo run --rm --no-deps -e DEMO_SNAPSHOT_DIR=/out         -v "$(host_path "$DIR/demo/snapshot"):/out" demo python /demo/operators.py export
+    say "Снимок готов: $DIR/demo/snapshot — закоммитьте его, чтобы он попал на сервер"
+}
+
 cmd="${1:-}"
 shift || true
 case "$cmd" in
@@ -223,5 +232,6 @@ case "$cmd" in
     restore) cmd_restore "$@" ;;
     doctor) cmd_doctor ;;
     demo) require_env; compose --profile demo run --rm demo ;;
-    *) sed -n '2,16p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; [ -z "$cmd" ] || exit 1 ;;
+    demo-snapshot) cmd_demo_snapshot ;;
+    *) sed -n '2,17p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; [ -z "$cmd" ] || exit 1 ;;
 esac

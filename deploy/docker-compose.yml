@@ -70,6 +70,25 @@ services:
         condition: service_healthy
     restart: "no"
 
+  # Демонстрационные данные при первом запуске (DEMO_DATA=true в .env): если стенд пустой, БД
+  # сервисов заполняются из снимка deploy/demo/snapshot до старта сервисов. На работающем
+  # стенде ничего не делает. Keycloak в снимке нет — операторов создаёт demo-operators.
+  demo-db:
+    logging: *logging
+    image: postgres:16-alpine
+    command: ["sh", "/scripts/demo-load.sh"]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      DEMO_DATA: ${DEMO_DATA:-false}
+    volumes:
+      - ./postgres:/scripts:ro
+      - ./demo/snapshot:/snapshot:ro
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    restart: "no"
+
   redis:
     logging: *logging
     image: redis:7-alpine
@@ -109,6 +128,8 @@ services:
     depends_on:
       db-init:
         condition: service_completed_successfully
+      demo-db:
+        condition: service_completed_successfully
     healthcheck:
       # В образе нет curl — проверяем management-порт средствами bash.
       test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /auth/health/ready HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q UP <&3"]
@@ -138,6 +159,8 @@ services:
       AUTH_ADMIN_URL: http://auth-admin:8000
     depends_on:
       db-init:
+        condition: service_completed_successfully
+      demo-db:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
@@ -181,6 +204,8 @@ services:
       SCHEDULING_URL: http://scheduling:8000
     depends_on:
       db-init:
+        condition: service_completed_successfully
+      demo-db:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
@@ -244,6 +269,8 @@ services:
       ALLOCATION_URL: http://allocation:8000
     depends_on:
       db-init:
+        condition: service_completed_successfully
+      demo-db:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
@@ -343,6 +370,8 @@ services:
     depends_on:
       db-init:
         condition: service_completed_successfully
+      demo-db:
+        condition: service_completed_successfully
       personnel:
         condition: service_healthy
       scheduling:
@@ -391,6 +420,8 @@ services:
     depends_on:
       db-init:
         condition: service_completed_successfully
+      demo-db:
+        condition: service_completed_successfully
     restart: unless-stopped
 
   # Один экземпляр: факты и проекции чувствительны к порядку событий. При пустой read-model
@@ -434,6 +465,8 @@ services:
       ORG_URL: http://org:8000
     depends_on:
       db-init:
+        condition: service_completed_successfully
+      demo-db:
         condition: service_completed_successfully
       keycloak-init:
         condition: service_completed_successfully
@@ -502,6 +535,28 @@ services:
       keycloak:
         condition: service_healthy
     restart: unless-stopped
+
+  # Операторы демо-снимка (DEMO_DATA=true): недостающие учётные записи создаются через API
+  # с паролем demo-password-1. Ждёт, пока поднимутся Keycloak и сервисы; повторно — ничего.
+  demo-operators:
+    logging: *logging
+    image: dutyflow/org:${DUTYFLOW_VERSION:-dev}
+    command: ["python", "/demo/operators.py", "load"]
+    healthcheck:
+      disable: true
+    environment:
+      DEMO_DATA: ${DEMO_DATA:-false}
+      DEMO_BASE_URL: http://gateway
+      DUTYFLOW_ADMIN_PASSWORD: ${DUTYFLOW_ADMIN_PASSWORD}
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      PYTHONDONTWRITEBYTECODE: "1"
+    volumes:
+      - ./demo:/demo:ro
+    depends_on:
+      gateway:
+        condition: service_started
+    restart: "no"
 
   # --- Эксплуатация (профиль ops: не стартуют с `up`, запускаются `dutyflow.sh`) ---
 

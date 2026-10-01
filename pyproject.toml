@@ -44,6 +44,7 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "**/tests/**" = ["S105", "S106", "S311"]
 "tools/**" = ["S311"]  # синтетика и бенчмарки: детерминированный random по seed — это намеренно
+"deploy/demo/**" = ["S311"]  # демо-данные: детерминированный random по seed
 "services/allocation/src/allocation/synthetic.py" = ["S311"]
 
 [tool.ruff.lint.isort]
