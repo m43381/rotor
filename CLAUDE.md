@@ -86,7 +86,7 @@ tools/                  # генератор синтетических данн
 |---|---|
 | `just install` | Зависимости Python (uv workspace) и фронтенда |
 | `just up` / `just down` / `just reset` | Поднять стенд, остановить, остановить с удалением данных. Стенд: http://localhost:8088 (только HTTP, ADR-0021; адрес и порт — `SERVER_HOST`, `GATEWAY_PORT` в `deploy/.env`) |
-| `just demo` | Демонстрационные данные академии из `deploy/demo/demo.py`: 9 факультетов, кафедры, курсы, группы, ~5 200 человек, наряды (в т. ч. локальные кафедральные), допуски, освобождения, ~90 операторов с паролем `demo-password-1`; на сервере — `./dutyflow.sh demo`; идемпотентен |
+| `just demo` | Сгенерировать демо-данные академии из `deploy/demo/demo.py`: 9 факультетов, кафедры, курсы, группы, ~5 200 человек, наряды (в т. ч. локальные кафедральные), допуски, освобождения, ~90 операторов с паролем `demo-password-1`; на сервере — `./dutyflow.sh demo`; идемпотентен. Снимок готовых демо-данных (`deploy/demo/snapshot`) грузится сам при первом `up`, если `DEMO_DATA=true`; обновляется `./dutyflow.sh demo-snapshot` |
 | `just seed` | Демо-дерево подразделений, демо-учётки (`faculty_admin`, `course_operator`, `faculty_viewer`, `department_operator`, пароль `demo-password-1`), ~900 человек личного состава (курсанты и постоянный состав: управления факультетов, кафедры), наряды академии, факультетов и курсов с ролями и требованиями, допуски; идемпотентен |
 | `just lint` | ruff, ruff format, mypy strict, eslint, vue-tsc, проверка лицензий фронтенда |
 | `just test` | pytest (интеграционные тесты на Postgres через testcontainers, нужен Docker) и vitest |
