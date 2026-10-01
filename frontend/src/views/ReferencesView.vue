@@ -337,7 +337,7 @@ async function submit() {
           <InputText id="r-code" v-model="form.code" maxlength="50" :disabled="!!editId" :invalid="!codeValid" />
         </template>
         <template v-if="kind === 'ranks'">
-          <label for="r-short">Сокращение (для печатных форм)</label>
+          <label for="r-short">Сокращение (необязательно, пока только в справочнике)</label>
           <InputText id="r-short" v-model="form.short_name" maxlength="50" />
         </template>
         <template v-if="kind === 'unitTypes'">
