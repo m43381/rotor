@@ -1,0 +1,738 @@
+[
+ {
+  "username": "fak1_admin",
+  "last_name": "Медведев",
+  "first_name": "Денис",
+  "role": "unit_admin",
+  "unit_id": "01a0f8e7-9a82-797d-86fb-80807adca47a",
+  "enabled": true
+ },
+ {
+  "username": "fak1_operator",
+  "last_name": "Алексеева",
+  "first_name": "Ирина",
+  "role": "operator",
+  "unit_id": "01a0f8e7-9a82-797d-86fb-80807adca47a",
+  "enabled": true
+ },
+ {
+  "username": "fak2_admin",
+  "last_name": "Королёв",
+  "first_name": "Сергей",
+  "role": "unit_admin",
+  "unit_id": "01a0f8e7-de51-7bf5-a2ae-b0ce7f0e30dd",
+  "enabled": true
+ },
+ {
+  "username": "fak2_operator",
+  "last_name": "Сергеев",
+  "first_name": "Алексей",
+  "role": "operator",
+  "unit_id": "01a0f8e7-de51-7bf5-a2ae-b0ce7f0e30dd",
+  "enabled": true
+ },
+ {
+  "username": "fak3_admin",
+  "last_name": "Кузьмин",
+  "first_name": "Арсений",
+  "role": "unit_admin",
+  "unit_id": "01a0f8e8-7c63-7d2a-a48c-5c9f476e1b83",
+  "enabled": true
+ },
+ {
+  "username": "fak3_operator",
+  "last_name": "Ильин",
+  "first_name": "Арсений",
+  "role": "operator",
+  "unit_id": "01a0f8e8-7c63-7d2a-a48c-5c9f476e1b83",
+  "enabled": true
+ },
+ {
+  "username": "fak4_admin",
+  "last_name": "Сергеев",
+  "first_name": "Игорь",
+  "role": "unit_admin",
+  "unit_id": "01a0f8e8-b97c-7a3d-a567-ecf6d00b0757",
+  "enabled": true
+ },
+ {
+  "username": "fak4_operator",
+  "last_name": "Новиков",
+  "first_name": "Андрей",
+  "role": "operator",
+  "unit_id": "01a0f8e8-b97c-7a3d-a567-ecf6d00b0757",
+  "enabled": true
+ },
+ {
+  "username": "fak5_admin",
+  "last_name": "Давыдов",
+  "first_name": "Денис",
+  "role": "unit_admin",
+  "unit_id": "01a0f8e9-7338-78aa-86ae-c9920629ae6d",
+  "enabled": true
+ },
+ {
+  "username": "fak5_operator",
+  "last_name": "Полякова",
+  "first_name": "Мария",
+  "role": "operator",
+  "unit_id": "01a0f8e9-7338-78aa-86ae-c9920629ae6d",
+  "enabled": true
+ },
+ {
+  "username": "fak6_admin",
+  "last_name": "Сорокин",
+  "first_name": "Кирилл",
+  "role": "unit_admin",
+  "unit_id": "01a0f8e9-86d8-7d99-b97b-da588c94422c",
+  "enabled": true
+ },
+ {
+  "username": "fak6_operator",
+  "last_name": "Королёв",
+  "first_name": "Тимур",
+  "role": "operator",
+  "unit_id": "01a0f8e9-86d8-7d99-b97b-da588c94422c",
+  "enabled": true
+ },
+ {
+  "username": "fak7_admin",
+  "last_name": "Кузнецова",
+  "first_name": "Наталья",
+  "role": "unit_admin",
+  "unit_id": "01a0f8e9-96e1-7e76-a6b2-962d6bd305f3",
+  "enabled": true
+ },
+ {
+  "username": "fak7_operator",
+  "last_name": "Романов",
+  "first_name": "Ярослав",
+  "role": "operator",
+  "unit_id": "01a0f8e9-96e1-7e76-a6b2-962d6bd305f3",
+  "enabled": true
+ },
+ {
+  "username": "fak8_admin",
+  "last_name": "Петров",
+  "first_name": "Евгений",
+  "role": "unit_admin",
+  "unit_id": "01a0f8e9-a9f3-7e49-ab9c-f80048f6d62f",
+  "enabled": true
+ },
+ {
+  "username": "fak8_operator",
+  "last_name": "Романов",
+  "first_name": "Евгений",
+  "role": "operator",
+  "unit_id": "01a0f8e9-a9f3-7e49-ab9c-f80048f6d62f",
+  "enabled": true
+ },
+ {
+  "username": "fak9_admin",
+  "last_name": "Попов",
+  "first_name": "Артём",
+  "role": "unit_admin",
+  "unit_id": "01a0f8e9-b982-70f6-8568-e8ce128bfa4f",
+  "enabled": true
+ },
+ {
+  "username": "fak9_operator",
+  "last_name": "Андреев",
+  "first_name": "Максим",
+  "role": "operator",
+  "unit_id": "01a0f8e9-b982-70f6-8568-e8ce128bfa4f",
+  "enabled": true
+ },
+ {
+  "username": "kaf102",
+  "last_name": "Киселёв",
+  "first_name": "Никита",
+  "role": "operator",
+  "unit_id": "01a0f8ec-52bc-7ce2-a552-663f3bee8196",
+  "enabled": true
+ },
+ {
+  "username": "kaf11",
+  "last_name": "Орлова",
+  "first_name": "Наталья",
+  "role": "operator",
+  "unit_id": "01a0f8f7-b8d1-71cb-8810-7dbc94200d92",
+  "enabled": true
+ },
+ {
+  "username": "kaf12",
+  "last_name": "Виноградов",
+  "first_name": "Тимофей",
+  "role": "operator",
+  "unit_id": "01a0f8f7-b8dd-7e18-a837-87718dc77d72",
+  "enabled": true
+ },
+ {
+  "username": "kaf15",
+  "last_name": "Андреев",
+  "first_name": "Евгений",
+  "role": "operator",
+  "unit_id": "01a0f8f7-b8ed-7f57-8379-ace8a025bdec",
+  "enabled": true
+ },
+ {
+  "username": "kaf21",
+  "last_name": "Волков",
+  "first_name": "Матвей",
+  "role": "operator",
+  "unit_id": "01a0f8f7-baa1-76bb-ae0b-7ab6e6d961fe",
+  "enabled": true
+ },
+ {
+  "username": "kaf22",
+  "last_name": "Павлова",
+  "first_name": "Ирина",
+  "role": "operator",
+  "unit_id": "01a0f8f7-baaf-7d6d-8bbd-980abb1c9e09",
+  "enabled": true
+ },
+ {
+  "username": "kaf25",
+  "last_name": "Виноградов",
+  "first_name": "Антон",
+  "role": "operator",
+  "unit_id": "01a0f8f7-baba-7844-b4e1-047f5a38623e",
+  "enabled": true
+ },
+ {
+  "username": "kaf31",
+  "last_name": "Попов",
+  "first_name": "Никита",
+  "role": "operator",
+  "unit_id": "01a0f8f7-bc31-7e4e-a021-ed03f78e225e",
+  "enabled": true
+ },
+ {
+  "username": "kaf32",
+  "last_name": "Борисов",
+  "first_name": "Даниил",
+  "role": "operator",
+  "unit_id": "01a0f8f7-bc3e-7f36-95e1-d327539c880b",
+  "enabled": true
+ },
+ {
+  "username": "kaf35",
+  "last_name": "Егоров",
+  "first_name": "Тимофей",
+  "role": "operator",
+  "unit_id": "01a0f8f7-bc4b-7a25-b643-646de5862443",
+  "enabled": true
+ },
+ {
+  "username": "kaf41",
+  "last_name": "Соколова",
+  "first_name": "Ольга",
+  "role": "operator",
+  "unit_id": "01a0f8f7-bdea-75a0-bce4-7aad669a8f17",
+  "enabled": true
+ },
+ {
+  "username": "kaf42",
+  "last_name": "Лебедева",
+  "first_name": "Ольга",
+  "role": "operator",
+  "unit_id": "01a0f8f7-bdf8-7a48-b008-022ac8c2316d",
+  "enabled": true
+ },
+ {
+  "username": "kaf45",
+  "last_name": "Виноградов",
+  "first_name": "Владислав",
+  "role": "operator",
+  "unit_id": "01a0f8f7-be07-762d-9a93-1689aaeedda6",
+  "enabled": true
+ },
+ {
+  "username": "kaf51",
+  "last_name": "Волков",
+  "first_name": "Владимир",
+  "role": "operator",
+  "unit_id": "01a0f8f7-bfa2-76d1-babd-2f40a086a802",
+  "enabled": true
+ },
+ {
+  "username": "kaf52",
+  "last_name": "Никитин",
+  "first_name": "Олег",
+  "role": "operator",
+  "unit_id": "01a0f8f7-bfae-7fcf-bd0e-8628e12743c4",
+  "enabled": true
+ },
+ {
+  "username": "kaf55",
+  "last_name": "Королёв",
+  "first_name": "Евгений",
+  "role": "operator",
+  "unit_id": "01a0f8f7-bfbb-72d6-85ad-313ef55053f6",
+  "enabled": true
+ },
+ {
+  "username": "kaf61",
+  "last_name": "Козлова",
+  "first_name": "Елена",
+  "role": "operator",
+  "unit_id": "01a0f8ea-24f4-7e5d-917d-0801638dfbc2",
+  "enabled": true
+ },
+ {
+  "username": "kaf62",
+  "last_name": "Антонов",
+  "first_name": "Матвей",
+  "role": "operator",
+  "unit_id": "01a0f8ea-51c9-7fdc-8cf7-beb67047d1be",
+  "enabled": true
+ },
+ {
+  "username": "kaf65",
+  "last_name": "Киселёв",
+  "first_name": "Глеб",
+  "role": "operator",
+  "unit_id": "01a0f8ea-7a33-7ab4-ae93-5f0d44aa130f",
+  "enabled": true
+ },
+ {
+  "username": "kaf71",
+  "last_name": "Белов",
+  "first_name": "Алексей",
+  "role": "operator",
+  "unit_id": "01a0f8f7-c2cb-76d8-a90f-8207ee186968",
+  "enabled": true
+ },
+ {
+  "username": "kaf72",
+  "last_name": "Семёнов",
+  "first_name": "Руслан",
+  "role": "operator",
+  "unit_id": "01a0f8f7-c2d8-761b-9e8e-5788ba873fdd",
+  "enabled": true
+ },
+ {
+  "username": "kaf75",
+  "last_name": "Фролова",
+  "first_name": "Ольга",
+  "role": "operator",
+  "unit_id": "01a0f8f7-c2e4-7c84-8b9e-2d5f39bcda49",
+  "enabled": true
+ },
+ {
+  "username": "kaf81",
+  "last_name": "Иванов",
+  "first_name": "Егор",
+  "role": "operator",
+  "unit_id": "01a0f8f7-c477-769b-9284-0e6f4c94cf67",
+  "enabled": true
+ },
+ {
+  "username": "kaf82",
+  "last_name": "Алексеев",
+  "first_name": "Кирилл",
+  "role": "operator",
+  "unit_id": "01a0f8f7-c483-7ec3-a5ae-29e3cba67ece",
+  "enabled": true
+ },
+ {
+  "username": "kaf85",
+  "last_name": "Сорокин",
+  "first_name": "Павел",
+  "role": "operator",
+  "unit_id": "01a0f8f7-c490-72f4-bbe1-380c054f51e6",
+  "enabled": true
+ },
+ {
+  "username": "kaf91",
+  "last_name": "Петрова",
+  "first_name": "Татьяна",
+  "role": "operator",
+  "unit_id": "01a0f8f7-c603-742a-a76e-d087135006b2",
+  "enabled": true
+ },
+ {
+  "username": "kaf92",
+  "last_name": "Воробьёв",
+  "first_name": "Олег",
+  "role": "operator",
+  "unit_id": "01a0f8f7-c611-7d31-aeb3-4ef02d00d8a4",
+  "enabled": true
+ },
+ {
+  "username": "kaf95",
+  "last_name": "Михайлов",
+  "first_name": "Игорь",
+  "role": "operator",
+  "unit_id": "01a0f8f7-c61f-7a94-a2da-d506839139eb",
+  "enabled": true
+ },
+ {
+  "username": "kurs11",
+  "last_name": "Ковалёва",
+  "first_name": "Ольга",
+  "role": "operator",
+  "unit_id": "01a0f8f7-b8fb-74dc-b2d7-22c0ca4edc36",
+  "enabled": true
+ },
+ {
+  "username": "kurs12",
+  "last_name": "Комаров",
+  "first_name": "Олег",
+  "role": "operator",
+  "unit_id": "01a0f8f7-b94c-7f40-8aa1-d5a1df67522f",
+  "enabled": true
+ },
+ {
+  "username": "kurs13",
+  "last_name": "Фролова",
+  "first_name": "Анна",
+  "role": "operator",
+  "unit_id": "01a0f8f7-b9a9-7982-9467-35c7451f2ab2",
+  "enabled": true
+ },
+ {
+  "username": "kurs14",
+  "last_name": "Павлов",
+  "first_name": "Никита",
+  "role": "operator",
+  "unit_id": "01a0f8f7-b9f5-71ee-af53-b54a6a6ba3bf",
+  "enabled": true
+ },
+ {
+  "username": "kurs15",
+  "last_name": "Белова",
+  "first_name": "Ирина",
+  "role": "operator",
+  "unit_id": "01a0f8f7-ba51-79d7-9b35-e0b021caaf5f",
+  "enabled": true
+ },
+ {
+  "username": "kurs21",
+  "last_name": "Киселёв",
+  "first_name": "Алексей",
+  "role": "operator",
+  "unit_id": "01a0f8f7-bac7-78c5-b181-5780697e8ec4",
+  "enabled": true
+ },
+ {
+  "username": "kurs22",
+  "last_name": "Виноградов",
+  "first_name": "Павел",
+  "role": "operator",
+  "unit_id": "01a0f8f7-bb09-74e4-ae96-1bb9a704ece2",
+  "enabled": true
+ },
+ {
+  "username": "kurs23",
+  "last_name": "Жуков",
+  "first_name": "Сергей",
+  "role": "operator",
+  "unit_id": "01a0f8f7-bb57-7868-a4ed-5c45f71ed29e",
+  "enabled": true
+ },
+ {
+  "username": "kurs24",
+  "last_name": "Волкова",
+  "first_name": "Ирина",
+  "role": "operator",
+  "unit_id": "01a0f8f7-bba3-71e1-ae65-155d42fea407",
+  "enabled": true
+ },
+ {
+  "username": "kurs25",
+  "last_name": "Антонов",
+  "first_name": "Кирилл",
+  "role": "operator",
+  "unit_id": "01a0f8f7-bbf0-7107-bd21-f61ec054fe86",
+  "enabled": true
+ },
+ {
+  "username": "kurs31",
+  "last_name": "Баранова",
+  "first_name": "Мария",
+  "role": "operator",
+  "unit_id": "01a0f8f7-bc56-7e9f-9a8f-144b3add6dff",
+  "enabled": true
+ },
+ {
+  "username": "kurs32",
+  "last_name": "Кузнецова",
+  "first_name": "Наталья",
+  "role": "operator",
+  "unit_id": "01a0f8f7-bca4-7c4b-94f4-29d27be3f299",
+  "enabled": true
+ },
+ {
+  "username": "kurs33",
+  "last_name": "Дмитриев",
+  "first_name": "Антон",
+  "role": "operator",
+  "unit_id": "01a0f8f7-bd01-7124-9583-48f5daa26963",
+  "enabled": true
+ },
+ {
+  "username": "kurs34",
+  "last_name": "Жуков",
+  "first_name": "Андрей",
+  "role": "operator",
+  "unit_id": "01a0f8f7-bd41-7a4c-b60c-1d5d4e776336",
+  "enabled": true
+ },
+ {
+  "username": "kurs35",
+  "last_name": "Сорокин",
+  "first_name": "Кирилл",
+  "role": "operator",
+  "unit_id": "01a0f8f7-bd97-7396-b446-815be7d6f1ee",
+  "enabled": true
+ },
+ {
+  "username": "kurs41",
+  "last_name": "Смирнов",
+  "first_name": "Илья",
+  "role": "operator",
+  "unit_id": "01a0f8f7-be14-7b2a-b8e1-0bf210765dba",
+  "enabled": true
+ },
+ {
+  "username": "kurs42",
+  "last_name": "Павлова",
+  "first_name": "Татьяна",
+  "role": "operator",
+  "unit_id": "01a0f8f7-be50-7156-af6c-8e1838f89626",
+  "enabled": true
+ },
+ {
+  "username": "kurs43",
+  "last_name": "Николаев",
+  "first_name": "Матвей",
+  "role": "operator",
+  "unit_id": "01a0f8f7-bead-7049-9c1e-6055bd589306",
+  "enabled": true
+ },
+ {
+  "username": "kurs44",
+  "last_name": "Васильев",
+  "first_name": "Егор",
+  "role": "operator",
+  "unit_id": "01a0f8f7-beef-7206-8747-913553c6ac8c",
+  "enabled": true
+ },
+ {
+  "username": "kurs45",
+  "last_name": "Павлов",
+  "first_name": "Марк",
+  "role": "operator",
+  "unit_id": "01a0f8f7-bf48-7e17-a97a-0a24aa9a4274",
+  "enabled": true
+ },
+ {
+  "username": "kurs51",
+  "last_name": "Антонов",
+  "first_name": "Илья",
+  "role": "operator",
+  "unit_id": "01a0f8f7-bfcb-7daa-94e4-93c89749923b",
+  "enabled": true
+ },
+ {
+  "username": "kurs52",
+  "last_name": "Яковлев",
+  "first_name": "Тимофей",
+  "role": "operator",
+  "unit_id": "01a0f8f7-c02e-7990-92cb-5dd1bb95844e",
+  "enabled": true
+ },
+ {
+  "username": "kurs53",
+  "last_name": "Борисова",
+  "first_name": "Анна",
+  "role": "operator",
+  "unit_id": "01a0f8f7-c06f-74cd-8f2a-881a3a37850e",
+  "enabled": true
+ },
+ {
+  "username": "kurs54",
+  "last_name": "Смирнов",
+  "first_name": "Максим",
+  "role": "operator",
+  "unit_id": "01a0f8f7-c0ae-787c-9787-455e394c1a2a",
+  "enabled": true
+ },
+ {
+  "username": "kurs55",
+  "last_name": "Соколов",
+  "first_name": "Егор",
+  "role": "operator",
+  "unit_id": "01a0f8f7-c0f2-76bc-b029-72fc103351ae",
+  "enabled": true
+ },
+ {
+  "username": "kurs61",
+  "last_name": "Ковалёва",
+  "first_name": "Елена",
+  "role": "operator",
+  "unit_id": "01a0f8ea-c065-77e8-a8fb-8c783cdc5912",
+  "enabled": true
+ },
+ {
+  "username": "kurs62",
+  "last_name": "Кузьмин",
+  "first_name": "Антон",
+  "role": "operator",
+  "unit_id": "01a0f8ea-fcfd-7146-81f9-8014c23408d7",
+  "enabled": true
+ },
+ {
+  "username": "kurs63",
+  "last_name": "Новикова",
+  "first_name": "Татьяна",
+  "role": "operator",
+  "unit_id": "01a0f8eb-1574-7b29-b9a3-2aae1cd0a84d",
+  "enabled": true
+ },
+ {
+  "username": "kurs64",
+  "last_name": "Виноградов",
+  "first_name": "Ярослав",
+  "role": "operator",
+  "unit_id": "01a0f8eb-2b3f-7aa3-827d-cad36bdb02a3",
+  "enabled": true
+ },
+ {
+  "username": "kurs65",
+  "last_name": "Тарасов",
+  "first_name": "Иван",
+  "role": "operator",
+  "unit_id": "01a0f8eb-3f56-77ee-8a33-92fd7178d701",
+  "enabled": true
+ },
+ {
+  "username": "kurs71",
+  "last_name": "Киселёв",
+  "first_name": "Иван",
+  "role": "operator",
+  "unit_id": "01a0f8f7-c2f1-7459-929a-493916a6b6be",
+  "enabled": true
+ },
+ {
+  "username": "kurs72",
+  "last_name": "Жуков",
+  "first_name": "Максим",
+  "role": "operator",
+  "unit_id": "01a0f8f7-c334-74a1-b402-95a6fa3d1817",
+  "enabled": true
+ },
+ {
+  "username": "kurs73",
+  "last_name": "Зайцев",
+  "first_name": "Иван",
+  "role": "operator",
+  "unit_id": "01a0f8f7-c384-71ce-97db-f5f065b799e4",
+  "enabled": true
+ },
+ {
+  "username": "kurs74",
+  "last_name": "Поляков",
+  "first_name": "Роман",
+  "role": "operator",
+  "unit_id": "01a0f8f7-c3c3-7a55-bb97-c725d1be58b9",
+  "enabled": true
+ },
+ {
+  "username": "kurs75",
+  "last_name": "Захарова",
+  "first_name": "Мария",
+  "role": "operator",
+  "unit_id": "01a0f8f7-c41e-7d01-b97c-085a37f5c4d8",
+  "enabled": true
+ },
+ {
+  "username": "kurs81",
+  "last_name": "Давыдов",
+  "first_name": "Антон",
+  "role": "operator",
+  "unit_id": "01a0f8f7-c49d-7fc7-93d5-3f8f06905506",
+  "enabled": true
+ },
+ {
+  "username": "kurs82",
+  "last_name": "Гусева",
+  "first_name": "Анна",
+  "role": "operator",
+  "unit_id": "01a0f8f7-c4db-7802-9b53-12d81137008b",
+  "enabled": true
+ },
+ {
+  "username": "kurs83",
+  "last_name": "Андреев",
+  "first_name": "Артём",
+  "role": "operator",
+  "unit_id": "01a0f8f7-c527-7658-aec6-20d989ab7002",
+  "enabled": true
+ },
+ {
+  "username": "kurs84",
+  "last_name": "Борисов",
+  "first_name": "Данила",
+  "role": "operator",
+  "unit_id": "01a0f8f7-c565-715c-9a1f-9d0686171f69",
+  "enabled": true
+ },
+ {
+  "username": "kurs85",
+  "last_name": "Орлова",
+  "first_name": "Татьяна",
+  "role": "operator",
+  "unit_id": "01a0f8f7-c5b1-793d-bef3-67ce533a767d",
+  "enabled": true
+ },
+ {
+  "username": "kurs91",
+  "last_name": "Воробьёв",
+  "first_name": "Глеб",
+  "role": "operator",
+  "unit_id": "01a0f8f7-c62b-78b5-b3ea-971bb6840794",
+  "enabled": true
+ },
+ {
+  "username": "kurs92",
+  "last_name": "Ковалёв",
+  "first_name": "Антон",
+  "role": "operator",
+  "unit_id": "01a0f8f7-c687-7e72-a5bb-51876c486cc9",
+  "enabled": true
+ },
+ {
+  "username": "kurs93",
+  "last_name": "Воробьёв",
+  "first_name": "Константин",
+  "role": "operator",
+  "unit_id": "01a0f8f7-c6d5-7c3e-a6b0-0fae383b0a4b",
+  "enabled": true
+ },
+ {
+  "username": "kurs94",
+  "last_name": "Николаев",
+  "first_name": "Илья",
+  "role": "operator",
+  "unit_id": "01a0f8f7-c721-778b-8803-bb5f98e80bbc",
+  "enabled": true
+ },
+ {
+  "username": "kurs95",
+  "last_name": "Максимов",
+  "first_name": "Владимир",
+  "role": "operator",
+  "unit_id": "01a0f8f7-c765-72d3-8b93-6801d0010a8f",
+  "enabled": true
+ },
+ {
+  "username": "nablyudatel",
+  "last_name": "Сергеев",
+  "first_name": "Тимур",
+  "role": "viewer",
+  "unit_id": "00000000-0000-7000-8000-000000000001",
+  "enabled": true
+ }
+]
