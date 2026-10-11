@@ -121,17 +121,24 @@ class Api:
         return {"Authorization": f"Bearer {self._token}"}
 
     async def call(self, method: str, path: str, ok: Iterable[int] = (), **kw: Any) -> Any:
+        r: httpx.Response | None = None
+        error: Exception | None = None
         async with self.sem:
-            for attempt in range(5):
+            # До ~2,5 минуты: на первом старте после сборки стенд ещё нагружен миграциями
+            for attempt in range(12):
                 try:
                     r = await self.http.request(method, path, headers=await self._headers(), **kw)
-                except httpx.TransportError:
-                    await asyncio.sleep(2 * (attempt + 1))
+                    error = None
+                except httpx.TransportError as e:
+                    r, error = None, e
+                    await asyncio.sleep(min(2 * (attempt + 1), 20))
                     continue
                 if r.status_code >= 500:  # сервис ещё поднимается
-                    await asyncio.sleep(2 * (attempt + 1))
+                    await asyncio.sleep(min(2 * (attempt + 1), 20))
                     continue
                 break
+        if r is None:
+            raise SystemExit(f"{method} {path}: стенд не отвечает ({error!r})")
         if r.status_code >= 400 and r.status_code not in ok:
             raise SystemExit(f"{method} {path} → {r.status_code}: {r.text[:400]}")
         return (
