@@ -144,7 +144,21 @@ load_images() {
     fi
 }
 
-cmd_up() { require_env; compose up -d --remove-orphans; }
+ensure_images() { # образов dutyflow/* нет ни в одном реестре: они собираются или грузятся из пакета
+    local version name
+    version="$(env_value DUTYFLOW_VERSION dev)"
+    for name in org personnel scheduling allocation documents analytics auth-admin gateway; do
+        docker image inspect "dutyflow/$name:$version" > /dev/null 2>&1 && continue
+        if [ -f "$DIR/images.tar.gz" ]; then
+            die "нет образа dutyflow/$name:$version — загрузите образы пакета: ./dutyflow.sh update"
+        fi
+        say "Нет образа dutyflow/$name:$version — сборка из исходников (в первый раз — 5–15 минут)…"
+        compose build
+        return
+    done
+}
+
+cmd_up() { require_env; ensure_images; compose up -d --remove-orphans; }
 cmd_down() { require_env; compose down; }
 cmd_status() { require_env; compose ps -a; }
 cmd_logs() { require_env; compose logs -f --tail=200 "$@"; }

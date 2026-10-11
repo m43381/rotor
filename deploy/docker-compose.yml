@@ -2,6 +2,9 @@
 # со случайными паролями), затем `docker compose up -d --build`. В разработке — `just up`.
 # Адрес сервера и внешний порт задаются в .env (SERVER_HOST, GATEWAY_PORT). Только HTTP (ADR-0021).
 # Все образы собираются или берутся заранее: во время работы стенд не обращается в интернет.
+# Образы dutyflow/* нет ни в одном реестре. Контейнеры без build: (relay, consumer, worker и др.)
+# берут образ соседнего сервиса и помечены pull_policy: never, иначе compose пытается скачать
+# этот образ из Docker Hub до сборки («pull access denied» на чистом сервере).
 name: dutyflow
 
 x-service-env: &service-env
@@ -169,6 +172,7 @@ services:
   org-relay:
     logging: *logging
     image: dutyflow/org:${DUTYFLOW_VERSION:-dev}
+    pull_policy: never
     command: ["python", "-m", "org.relay"]
     healthcheck:
       # Признак жизни цикла (dutyflow_common.heartbeat): HTTP-порта у процесса нет
@@ -214,6 +218,7 @@ services:
   personnel-relay:
     logging: *logging
     image: dutyflow/personnel:${DUTYFLOW_VERSION:-dev}
+    pull_policy: never
     command: ["python", "-m", "personnel.relay"]
     healthcheck:
       # Признак жизни цикла (dutyflow_common.heartbeat): HTTP-порта у процесса нет
@@ -232,6 +237,7 @@ services:
   personnel-consumer:
     logging: *logging
     image: dutyflow/personnel:${DUTYFLOW_VERSION:-dev}
+    pull_policy: never
     command: ["python", "-m", "personnel.consumer"]
     healthcheck:
       # Признак жизни цикла (dutyflow_common.heartbeat): HTTP-порта у процесса нет
@@ -281,6 +287,7 @@ services:
   scheduling-relay:
     logging: *logging
     image: dutyflow/scheduling:${DUTYFLOW_VERSION:-dev}
+    pull_policy: never
     command: ["python", "-m", "scheduling.relay"]
     healthcheck:
       # Признак жизни цикла (dutyflow_common.heartbeat): HTTP-порта у процесса нет
@@ -299,6 +306,7 @@ services:
   scheduling-consumer:
     logging: *logging
     image: dutyflow/scheduling:${DUTYFLOW_VERSION:-dev}
+    pull_policy: never
     command: ["python", "-m", "scheduling.consumer"]
     healthcheck:
       # Признак жизни цикла (dutyflow_common.heartbeat): HTTP-порта у процесса нет
@@ -336,6 +344,7 @@ services:
   allocation-worker:
     logging: *logging
     image: dutyflow/allocation:${DUTYFLOW_VERSION:-dev}
+    pull_policy: never
     command: ["arq", "allocation.worker.WorkerSettings"]
     healthcheck:
       disable: true
@@ -381,6 +390,7 @@ services:
   documents-relay:
     logging: *logging
     image: dutyflow/documents:${DUTYFLOW_VERSION:-dev}
+    pull_policy: never
     command: ["python", "-m", "documents.relay"]
     healthcheck:
       # Признак жизни цикла (dutyflow_common.heartbeat): HTTP-порта у процесса нет
@@ -429,6 +439,7 @@ services:
   analytics-consumer:
     logging: *logging
     image: dutyflow/analytics:${DUTYFLOW_VERSION:-dev}
+    pull_policy: never
     command: ["python", "-m", "analytics.consumer"]
     healthcheck:
       # Признак жизни цикла (dutyflow_common.heartbeat): HTTP-порта у процесса нет
@@ -475,6 +486,7 @@ services:
   auth-admin-relay:
     logging: *logging
     image: dutyflow/auth-admin:${DUTYFLOW_VERSION:-dev}
+    pull_policy: never
     command: ["python", "-m", "auth_admin.relay"]
     healthcheck:
       # Признак жизни цикла (dutyflow_common.heartbeat): HTTP-порта у процесса нет
@@ -494,6 +506,7 @@ services:
   keycloak-init:
     logging: *logging
     image: dutyflow/auth-admin:${DUTYFLOW_VERSION:-dev}
+    pull_policy: never
     command: ["python", "-m", "auth_admin.bootstrap"]
     healthcheck:
       disable: true
@@ -541,6 +554,7 @@ services:
   demo-operators:
     logging: *logging
     image: dutyflow/org:${DUTYFLOW_VERSION:-dev}
+    pull_policy: never
     command: ["python", "/demo/operators.py", "load"]
     healthcheck:
       disable: true
@@ -584,6 +598,7 @@ services:
   demo:
     profiles: ["demo"]
     image: dutyflow/org:${DUTYFLOW_VERSION:-dev}
+    pull_policy: never
     command: ["python", "/demo/demo.py"]
     logging: *logging
     healthcheck:
@@ -605,6 +620,7 @@ services:
   ops:
     profiles: ["ops"]
     image: dutyflow/org:${DUTYFLOW_VERSION:-dev}
+    pull_policy: never
     command: ["python", "-m", "dutyflow_common.doctor"]
     logging: *logging
     healthcheck:
